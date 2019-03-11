@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.IsolatedStorage;
@@ -12,28 +12,28 @@ namespace RegExpToDfa
         public static void Main()
         {
             // TestNFA: Trying the RE->NFA->DFA translation on three regular expressions
-            Regex reA = new Sym("a");
-            Regex reB = new Sym("b");
+            //Regex reA = new Sym("a");
+            //Regex reB = new Sym("b");
 
-            // (a|b)*
-            Regex reA_Plus_reB_Star = new Star(new Alt(reA, reB));
+            //// (a|b)*
+            //Regex reA_Plus_reB_Star = new Star(new Alt(reA, reB));
 
-            BuildAndShow("dfa0.dot", reA_Plus_reB_Star);
+            //BuildAndShow("dfa0.dot", reA_Plus_reB_Star);
 
             //
             // epsilon-NFA accepting accepting decimal numbers
             //
 
-            var nfa = new Nfa(0, 5);
+            var nfaDecimal = new Nfa(0, 5);
 
             // TODO: Because we do not support ranges let d be digit
 
             // sign
-            nfa.AddTrans(0, null, 1);
-            nfa.AddTrans(0, "+", 1);
-            nfa.AddTrans(0, "-", 1);
+            nfaDecimal.AddTrans(0, null, 1);
+            nfaDecimal.AddTrans(0, "+", 1);
+            nfaDecimal.AddTrans(0, "-", 1);
             // optional digits [0-9] before decimal point
-            nfa.AddTrans(1, "d", 1);
+            nfaDecimal.AddTrans(1, "d", 1);
             //nfa.AddTrans(1, "1", 1);
             //nfa.AddTrans(1, "2", 1);
             //nfa.AddTrans(1, "3", 1);
@@ -44,9 +44,9 @@ namespace RegExpToDfa
             //nfa.AddTrans(1, "8", 1);
             //nfa.AddTrans(1, "9", 1);
             // decimal point before mandatory digit(s)
-            nfa.AddTrans(1, ".", 2);
+            nfaDecimal.AddTrans(1, ".", 2);
             // digit after state 2
-            nfa.AddTrans(2, "d", 3);
+            nfaDecimal.AddTrans(2, "d", 3);
             //nfa.AddTrans(2, "1", 3);
             //nfa.AddTrans(2, "2", 3);
             //nfa.AddTrans(2, "3", 3);
@@ -57,7 +57,7 @@ namespace RegExpToDfa
             //nfa.AddTrans(2, "8", 3);
             //nfa.AddTrans(2, "9", 3);
             // digit before decimal point
-            nfa.AddTrans(1, "d", 4);
+            nfaDecimal.AddTrans(1, "d", 4);
             //nfa.AddTrans(1, "1", 4);
             //nfa.AddTrans(1, "2", 4);
             //nfa.AddTrans(1, "3", 4);
@@ -68,9 +68,9 @@ namespace RegExpToDfa
             //nfa.AddTrans(1, "8", 4);
             //nfa.AddTrans(1, "9", 4);
             // decimal point after mandatory digit(s)
-            nfa.AddTrans(4, ".", 3);
+            nfaDecimal.AddTrans(4, ".", 3);
             // optional digits [0-9] after decimal point
-            nfa.AddTrans(3, "d", 3);
+            nfaDecimal.AddTrans(3, "d", 3);
             //nfa.AddTrans(3, "1", 3);
             //nfa.AddTrans(3, "2", 3);
             //nfa.AddTrans(3, "3", 3);
@@ -81,35 +81,43 @@ namespace RegExpToDfa
             //nfa.AddTrans(3, "8", 3);
             //nfa.AddTrans(3, "9", 3);
             // epsilon-transition to accepting/final state
-            nfa.AddTrans(3, null, 5);
+            nfaDecimal.AddTrans(3, null, 5);
 
-            Dfa dfa = nfa.ToDfa();
+            Dfa dfaDecimal = nfaDecimal.ToDfa();
 
-            dfa.WriteDot(GetPath("dfa_example.dot"));
+            dfaDecimal.WriteDot(GetPath("dfa_decimal.dot"));
 
             //
             // Keyword search: Build NFA directly
             //
 
-            //var start = new Nfa(0, 10);
-            //start.AddTrans(0, null, 1);
-            //start.AddTrans(0, null, 5);
+            // TODO: Vi antager, at alfabetet er de mulige ord i 'web' og 'ebay', da grafen ellers bliver meget uoverskuelig
+            // NOTE: Grafen er allerede uoverskuelig pga de mange pile, da hver vertex kun kan have et input
 
-            //var web = new Nfa(1, 4);
-            //web.AddTrans(1, "w", 2);
-            //web.AddTrans(2, "e", 3);
-            //web.AddTrans(3, "b", 4);
+            // 9,1,0 is part of every state
+            var nfaKeywords = new Nfa(9, new [] {4, 8}, s => new Set<int>(new[] {0,1,9}).Contains(s) == false);
+            nfaKeywords.AddTrans(9, null, 1);
+            nfaKeywords.AddTrans(9, null, 0);
+            // guessing is smart in NFA
+            nfaKeywords.AddTrans(9, "w", 9);
+            nfaKeywords.AddTrans(9, "e", 9);
+            nfaKeywords.AddTrans(9, "b", 9);
+            nfaKeywords.AddTrans(9, "a", 9);
+            nfaKeywords.AddTrans(9, "y", 9);
+            // web
+            nfaKeywords.AddTrans(1, "w", 2);
+            nfaKeywords.AddTrans(2, "e", 3);
+            nfaKeywords.AddTrans(3, "b", 4);
+            // ebay
+            nfaKeywords.AddTrans(0, "e", 5);
+            nfaKeywords.AddTrans(5, "b", 6);
+            nfaKeywords.AddTrans(6, "a", 7);
+            nfaKeywords.AddTrans(7, "y", 8);
 
-            //var ebay = new Nfa(5, 9);
-            //ebay.AddTrans(5, "e", 6);
-            //ebay.AddTrans(6, "b", 7);
-            //ebay.AddTrans(7, "a", 8);
-            //ebay.AddTrans(8, "y", 9);
+            Dfa dfaKeywords = nfaKeywords.ToDfa();
 
-            //var eps1 = new Nfa(4, 9);
-            //eps1.AddTrans(4, null, 9);
-            //var eps2 = new Nfa(8, 9);
-            //eps2.AddTrans(8, null, 9);
+            // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
+            dfaKeywords.WriteDot(GetPath("dfa_keywords.dot"));
 
             //// bb
             //Regex reB_Concat_reB = new Seq(reB, reB);

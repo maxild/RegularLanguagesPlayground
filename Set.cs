@@ -5,8 +5,6 @@ using System.Text;
 
 namespace RegExpToDfa
 {
-    // TODO: Is this needed today???
-
     /// <summary>
     /// A set, with element-based hash codes, built upon <see cref="HashSet{T}"/>
     /// </summary>
@@ -150,19 +148,26 @@ namespace RegExpToDfa
 
         public override string ToString()
         {
-            StringBuilder res = new StringBuilder();
-            res.Append("{ ");
+            return this.ToSetNotation();
+        }
+    }
+
+    public static class SetExtenions
+    {
+        public static string ToSetNotation<T>(this IEnumerable<T> values)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("{ ");
             bool first = true;
-            foreach (T x in this)
+            foreach (T x in values)
             {
                 if (!first)
-                    res.Append(", ");
-                res.Append(x);
+                    sb.Append(", ");
+                sb.Append(x);
                 first = false;
             }
-
-            res.Append(" }");
-            return res.ToString();
+            sb.Append(" }");
+            return sb.ToString();
         }
     }
 }

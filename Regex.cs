@@ -10,7 +10,7 @@ namespace RegExpToDfa
     /// <summary>
     /// Regular expressions
     /// </summary>
-    abstract class Regex
+    public abstract class Regex
     {
         public abstract Nfa MkNfa(Nfa.NameSource names); // abstract factory for NFA-composite
     }
@@ -18,7 +18,7 @@ namespace RegExpToDfa
     /// <summary>
     /// Base (Atom) NFA for epsilon transition
     /// </summary>
-    class Eps : Regex
+    public class Eps : Regex
     {
         // The resulting nfa0 has form s0s -eps-> s0e
 
@@ -35,7 +35,7 @@ namespace RegExpToDfa
     /// <summary>
     /// Base (Atom) NFA for single character transition
     /// </summary>
-    class Sym : Regex
+    public class Sym : Regex
     {
         readonly string _sym;
 
@@ -61,7 +61,7 @@ namespace RegExpToDfa
     /// <summary>
     /// Concatenation operator NFA builder
     /// </summary>
-    class Seq : Regex
+    public class Seq : Regex
     {
         private readonly Regex _r1;
         private readonly Regex _r2;
@@ -79,12 +79,12 @@ namespace RegExpToDfa
         {
             Nfa nfa1 = _r1.MkNfa(names);
             Nfa nfa2 = _r2.MkNfa(names);
-            Nfa nfa0 = new Nfa(nfa1.Start, nfa2.Exit);
+            Nfa nfa0 = new Nfa(nfa1.Start, nfa2.GetRequiredSingleAcceptingState());
             foreach (KeyValuePair<int, List<Transition>> entry in nfa1.Trans)
                 nfa0.AddTrans(entry);
             foreach (KeyValuePair<int, List<Transition>> entry in nfa2.Trans)
                 nfa0.AddTrans(entry);
-            nfa0.AddTrans(nfa1.Exit, null, nfa2.Start);
+            nfa0.AddTrans(nfa1.GetRequiredSingleAcceptingState(), null, nfa2.Start);
             return nfa0;
         }
     }
@@ -92,7 +92,7 @@ namespace RegExpToDfa
     /// <summary>
     /// Union NFA builder
     /// </summary>
-    class Alt : Regex
+    public class Alt : Regex
     {
         private readonly Regex _r1;
         private readonly Regex _r2;
@@ -121,8 +121,8 @@ namespace RegExpToDfa
                 nfa0.AddTrans(entry);
             nfa0.AddTrans(startState, null, nfa1.Start);
             nfa0.AddTrans(startState, null, nfa2.Start);
-            nfa0.AddTrans(nfa1.Exit, null, exitState);
-            nfa0.AddTrans(nfa2.Exit, null, exitState);
+            nfa0.AddTrans(nfa1.GetRequiredSingleAcceptingState(), null, exitState);
+            nfa0.AddTrans(nfa2.GetRequiredSingleAcceptingState(), null, exitState);
             return nfa0;
         }
     }
@@ -130,7 +130,7 @@ namespace RegExpToDfa
     /// <summary>
     /// Kleene Star NFA builder
     /// </summary>
-    class Star : Regex
+    public class Star : Regex
     {
         private readonly Regex _r;
 
@@ -152,7 +152,7 @@ namespace RegExpToDfa
             foreach (KeyValuePair<int, List<Transition>> entry in nfa1.Trans)
                 nfa0.AddTrans(entry);
             nfa0.AddTrans(startState, null, nfa1.Start);
-            nfa0.AddTrans(nfa1.Exit, null, startState);
+            nfa0.AddTrans(nfa1.GetRequiredSingleAcceptingState(), null, startState);
             return nfa0;
         }
     }

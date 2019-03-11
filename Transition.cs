@@ -1,27 +1,29 @@
 namespace RegExpToDfa
 {
     /// <summary>
-    /// A transition to another state on an input (i.e. args to transition function).
+    /// A transition to another state on a given input.
     /// </summary>
-    public class Transition
+    public struct Transition
     {
-        public string Lab;
-        public int Target;
+        /// <summary>
+        /// Input character
+        /// </summary>
+        public string Input;
 
         /// <summary>
-        /// Initialize transition
+        /// State we transition into on <see cref="Input"/>
         /// </summary>
-        /// <param name="lab">Input (label???) that transitions to target (null meaning epsilon)</param>
-        /// <param name="target">Target state</param>
-        public Transition(string lab, int target)
+        public int ToState;
+
+        public Transition(string input, int toState)
         {
-            Lab = lab;
-            Target = target;
+            Input = input;
+            ToState = toState;
         }
 
         public override string ToString()
         {
-            return "-" + Lab + "-> " + Target;
+            return "-" + Input + "-> " + ToState;
         }
     }
 }

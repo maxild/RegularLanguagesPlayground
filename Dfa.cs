@@ -12,7 +12,7 @@ namespace RegExpToDfa
     /// </summary>
     public class Dfa
     {
-        public NfaToDfaRenamer _renamer;
+        private readonly NfaToDfaRenamer _renamer;
 
         public Dfa(
             int startState,
@@ -55,7 +55,7 @@ namespace RegExpToDfa
                 sw.WriteLine("n999999 [style=invis];"); // Invisible start node
                 sw.WriteLine("n999999 -> n" + Start); // Edge into start state
 
-                // labels
+                // labels that indicate the NFA states of the subset construction
                 foreach (int state in Trans.Keys)
                     sw.WriteLine("n" + state + " [label=\"" + _renamer.ToDfaStateString(state) + "\"]");
 
@@ -67,21 +67,19 @@ namespace RegExpToDfa
                 // The transitions
                 foreach (KeyValuePair<int, IDictionary<string, int>> entry in Trans)
                 {
-                    int s1 = entry.Key;
+                    int fromState = entry.Key; // from-state
                     foreach (KeyValuePair<string, int> s1Trans in entry.Value)
                     {
-                        string lab = s1Trans.Key;
-                        int s2 = s1Trans.Value;
-                        sw.WriteLine("n" + s1 + " -> n" + s2 + " [label=\"" + lab + "\"];");
-                        //sw.WriteLine(_renamer.ToDfaStateString(s1) + " -> " + _renamer.ToDfaStateString(s2) + " [label=\"" + lab + "\"];");
+                        string input = s1Trans.Key;
+                        int toState = s1Trans.Value;
+                        sw.WriteLine("n" + fromState + " -> n" + toState + " [label=\"" + input + "\"];");
                     }
                 }
 
                 sw.WriteLine("}");
 
-                // Ensure overwrite
+                // Ensure we overwrite an existing file
                 fileStream.SetLength(fileStream.Position);
-
             }
 
         }

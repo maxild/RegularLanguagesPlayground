@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RegExpToDfa
 {
@@ -21,21 +23,58 @@ namespace RegExpToDfa
     ///  (2) Replace composite states (Set of int) by simple states
     ///      (int). This is done by methods Rename and MkRenamer.
     /// </remarks>
-    class Nfa
+    public class Nfa
     {
+        private readonly Func<int, bool> _predicate;
+
         public Nfa(int startState, int exitState)
         {
             Start = startState;
-            Exit = exitState;
+            AcceptingStates = new Set<int>(exitState);
+            // for every state
             Trans = new Dictionary<int, List<Transition>>();
+            // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
             if (!startState.Equals(exitState))
                 Trans.Add(exitState, new List<Transition>());
         }
 
+        public Nfa(int startState, IEnumerable<int> acceptingStates, Func<int, bool> predicate)
+        {
+            Start = startState;
+            AcceptingStates = new Set<int>(acceptingStates);
+            Trans = new Dictionary<int, List<Transition>>();
+            // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
+            foreach (var acceptingState in AcceptingStates)
+            {
+                if (!startState.Equals(acceptingState))
+                    Trans.Add(acceptingState, new List<Transition>());
+            }
+
+            _predicate = predicate;
+        }
+
         public int Start { get; }
 
-        public int Exit { get; }
+        public Set<int> AcceptingStates { get; } // TODO: ImmutableSet
 
+        public int GetRequiredSingleAcceptingState()
+        {
+            if (AcceptingStates.Count != 1)
+            {
+                throw new InvalidOperationException("The NFA does not have a single accepting state.");
+            }
+            int[] buffer = new int[1];
+            AcceptingStates.CopyTo(buffer, 0);
+            return buffer[0];
+        }
+
+        /// <summary>
+        /// For any state we can find a list of transitions -- i.e.
+        /// Trans[q] is a list of pairs {(a, p1), (a,p2), (b, p1),....}
+        /// where the pair (a, p1) show us that on on input 'a' we move
+        /// to state p1. We use a list because the same input can be any
+        /// many pairs (non-deterministic) machine.
+        /// </summary>
         public IDictionary<int, List<Transition>> Trans { get; }
 
         public void AddTrans(int s1, string lab, int s2)
@@ -63,7 +102,7 @@ namespace RegExpToDfa
 
         public override string ToString()
         {
-            return "NFA start=" + Start + " exit=" + Exit;
+            return "NFA start state is " + Start + ", Accepting states are " + AcceptingStates;
         }
 
         // Construct the transition relation of a composite-state DFA
@@ -119,22 +158,22 @@ namespace RegExpToDfa
                         // For all non-epsilon transitions s -lab-> t, add t to T
                         foreach (Transition tr in trans[s])
                         {
-                            if (tr.Lab != null) // not epsilon
+                            if (tr.Input != null) // not epsilon
                             {
                                 Set<int> toState;
-                                if (STrans.ContainsKey(tr.Lab))
+                                if (STrans.ContainsKey(tr.Input))
                                 {
                                     // Already a transition on lab
-                                    toState = STrans[tr.Lab];
+                                    toState = STrans[tr.Input];
                                 }
                                 else
                                 {
                                     // No transitions on lab yet
                                     toState = new Set<int>();
-                                    STrans.Add(tr.Lab, toState);
+                                    STrans.Add(tr.Input, toState);
                                 }
 
-                                toState.Add(tr.Target);
+                                toState.Add(tr.ToState);
                             }
                         }
                     }
@@ -156,50 +195,29 @@ namespace RegExpToDfa
             return res;
         }
 
-        // Compute epsilon-closure of state set S in transition relation trans.
-        //
-        // Given a set S of states.  Put the states of S in a worklist.
-        // Repeatedly choose a state s from the worklist, and consider all
-        // epsilon-transitions s -eps-> s' from s.  If s' is in S already,
-        // then do nothing; otherwise add s' to S and the worklist.  When the
-        // worklist is empty, S is epsilon-closed; return S.
-        static Set<int> EpsilonClose(Set<int> S, IDictionary<int, List<Transition>> trans)
+        /// <summary>
+        /// Compute epsilon-closure of a set of states
+        /// </summary>
+        /// <param name="states">The set of states to closure</param>
+        /// <param name="trans">The transitions of the NFA.</param>
+        /// <returns>The epsilon closure of the given states.</returns>
+        static Set<int> EpsilonClose(Set<int> states, IDictionary<int, List<Transition>> trans)
         {
-            // The worklist initially contains all S members
-            Queue<int> worklist = new Queue<int>(S);
-            Set<int> res = new Set<int>(S);
+            Queue<int> worklist = new Queue<int>(states);
+            Set<int> result = new Set<int>(states);
             while (worklist.Count != 0)
             {
                 int s = worklist.Dequeue();
                 foreach (Transition tr in trans[s])
                 {
-                    if (tr.Lab == null && !res.Contains(tr.Target))
+                    if (tr.Input == null && !result.Contains(tr.ToState))
                     {
-                        res.Add(tr.Target);
-                        worklist.Enqueue(tr.Target);
+                        result.Add(tr.ToState);
+                        worklist.Enqueue(tr.ToState);
                     }
                 }
             }
-
-            return res;
-        }
-
-        // Given a Map from Set of int to something, create an
-        // injective Map from Set of int to int, by choosing a fresh
-        // int for every value of the map.
-
-        /// <summary>
-        /// Compute a renamer, which is a Map from Set of int to int
-        /// </summary>
-        /// <param name="states"></param>
-        /// <returns></returns>
-        static IDictionary<Set<int>, int> MkRenamer(ICollection<Set<int>> states)
-        {
-            IDictionary<Set<int>, int> renamer = new Dictionary<Set<int>, int>();
-            int count = 0;
-            foreach (Set<int> k in states)
-                renamer.Add(k, count++);
-            return renamer;
+            return result;
         }
 
         // Using a renamer (a Map from Set of int to int), replace
@@ -213,34 +231,38 @@ namespace RegExpToDfa
         // by ints.
 
         static IDictionary<int, IDictionary<string, int>> Rename(
-            //IDictionary<Set<int>, int> renamer,
             NfaToDfaRenamer renamer,
-            IDictionary<Set<int>, IDictionary<string, Set<int>>> trans)
+            IDictionary<Set<int>, IDictionary<string, Set<int>>> dfaTrans)
         {
-            IDictionary<int, IDictionary<string, int>> newtrans =
-                new Dictionary<int, IDictionary<string, int>>();
+            var newDfaTrans = new Dictionary<int, IDictionary<string, int>>();
+
             foreach (KeyValuePair<Set<int>, IDictionary<string, Set<int>>> entry
-                in trans)
+                in dfaTrans)
             {
-                Set<int> k = entry.Key;
-                IDictionary<string, int> newktrans = new Dictionary<string, int>();
+                Set<int> dfaState = entry.Key;
+                IDictionary<string, int> newDfaTransRow = new Dictionary<string, int>();
                 foreach (KeyValuePair<string, Set<int>> tr in entry.Value)
-                    newktrans.Add(tr.Key, renamer.ToDfaStateIndex(tr.Value));
-                newtrans.Add(renamer.ToDfaStateIndex(k), newktrans);
+                {
+                    newDfaTransRow.Add(tr.Key, renamer.ToDfaStateIndex(tr.Value));
+                }
+                newDfaTrans.Add(renamer.ToDfaStateIndex(dfaState), newDfaTransRow);
             }
 
-            return newtrans;
+            return newDfaTrans;
         }
 
-        static Set<int> AcceptStates(ICollection<Set<int>> states,
-            //IDictionary<Set<int>, int> renamer,
+        static Set<int> AcceptStates(
+            ICollection<Set<int>> states,
             NfaToDfaRenamer renamer,
-            int exit)
+            Set<int> acceptingStates)
         {
             Set<int> acceptStates = new Set<int>();
-            foreach (Set<int> state in states)
-                if (state.Contains(exit))
-                    acceptStates.Add(renamer.ToDfaStateIndex(state));
+            foreach (Set<int> dfaSubsetState in states)
+            {
+                if (acceptingStates.Any(finalState => dfaSubsetState.Contains(finalState)))
+                    acceptStates.Add(renamer.ToDfaStateIndex(dfaSubsetState));
+
+            }
             return acceptStates;
         }
 
@@ -253,20 +275,19 @@ namespace RegExpToDfa
 
             ICollection<Set<int>> cDfaStates = cDfaTrans.Keys;
 
-            //IDictionary<Set<int>, int> renamer = MkRenamer(cDfaStates);
+            var renamer = new NfaToDfaRenamer(cDfaStates, _predicate);
 
-            var renamer = new NfaToDfaRenamer(cDfaStates);
-
-
-            // DFA-transitions
-            IDictionary<int, IDictionary<string, int>> simpleDfaTrans =
+            // DFA-transitions (delta)
+            IDictionary<int, IDictionary<string, int>> dfaTrans =
                 Rename(renamer, cDfaTrans);
 
-            int simpleDfaStart = renamer.ToDfaStateIndex(cDfaStart);
+            // The singleton start state = q_0
+            int dfaStartStateIndex = renamer.ToDfaStateIndex(cDfaStart);
 
-            Set<int> simpleDfaAccept = AcceptStates(cDfaStates, renamer, Exit);
+            // The subset of accepting states = F
+            Set<int> dfaAcceptingStateIndices = AcceptStates(cDfaStates, renamer, AcceptingStates);
 
-            return new Dfa(simpleDfaStart, simpleDfaAccept, simpleDfaTrans, renamer);
+            return new Dfa(dfaStartStateIndex, dfaAcceptingStateIndices, dfaTrans, renamer);
         }
 
         /// <summary>
@@ -283,12 +304,18 @@ namespace RegExpToDfa
         }
     }
 
+    /// <summary>
+    /// Given a Map from Set of int to something, create an
+    /// injective Map from Set of int to int, by choosing a fresh
+    /// int for every value of the map.
+    /// </summary>
     public class NfaToDfaRenamer
     {
         private readonly Dictionary<Set<int>, int> _nfaStatesToDfaState;
         private readonly List<Set<int>> _dfaStateToNfaStates;
+        private readonly Func<int, bool> _predicate;
 
-        public NfaToDfaRenamer(ICollection<Set<int>> dfaStates)
+        public NfaToDfaRenamer(ICollection<Set<int>> dfaStates, Func<int, bool> predicate = null)
         {
             _nfaStatesToDfaState = new Dictionary<Set<int>, int>(dfaStates.Count);
             _dfaStateToNfaStates = new List<Set<int>>(dfaStates.Count);
@@ -300,6 +327,8 @@ namespace RegExpToDfa
                 _dfaStateToNfaStates.Add(k);
                 count += 1;
             }
+
+            _predicate = predicate ?? (_ => true);
         }
 
         public int ToDfaStateIndex(Set<int> nfaStates)
@@ -309,7 +338,8 @@ namespace RegExpToDfa
 
         public string ToDfaStateString(int dfaStateIndex)
         {
-            return _dfaStateToNfaStates[dfaStateIndex].ToString();
+
+            return _dfaStateToNfaStates[dfaStateIndex].Where(_predicate).ToSetNotation();
         }
     }
 }
