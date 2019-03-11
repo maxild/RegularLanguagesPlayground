@@ -37,6 +37,26 @@ namespace RegExpToDfa
             return "DFA start=" + Start + "\naccept=" + Accept;
         }
 
+        public bool Match(string s)
+        {
+            int state = Start;
+            foreach (char c in s)
+            {
+                string input = new string(c, 1);
+                if (Trans[state].TryGetValue(input, out int newState))
+                {
+                    state = newState;
+                }
+                else
+                {
+                    // dead state
+                    return false;
+                }
+            }
+
+            return Accept.Contains(state);
+        }
+
         // Write an input file for the dot program.  You can find dot at
         // http://www.research.att.com/sw/tools/graphviz/
 

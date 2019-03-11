@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.IO.IsolatedStorage;
 using System.Reflection;
 
 namespace RegExpToDfa
@@ -26,7 +25,13 @@ namespace RegExpToDfa
 
             var nfaDecimal = new Nfa(0, 5);
 
-            // TODO: Because we do not support ranges let d be digit
+            // TODO: Because we do not support ranges let d = [0-9]
+            // TODO: Support characterRanges as spacial labels/inputs on transitions
+            // TODO: Support putting single arc on every transition from p to q where label uses Sigma \ chars notation
+            //            Sigma - {...}
+            //            Sigma - d
+            //            { .... }
+            // TODO: Have the program calculate the label with fewest characters, and always use single arcs between any two nodes
 
             // sign
             nfaDecimal.AddTrans(0, null, 1);
@@ -87,6 +92,11 @@ namespace RegExpToDfa
 
             dfaDecimal.WriteDot(GetPath("dfa_decimal.dot"));
 
+            foreach (var word in new [] {"+d.d", "-.", "-.d", ".", "d.", "d.d", ".d"})
+            {
+                Console.WriteLine($"dfaDecimal.Match({word}) = {dfaDecimal.Match(word)}");
+            }
+
             //
             // Keyword search: Build NFA directly
             //
@@ -118,6 +128,14 @@ namespace RegExpToDfa
 
             // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
             dfaKeywords.WriteDot(GetPath("dfa_keywords.dot"));
+
+            Console.WriteLine("");
+            foreach (var word in new [] {"goto", "web", "ebay", "webay", "web1"})
+            {
+                // NFA is tail whatever, that is webay is a match because the suffix ebay is matched
+                Console.WriteLine($"dfaKeywords.Match({word}) = {dfaKeywords.Match(word)}");
+            }
+
 
             //// bb
             //Regex reB_Concat_reB = new Seq(reB, reB);

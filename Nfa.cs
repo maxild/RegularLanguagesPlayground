@@ -130,14 +130,13 @@ namespace RegExpToDfa
         //      every lab.
 
         static IDictionary<Set<int>, IDictionary<string, Set<int>>> CompositeDfaTrans(
-            int s0,
+            int startState,
             IDictionary<int, List<Transition>> trans)
         {
             // CL(s0), where s0 is singleton start state
-            Set<int> S0 = EpsilonClose(new Set<int>(s0), trans); // startState
-
+            Set<int> s0EpsClosure = EpsilonClose(new Set<int>(startState), trans);
             Queue<Set<int>> worklist = new Queue<Set<int>>();
-            worklist.Enqueue(S0);
+            worklist.Enqueue(s0EpsClosure);
 
             // The transition relation of the DFA = (States, Transition)
             IDictionary<Set<int>, IDictionary<string, Set<int>>> res =
@@ -145,15 +144,15 @@ namespace RegExpToDfa
 
             while (worklist.Count != 0)
             {
-                Set<int> S = worklist.Dequeue();
-                if (!res.ContainsKey(S))
+                Set<int> subset = worklist.Dequeue();
+                if (!res.ContainsKey(subset))
                 {
                     // The (S, lab) -> T transition relation being constructed for a given S
-                    IDictionary<string, Set<int>> STrans =
+                    IDictionary<string, Set<int>> subsetTrans =
                         new Dictionary<string, Set<int>>();
 
                     // For all s in S, consider all transitions (s, lab) -> t
-                    foreach (int s in S)
+                    foreach (int s in subset)
                     {
                         // For all non-epsilon transitions s -lab-> t, add t to T
                         foreach (Transition tr in trans[s])
@@ -161,16 +160,16 @@ namespace RegExpToDfa
                             if (tr.Input != null) // not epsilon
                             {
                                 Set<int> toState;
-                                if (STrans.ContainsKey(tr.Input))
+                                if (subsetTrans.ContainsKey(tr.Input))
                                 {
                                     // Already a transition on lab
-                                    toState = STrans[tr.Input];
+                                    toState = subsetTrans[tr.Input];
                                 }
                                 else
                                 {
                                     // No transitions on lab yet
                                     toState = new Set<int>();
-                                    STrans.Add(tr.Input, toState);
+                                    subsetTrans.Add(tr.Input, toState);
                                 }
 
                                 toState.Add(tr.ToState);
@@ -179,16 +178,16 @@ namespace RegExpToDfa
                     }
 
                     // Epsilon-close all T such that (S, lab) -> T, and put on worklist
-                    Dictionary<string, Set<int>> STransClosed =
+                    Dictionary<string, Set<int>> subsetTransClosed =
                         new Dictionary<string, Set<int>>();
-                    foreach (KeyValuePair<string, Set<int>> entry in STrans)
+                    foreach (KeyValuePair<string, Set<int>> entry in subsetTrans)
                     {
-                        Set<int> Tclose = EpsilonClose(entry.Value, trans);
-                        STransClosed.Add(entry.Key, Tclose);
-                        worklist.Enqueue(Tclose);
+                        Set<int> toSubsetEpsClosure = EpsilonClose(entry.Value, trans);
+                        subsetTransClosed.Add(entry.Key, toSubsetEpsClosure);
+                        worklist.Enqueue(toSubsetEpsClosure);
                     }
 
-                    res.Add(S, STransClosed);
+                    res.Add(subset, subsetTransClosed);
                 }
             }
 

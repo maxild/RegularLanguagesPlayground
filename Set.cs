@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 
@@ -128,8 +129,10 @@ namespace RegExpToDfa
         }
 
         // Compute hash code based on set contents, and cache it
+        [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
         public override int GetHashCode()
         {
+            // NOTE: we reset the cached hash code to null if Set is mutated
             if (!_cachedHash.HasValue)
             {
                 int res = 0;
