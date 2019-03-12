@@ -20,6 +20,31 @@ namespace RegExpToDfa
             //BuildAndShow("dfa0.dot", reA_Plus_reB_Star);
 
             //
+            // Non-minimal DFA
+            //
+            var nonMinDfa = new Dfa('A', new [] {'D'});
+            nonMinDfa.AddTrans('A', "0", 'B');
+            nonMinDfa.AddTrans('A', "1", 'A');
+            nonMinDfa.AddTrans('B', "0", 'A');
+            nonMinDfa.AddTrans('B', "1", 'C');
+            nonMinDfa.AddTrans('C', "0", 'D');
+            nonMinDfa.AddTrans('C', "1", 'B');
+            nonMinDfa.AddTrans('D', "0", 'D');
+            nonMinDfa.AddTrans('D', "1", 'A');
+            nonMinDfa.AddTrans('E', "0", 'D');
+            nonMinDfa.AddTrans('E', "1", 'F');
+            nonMinDfa.AddTrans('F', "0", 'G');
+            nonMinDfa.AddTrans('F', "1", 'E');
+            nonMinDfa.AddTrans('G', "0", 'F');
+            nonMinDfa.AddTrans('G', "1", 'G');
+            nonMinDfa.AddTrans('H', "0", 'G');
+            nonMinDfa.AddTrans('H', "1", 'D');
+
+            nonMinDfa.WriteDot(GetPath("dfaNonMin.dot"));
+
+            Console.WriteLine($"Eq state pairs: {nonMinDfa.DisplayEquivalentPairs()}");
+
+            //
             // epsilon-NFA accepting accepting decimal numbers
             //
 

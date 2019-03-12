@@ -12,11 +12,17 @@ namespace RegExpToDfa
     /// <typeparam name="T"></typeparam>
     public class Set<T> : IEquatable<Set<T>>, ICollection<T> where T : IEquatable<T>
     {
-        private readonly HashSet<T> _inner = new HashSet<T>();
+        private readonly HashSet<T> _inner;
         private int? _cachedHash; // Cached hash code is valid if non-null (THIS IS SPECIAL)
 
         public Set()
         {
+            _inner = new HashSet<T>();
+        }
+
+        public Set(int capacity)
+        {
+            _inner = new HashSet<T>(capacity);
         }
 
         public Set(T x) : this()
@@ -89,43 +95,43 @@ namespace RegExpToDfa
         // Create new set as intersection of this and that
         public Set<T> Intersection(Set<T> that)
         {
-            Set<T> res = new Set<T>();
+            Set<T> result = new Set<T>();
             foreach (T x in this)
                 if (that.Contains(x))
-                    res.Add(x);
-            return res;
+                    result.Add(x);
+            return result;
         }
 
         // Create new set as union of this and that
         public Set<T> Union(Set<T> that)
         {
-            Set<T> res = new Set<T>(this);
+            Set<T> result = new Set<T>(this);
             foreach (T x in that)
-                res.Add(x);
-            return res;
+                result.Add(x);
+            return result;
         }
 
         // Create new set as difference between this and that
         public Set<T> Difference(Set<T> that)
         {
-            Set<T> res = new Set<T>();
+            Set<T> result = new Set<T>();
             foreach (T x in this)
                 if (!that.Contains(x))
-                    res.Add(x);
-            return res;
+                    result.Add(x);
+            return result;
         }
 
         // Create new set as symmetric difference between this and that
         public Set<T> SymmetricDifference(Set<T> that)
         {
-            Set<T> res = new Set<T>();
+            Set<T> result = new Set<T>();
             foreach (T x in this)
                 if (!that.Contains(x))
-                    res.Add(x);
+                    result.Add(x);
             foreach (T x in that)
                 if (!Contains(x))
-                    res.Add(x);
-            return res;
+                    result.Add(x);
+            return result;
         }
 
         // Compute hash code based on set contents, and cache it
@@ -135,10 +141,10 @@ namespace RegExpToDfa
             // NOTE: we reset the cached hash code to null if Set is mutated
             if (!_cachedHash.HasValue)
             {
-                int res = 0;
+                int hashCode = 0;
                 foreach (T x in this)
-                    res ^= x.GetHashCode();
-                _cachedHash = res;
+                    hashCode ^= x.GetHashCode();
+                _cachedHash = hashCode;
             }
 
             return _cachedHash.Value;

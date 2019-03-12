@@ -4,13 +4,23 @@ using System.Linq;
 
 namespace RegExpToDfa
 {
+    // Idea for testing finite/infinite DFA
+    // 1. Eliminate states that are not reachable
+    // 2. Eliminate states that do not reach a final state
+    // 3. Test if the remaining states have eny cycles
+
+    // Emptiness
+    // No final state is reachable (depth/breadth first algorithms)
+
+    // TODO: Create (membership) Matches method on NFA (simulate it, without converting to DFA)
+
     /// <summary>
     /// Class Nfa and conversion from NFA to DFA
     /// </summary>
     /// <remarks>
     /// A non-deterministic finite automaton (NFA) is represented as a
     /// Map from state number (int) to a List of Transitions, a
-    /// Transition being a pair of a label lab (a string, null meaning
+    /// Transition being a pair of a label label (a string, null meaning
     /// epsilon) and a target state (an int).
     /// </remarks>
     /// <remarks>
@@ -77,7 +87,7 @@ namespace RegExpToDfa
         /// </summary>
         public IDictionary<int, List<Transition>> Trans { get; }
 
-        public void AddTrans(int s1, string lab, int s2)
+        public void AddTrans(int s1, string label, int s2)
         {
             List<Transition> transitions;
             if (Trans.ContainsKey(s1))
@@ -90,7 +100,7 @@ namespace RegExpToDfa
                 Trans.Add(s1, transitions);
             }
 
-            transitions.Add(new Transition(lab, s2));
+            transitions.Add(new Transition(label, s2));
         }
 
         public void AddTrans(KeyValuePair<int, List<Transition>> tr)
@@ -123,53 +133,54 @@ namespace RegExpToDfa
         //
         //      2. Repeatedly choose a composite state S from the worklist.  If it is
         //      not already in the keyset of the DFA transition relation, compute
-        //      for every non-epsilon label lab the set T of states reachable by
+        //      for every non-epsilon label label the set T of states reachable by
         //      that label from some state s in S.  Compute the epsilon-closure
         //      Tclose of every such state T and put it on the worklist.  Then add
-        //      the transition S -lab-> Tclose to the DFA transition relation, for
-        //      every lab.
+        //      the transition S -label-> Tclose to the DFA transition relation, for
+        //      every label.
 
         static IDictionary<Set<int>, IDictionary<string, Set<int>>> CompositeDfaTrans(
             int startState,
             IDictionary<int, List<Transition>> trans)
         {
+            // Lazy form of Subset Construction where only reachable nodes are converted
+
             // CL(s0), where s0 is singleton start state
             Set<int> s0EpsClosure = EpsilonClose(new Set<int>(startState), trans);
-            Queue<Set<int>> worklist = new Queue<Set<int>>();
-            worklist.Enqueue(s0EpsClosure);
+            var markedVisitedStates = new Queue<Set<int>>();
+            markedVisitedStates.Enqueue(s0EpsClosure);
 
             // The transition relation of the DFA = (States, Transition)
-            IDictionary<Set<int>, IDictionary<string, Set<int>>> res =
-                new Dictionary<Set<int>, IDictionary<string, Set<int>>>();
+            var result = new Dictionary<Set<int>, IDictionary<string, Set<int>>>();
 
-            while (worklist.Count != 0)
+            while (markedVisitedStates.Count != 0)
             {
-                Set<int> subset = worklist.Dequeue();
-                if (!res.ContainsKey(subset))
+                Set<int> subset = markedVisitedStates.Dequeue();
+                if (!result.ContainsKey(subset))
                 {
-                    // The (S, lab) -> T transition relation being constructed for a given S
+                    // The (S, label) -> T transition relation being constructed for a given S
                     IDictionary<string, Set<int>> subsetTrans =
                         new Dictionary<string, Set<int>>();
 
-                    // For all s in S, consider all transitions (s, lab) -> t
+                    // For all s in S, consider all transitions (s, label) -> t
                     foreach (int s in subset)
                     {
-                        // For all non-epsilon transitions s -lab-> t, add t to T
+                        // For all non-epsilon transitions s -label-> t, add t to T
                         foreach (Transition tr in trans[s])
                         {
-                            if (tr.Input != null) // not epsilon
+                            if (tr.Label != null) // not epsilon
                             {
                                 Set<int> toState;
-                                if (subsetTrans.ContainsKey(tr.Input))
+                                if (subsetTrans.ContainsKey(tr.Label))
                                 {
-                                    // Already a transition on lab
-                                    toState = subsetTrans[tr.Input];
+                                    // Already a transition on label
+                                    toState = subsetTrans[tr.Label];
                                 }
                                 else
                                 {
-                                    // No transitions on lab yet
+                                    // No transitions on label yet
                                     toState = new Set<int>();
-                                    subsetTrans.Add(tr.Input, toState);
+                                    subsetTrans.Add(tr.Label, toState);
                                 }
 
                                 toState.Add(tr.ToState);
@@ -177,21 +188,21 @@ namespace RegExpToDfa
                         }
                     }
 
-                    // Epsilon-close all T such that (S, lab) -> T, and put on worklist
+                    // Epsilon-close all T such that (S, label) -> T, and put on worklist
                     Dictionary<string, Set<int>> subsetTransClosed =
                         new Dictionary<string, Set<int>>();
                     foreach (KeyValuePair<string, Set<int>> entry in subsetTrans)
                     {
                         Set<int> toSubsetEpsClosure = EpsilonClose(entry.Value, trans);
                         subsetTransClosed.Add(entry.Key, toSubsetEpsClosure);
-                        worklist.Enqueue(toSubsetEpsClosure);
+                        markedVisitedStates.Enqueue(toSubsetEpsClosure);
                     }
 
-                    res.Add(subset, subsetTransClosed);
+                    result.Add(subset, subsetTransClosed);
                 }
             }
 
-            return res;
+            return result;
         }
 
         /// <summary>
@@ -202,17 +213,18 @@ namespace RegExpToDfa
         /// <returns>The epsilon closure of the given states.</returns>
         static Set<int> EpsilonClose(Set<int> states, IDictionary<int, List<Transition>> trans)
         {
-            Queue<int> worklist = new Queue<int>(states);
-            Set<int> result = new Set<int>(states);
-            while (worklist.Count != 0)
+            var markedVisitedStates = new Queue<int>(states); // mark visited states
+            var result = new Set<int>(states);
+            while (markedVisitedStates.Count != 0)
             {
-                int s = worklist.Dequeue();
+                int s = markedVisitedStates.Dequeue();
                 foreach (Transition tr in trans[s])
                 {
-                    if (tr.Input == null && !result.Contains(tr.ToState))
+                    // TODO: Create better representation of single letters and empty string (epsilon)
+                    if (tr.Label == null && !result.Contains(tr.ToState))
                     {
                         result.Add(tr.ToState);
-                        worklist.Enqueue(tr.ToState);
+                        markedVisitedStates.Enqueue(tr.ToState);
                     }
                 }
             }
@@ -233,7 +245,8 @@ namespace RegExpToDfa
             NfaToDfaRenamer renamer,
             IDictionary<Set<int>, IDictionary<string, Set<int>>> dfaTrans)
         {
-            var newDfaTrans = new Dictionary<int, IDictionary<string, int>>();
+            // TODO: Dictionary not perfect here (alphabet must be ASCII and table-driven approach better)
+            var newDfaTrans = new SortedDictionary<int, IDictionary<string, int>>(); // keys states are sorted
 
             foreach (KeyValuePair<Set<int>, IDictionary<string, Set<int>>> entry
                 in dfaTrans)
@@ -303,12 +316,21 @@ namespace RegExpToDfa
         }
     }
 
+
+    /// <summary>
+    /// Convert to and from int.
+    /// </summary>
+    public interface IDfaStateRenamer
+    {
+        string ToDfaStateString(int dfaStateIndex);
+    }
+
     /// <summary>
     /// Given a Map from Set of int to something, create an
     /// injective Map from Set of int to int, by choosing a fresh
     /// int for every value of the map.
     /// </summary>
-    public class NfaToDfaRenamer
+    public class NfaToDfaRenamer : IDfaStateRenamer
     {
         private readonly Dictionary<Set<int>, int> _nfaStatesToDfaState;
         private readonly List<Set<int>> _dfaStateToNfaStates;
