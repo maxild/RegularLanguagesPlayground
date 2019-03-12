@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -99,6 +98,7 @@ namespace RegExpToDfa
                 .ToSetNotation();
         }
 
+        // TODO: Uses non-reachable states (inefficient)
         TriangularPair<int>[] GetEquivalentPairs()
         {
             // table filling algorithm:
@@ -181,6 +181,7 @@ namespace RegExpToDfa
             BitArray indexIsAdded = new BitArray(eqStatePairs.Length);
 
             // Merge equivalent pairs to find disjoint state blocks with more than one equivalent states
+
             // naive inefficient algorithm...(n-1)*n/2 combinations
             List<Set<int>> listOfEqBlocks = new List<Set<int>>();
             for (int i = 0; i < eqStatePairs.Length; i++)
@@ -194,7 +195,6 @@ namespace RegExpToDfa
                     indexIsAdded[i] = true;
                 }
 
-                // Find de j der er ens med og marker hvert j med i (i er repreaesentativt index)
                 for (int j = i + 1; j < eqStatePairs.Length; j++)
                 {
                     if (eqStatePairs[j].IsEqToBlock(listOfEqBlocks[i]))
@@ -209,25 +209,37 @@ namespace RegExpToDfa
             return listOfEqBlocks.Where(block => block.Count > 0).ToArray();
         }
 
-        Set<int> GetNonreachableStates()
+        Set<int> GetReachableStates()
         {
-            // TODO
-            return new Set<int>(); // empty set
+            // Breadth First Traversal
+            var visited = new Set<int>(new[] {Start});
+
+            var worklist = new Queue<int>();
+            worklist.Enqueue(Start);
+
+            while (worklist.Count > 0)
+            {
+                int state = worklist.Dequeue();
+                foreach (var label in GetLabels())
+                {
+                    int toState = Trans[state][label];
+                    if (!visited.Contains(toState))
+                    {
+                        worklist.Enqueue(toState);
+                        visited.Add(toState);
+                    }
+                }
+            }
+
+            return visited;
         }
 
         public Dfa ToMinimumDfa(bool skipRemovalOfUnreachableStates = false)
         {
             // First eliminate any state(s) that cannot be reached from the start state
-            Set<int> minimizedStates;
-            if (skipRemovalOfUnreachableStates)
-            {
-                minimizedStates = new Set<int>(Trans.Keys);
-            }
-            else
-            {
-                Set<int> redundantStates = GetNonreachableStates();
-                minimizedStates = new Set<int>(Trans.Keys).Difference(redundantStates);
-            }
+            var minimizedStates = skipRemovalOfUnreachableStates
+                ? new Set<int>(Trans.Keys)
+                : GetReachableStates();
 
             // Use the table filling algorithm to find all the pairs of equivalent states
             TriangularPair<int>[] eqStatePairs = GetEquivalentPairs();
