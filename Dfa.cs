@@ -110,7 +110,7 @@ namespace RegExpToDfa
             {
                 foreach (int q in Trans.Keys)
                 {
-                    if (q <= p) continue; // triangular: we use the convention firstIndex < secondIndex
+                    if (q <= p) continue; // triangular
                     if (!IsBasisDistinguishable(p, q))
                     {
                         undistinguishablePairs.Add(new TriangularPair<int>(p, q));
@@ -361,7 +361,7 @@ namespace RegExpToDfa
         // Write an input file for the dot program.  You can find dot at
         // http://www.research.att.com/sw/tools/graphviz/
 
-        // TODO: Should not save, only create text for graphviz dot tool
+        // TODO: Should not save, only create text for graphviz dot tool (DOT definition)
         public void SaveDotFile(string path)
         {
             using (var fileStream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
