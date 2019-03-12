@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Text;
 
 
@@ -20,15 +21,11 @@ namespace RegExpToDfa
             _inner = new HashSet<T>();
         }
 
-        public Set(int capacity)
-        {
-            _inner = new HashSet<T>(capacity);
-        }
-
-        public Set(T x) : this()
-        {
-            Add(x);
-        }
+        // we cannot use capacity because of this constructor
+        //public Set(T x) : this()
+        //{
+        //    Add(x);
+        //}
 
         public Set(IEnumerable<T> coll) : this()
         {
@@ -118,6 +115,18 @@ namespace RegExpToDfa
             foreach (T x in this)
                 if (!that.Contains(x))
                     result.Add(x);
+            return result;
+        }
+
+        public Set<T> Difference(IEnumerable<Set<T>> that)
+        {
+            Set<T> result = new Set<T>();
+            IEnumerable<Set<T>> enumerable = that as Set<T>[] ?? that as IList<Set<T>> ?? that.ToArray();
+            foreach (T x in this)
+            {
+                if (!enumerable.Any(other => other.Contains(x)))
+                    result.Add(x);
+            }
             return result;
         }
 

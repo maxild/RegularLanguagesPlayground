@@ -20,7 +20,29 @@ namespace RegExpToDfa
             //BuildAndShow("dfa0.dot", reA_Plus_reB_Star);
 
             //
-            // Non-minimal DFA
+            // Equivalence of two DFAs (Example 4.21 in book)
+            //
+            var eqDfas = new Dfa('A', new [] {'A', 'C', 'D'}); // start state is redundant for finding equivalent blocks
+            // First DFA
+            eqDfas.AddTrans('A', "0", 'A');
+            eqDfas.AddTrans('A', "1", 'B');
+            eqDfas.AddTrans('B', "0", 'A');
+            eqDfas.AddTrans('B', "1", 'B');
+            // Second DFA
+            eqDfas.AddTrans('C', "0", 'D');
+            eqDfas.AddTrans('C', "1", 'E');
+            eqDfas.AddTrans('D', "0", 'D');
+            eqDfas.AddTrans('D', "1", 'E');
+            eqDfas.AddTrans('E', "0", 'C');
+            eqDfas.AddTrans('E', "1", 'E');
+
+            eqDfas.SaveDotFile(GetPath("dfa_eq.dot"));
+
+            Console.WriteLine($"Eq state pairs: {eqDfas.DisplayEquivalentPairs()}");
+            Console.WriteLine($"Eq state sets: {eqDfas.DisplayMergedEqSets()}");
+
+            //
+            // Non-minimal DFA (Exercise 4.4.1 in the book)
             //
             var nonMinDfa = new Dfa('A', new [] {'D'});
             nonMinDfa.AddTrans('A', "0", 'B');
@@ -40,9 +62,14 @@ namespace RegExpToDfa
             nonMinDfa.AddTrans('H', "0", 'G');
             nonMinDfa.AddTrans('H', "1", 'D');
 
-            nonMinDfa.WriteDot(GetPath("dfaNonMin.dot"));
+            nonMinDfa.SaveDotFile(GetPath("dfaNonMin.dot"));
 
             Console.WriteLine($"Eq state pairs: {nonMinDfa.DisplayEquivalentPairs()}");
+            Console.WriteLine($"Eq state sets: {nonMinDfa.DisplayMergedEqSets()}");
+
+            Dfa minDfa = nonMinDfa.ToMinimumDfa();
+
+            minDfa.SaveDotFile(GetPath("dfaMin.dot"));
 
             //
             // epsilon-NFA accepting accepting decimal numbers
@@ -115,7 +142,7 @@ namespace RegExpToDfa
 
             Dfa dfaDecimal = nfaDecimal.ToDfa();
 
-            dfaDecimal.WriteDot(GetPath("dfa_decimal.dot"));
+            dfaDecimal.SaveDotFile(GetPath("dfa_decimal.dot"));
 
             foreach (var word in new [] {"+d.d", "-.", "-.d", ".", "d.", "d.d", ".d"})
             {
@@ -152,7 +179,7 @@ namespace RegExpToDfa
             Dfa dfaKeywords = nfaKeywords.ToDfa();
 
             // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
-            dfaKeywords.WriteDot(GetPath("dfa_keywords.dot"));
+            dfaKeywords.SaveDotFile(GetPath("dfa_keywords.dot"));
 
             Console.WriteLine("");
             foreach (var word in new [] {"goto", "web", "ebay", "webay", "web1"})
@@ -205,7 +232,7 @@ namespace RegExpToDfa
             Console.WriteLine("Writing DFA graph to file " + path);
 
             // Write DFA to graph
-            dfa.WriteDot(path);
+            dfa.SaveDotFile(path);
             Console.WriteLine();
         }
 

@@ -40,7 +40,7 @@ namespace RegExpToDfa
         public Nfa(int startState, int exitState)
         {
             Start = startState;
-            AcceptingStates = new Set<int>(exitState);
+            AcceptingStates = new Set<int>(new []{exitState});
             // for every state
             Trans = new Dictionary<int, List<Transition>>();
             // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
@@ -146,7 +146,7 @@ namespace RegExpToDfa
             // Lazy form of Subset Construction where only reachable nodes are converted
 
             // CL(s0), where s0 is singleton start state
-            Set<int> s0EpsClosure = EpsilonClose(new Set<int>(startState), trans);
+            Set<int> s0EpsClosure = EpsilonClose(new Set<int>(new [] {startState}), trans);
             var markedVisitedStates = new Queue<Set<int>>();
             markedVisitedStates.Enqueue(s0EpsClosure);
 
@@ -246,7 +246,7 @@ namespace RegExpToDfa
             IDictionary<Set<int>, IDictionary<string, Set<int>>> dfaTrans)
         {
             // TODO: Dictionary not perfect here (alphabet must be ASCII and table-driven approach better)
-            var newDfaTrans = new SortedDictionary<int, IDictionary<string, int>>(); // keys states are sorted
+            var newDfaTrans = new SortedDictionary<int, IDictionary<string, int>>(); // keys/states are sorted
 
             foreach (KeyValuePair<Set<int>, IDictionary<string, Set<int>>> entry
                 in dfaTrans)
@@ -283,7 +283,7 @@ namespace RegExpToDfa
             IDictionary<Set<int>, IDictionary<string, Set<int>>>
                 cDfaTrans = CompositeDfaTrans(Start, Trans);
 
-            Set<int> cDfaStart = EpsilonClose(new Set<int>(Start), Trans);
+            Set<int> cDfaStart = EpsilonClose(new Set<int>(new [] {Start}), Trans);
 
             ICollection<Set<int>> cDfaStates = cDfaTrans.Keys;
 
@@ -359,7 +359,6 @@ namespace RegExpToDfa
 
         public string ToDfaStateString(int dfaStateIndex)
         {
-
             return _dfaStateToNfaStates[dfaStateIndex].Where(_predicate).ToSetNotation();
         }
     }

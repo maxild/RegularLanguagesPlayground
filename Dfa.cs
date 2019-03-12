@@ -1,6 +1,6 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 
@@ -23,7 +23,7 @@ namespace RegExpToDfa
             int startState,
             Set<int> acceptStates,
             IDictionary<int, IDictionary<string, int>> trans,
-            NfaToDfaRenamer renamer)
+            IDfaStateRenamer renamer)
         {
             Start = startState;
             Accept = acceptStates;
@@ -32,7 +32,7 @@ namespace RegExpToDfa
         }
 
         /// <summary>
-        /// Naming states with ASCII letters
+        /// Naming states with ASCII letters and calling AddTrans to built up the states and transitions
         /// </summary>
         public Dfa(
             char startState,
@@ -64,22 +64,6 @@ namespace RegExpToDfa
             }
             transitions.Add(label, s2);
         }
-
-        // TODO: Sikkert ikke noedvendig...slet den
-        //public void AddTrans(char s1, string label, char s2)
-        //{
-        //    IDictionary<string, int> transitions;
-        //    if (Trans.ContainsKey(s1))
-        //    {
-        //        transitions = Trans[s1];
-        //    }
-        //    else
-        //    {
-        //        transitions = new Dictionary<string, int>();
-        //        Trans.Add(s1, transitions);
-        //    }
-        //    transitions.Add(label, s2);
-        //}
 
         public override string ToString()
         {
@@ -142,8 +126,6 @@ namespace RegExpToDfa
 
                 foreach (string successorLabel in GetLabels())
                 {
-                    //var markedPerInput = new List<TriangularPair<int>>();
-
                     foreach (var pair in undistinguishablePairs)
                     {
                         // Make function with input loop
@@ -152,17 +134,15 @@ namespace RegExpToDfa
                         int p = Trans[pair.Fst][successorLabel];
                         int q = Trans[pair.Snd][successorLabel];
                         TriangularPair<int> successorPair = new TriangularPair<int>(p, q);
+
                         // For all pairs still undecided if for any successor label/input/suffix
                         // the pair goes into a pair (p, q) where the states are distinguishable
                         // for any suffix (that is already marked) we have to mark the pair.
+
                         // NOTE: BAD that we have to test p not equal to q (use marked table instead)
                         if (p != q && !undistinguishablePairs.Contains(successorPair)) // successor pair is marked
                         {
-                            // re-add the pair because we cannot make
-                            // p and q distinguishable for any suffix string
-                            //markedPerInput.Add(pair);
                             marked.Add(pair);
-                            //break; // next pair
                         }
                     }
 
@@ -170,12 +150,6 @@ namespace RegExpToDfa
                     //                markedPerInput.Select(p =>
                     //                        $"({_renamer.ToDfaStateString(p.Fst)}, {_renamer.ToDfaStateString(p.Snd)})")
                     //                    .ToSetNotation());
-
-                    // TODO: duplicated here
-                    //foreach (var pair in markedPerInput)
-                    //{
-                    //    marked.Add(pair);
-                    //}
                 }
 
                 foreach (var pair in marked)
@@ -191,6 +165,154 @@ namespace RegExpToDfa
 
             // the following pairs are equivalent
             return undistinguishablePairs.ToArray();
+        }
+
+        public string DisplayMergedEqSets()
+        {
+            TriangularPair<int>[] eqStatePairs = GetEquivalentPairs();
+            Set<int>[] mergedEqSets = GetMergedEqSets(eqStatePairs);
+            return mergedEqSets.Select(set =>set
+                    .Select(stateIndex => _renamer.ToDfaStateString(stateIndex)).ToSetNotation())
+                .ToSetNotation();
+        }
+
+        Set<int>[] GetMergedEqSets(TriangularPair<int>[] eqStatePairs)
+        {
+            BitArray indexIsAdded = new BitArray(eqStatePairs.Length);
+
+            // Merge equivalent pairs to find disjoint state blocks with more than one equivalent states
+            // naive inefficient algorithm...(n-1)*n/2 combinations
+            List<Set<int>> listOfEqBlocks = new List<Set<int>>();
+            for (int i = 0; i < eqStatePairs.Length; i++)
+            {
+                listOfEqBlocks.Add(new Set<int>());
+
+                if (!indexIsAdded[i])
+                {
+                    listOfEqBlocks[i].Add(eqStatePairs[i].Fst);
+                    listOfEqBlocks[i].Add(eqStatePairs[i].Snd);
+                    indexIsAdded[i] = true;
+                }
+
+                // Find de j der er ens med og marker hvert j med i (i er repreaesentativt index)
+                for (int j = i + 1; j < eqStatePairs.Length; j++)
+                {
+                    if (eqStatePairs[j].IsEqToBlock(listOfEqBlocks[i]))
+                    {
+                        listOfEqBlocks[i].Add(eqStatePairs[j].Fst);
+                        listOfEqBlocks[i].Add(eqStatePairs[j].Snd);
+                        indexIsAdded[j] = true;
+                    }
+                }
+            }
+
+            return listOfEqBlocks.Where(block => block.Count > 0).ToArray();
+        }
+
+        Set<int> GetNonreachableStates()
+        {
+            // TODO
+            return new Set<int>(); // empty set
+        }
+
+        public Dfa ToMinimumDfa(bool skipRemovalOfUnreachableStates = false)
+        {
+            // First eliminate any state(s) that cannot be reached from the start state
+            Set<int> minimizedStates;
+            if (skipRemovalOfUnreachableStates)
+            {
+                minimizedStates = new Set<int>(Trans.Keys);
+            }
+            else
+            {
+                Set<int> redundantStates = GetNonreachableStates();
+                minimizedStates = new Set<int>(Trans.Keys).Difference(redundantStates);
+            }
+
+            // Use the table filling algorithm to find all the pairs of equivalent states
+            TriangularPair<int>[] eqStatePairs = GetEquivalentPairs();
+
+            // Partition the set of states Q into blocks of mutually equivalent states
+            Set<int>[] blocksWithEqStates = GetMergedEqSets(eqStatePairs);
+            Set<int>[] blocksWithSingleState =
+                minimizedStates.Difference(blocksWithEqStates).Select(state => new Set<int>(new []{state})).ToArray();
+
+            List<Set<int>> blockStates = blocksWithEqStates.Concat(blocksWithSingleState).ToList();
+
+            Set<int> startBlockState = null;
+            List<Set<int>> acceptBlocks = new List<Set<int>>();
+
+            // The transition relation of the DFA = (States, Transition)
+            var blockTrans = new Dictionary<Set<int>, IDictionary<string, Set<int>>>();
+
+            foreach (var blockState in blockStates)
+            {
+                if (blockState.Contains(Start))
+                {
+                    startBlockState = blockState;
+                }
+                if (blockState.Any(s => Accept.Contains(s)))
+                {
+                    acceptBlocks.Add(blockState);
+                }
+
+                IDictionary<string, Set<int>> transition = new Dictionary<string, Set<int>>();
+
+                foreach (var label in GetLabels())
+                {
+                    int toState = Trans[blockState.First()][label];
+                    Set<int> toBlockState = blockStates.First(block => block.Contains(toState));
+                    transition.Add(label, toBlockState);
+                }
+
+                blockTrans.Add(blockState, transition);
+            }
+
+            var renamer = new MinimizedDfaRenamer(blockStates, _renamer);
+
+            IDictionary<int, IDictionary<string, int>> minDfaTrans = Rename(renamer, blockTrans);
+
+            int minDfaStartState = renamer.ToDfaStateIndex(startBlockState);
+
+            Set<int> minDfaAcceptStates = AcceptStates(blockStates, renamer, acceptBlocks);
+
+            return new Dfa(minDfaStartState, minDfaAcceptStates, minDfaTrans, renamer);
+        }
+
+        static IDictionary<int, IDictionary<string, int>> Rename(
+            MinimizedDfaRenamer renamer,
+            IDictionary<Set<int>, IDictionary<string, Set<int>>> trans)
+        {
+            var newDfaTrans = new SortedDictionary<int, IDictionary<string, int>>(); // keys/states are sorted
+
+            foreach (KeyValuePair<Set<int>, IDictionary<string, Set<int>>> entry
+                in trans)
+            {
+                Set<int> blockState = entry.Key;
+                IDictionary<string, int> newDfaTransRow = new Dictionary<string, int>();
+                foreach (KeyValuePair<string, Set<int>> tr in entry.Value)
+                {
+                    newDfaTransRow.Add(tr.Key, renamer.ToDfaStateIndex(tr.Value));
+                }
+                newDfaTrans.Add(renamer.ToDfaStateIndex(blockState), newDfaTransRow);
+            }
+
+            return newDfaTrans;
+        }
+
+        static Set<int> AcceptStates(
+            IEnumerable<Set<int>> blockStates,
+            MinimizedDfaRenamer renamer,
+            List<Set<int>> acceptBlocks)
+        {
+            Set<int> acceptStates = new Set<int>();
+            foreach (Set<int> blockState in blockStates)
+            {
+                if (acceptBlocks.Any(finalState => blockState.Equals(finalState)))
+                    acceptStates.Add(renamer.ToDfaStateIndex(blockState));
+
+            }
+            return acceptStates;
         }
 
         /// <summary>
@@ -227,7 +349,8 @@ namespace RegExpToDfa
         // Write an input file for the dot program.  You can find dot at
         // http://www.research.att.com/sw/tools/graphviz/
 
-        public void WriteDot(string path)
+        // TODO: Should not save, only create text for graphviz dot tool
+        public void SaveDotFile(string path)
         {
             using (var fileStream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
 
@@ -272,49 +395,36 @@ namespace RegExpToDfa
         }
     }
 
-    /// <summary>
-    /// Pair/tuple that by convention has a smaller fst value than snd value.
-    /// </summary>
-    public struct TriangularPair<T> : IEquatable<TriangularPair<T>> where T : IEquatable<T>, IComparable<T>
+    public class MinimizedDfaRenamer : IDfaStateRenamer
     {
-        public T Fst;
-        public T Snd;
+        private readonly Dictionary<Set<int>, int> _blockStatesToDfaState;
+        private readonly List<Set<int>> _dfaStateToBlockState;
+        private readonly IDfaStateRenamer _renamer;
 
-        public TriangularPair(T p, T q)
+        public MinimizedDfaRenamer(ICollection<Set<int>> blockStates, IDfaStateRenamer renamer)
         {
-            if (p.CompareTo(q) < 0)
+            _blockStatesToDfaState = new Dictionary<Set<int>, int>(blockStates.Count);
+            _dfaStateToBlockState = new List<Set<int>>(blockStates.Count);
+            int count = 0;
+            foreach (Set<int> k in blockStates)
             {
-                Fst = p; Snd = q;
+                int nfaStateIndex = count;
+                _blockStatesToDfaState.Add(k, nfaStateIndex);
+                _dfaStateToBlockState.Add(k);
+                count += 1;
             }
-            else
-            {
-                Fst = q; Snd = p;
-            }
+
+            _renamer = renamer;
         }
 
-        public override string ToString()
+        public int ToDfaStateIndex(Set<int> blockState)
         {
-            return $"({Fst}, {Snd})";
+            return _blockStatesToDfaState[blockState];
         }
 
-        public bool Equals(TriangularPair<T> other)
+        public string ToDfaStateString(int dfaStateIndex)
         {
-            return EqualityComparer<T>.Default.Equals(Fst, other.Fst) &&
-                   EqualityComparer<T>.Default.Equals(Snd, other.Snd);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is TriangularPair<T> other && Equals(other);
-        }
-
-        [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (EqualityComparer<T>.Default.GetHashCode(Fst) * 397) ^ EqualityComparer<T>.Default.GetHashCode(Snd);
-            }
+            return _dfaStateToBlockState[dfaStateIndex].Select(s => _renamer.ToDfaStateString(s)).ToSetNotation();
         }
     }
 }
