@@ -222,7 +222,8 @@ namespace RegExpToDfa
             var path = GetPath(filename);
 
             // Create epsilon-NFA
-            Nfa nfa = r.MkNfa(new Nfa.NameSource());
+            var x = new Nfa.NameSource();
+            Nfa nfa = r.MkNfa(x.Next);
             Console.WriteLine(nfa);
             Console.WriteLine("---");
 

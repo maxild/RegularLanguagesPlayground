@@ -316,7 +316,6 @@ namespace RegExpToDfa
         }
     }
 
-
     /// <summary>
     /// Convert to and from int.
     /// </summary>
