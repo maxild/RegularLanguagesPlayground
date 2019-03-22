@@ -7,8 +7,13 @@ namespace RegExpToDfa
 {
     class Program
     {
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static void Main()
+        {
+            RegexTextbook.Parse("ab*");
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public static void OldMain()
         {
             // TestNFA: Trying the RE->NFA->DFA translation on three regular expressions
             //Regex reA = new Sym("a");
