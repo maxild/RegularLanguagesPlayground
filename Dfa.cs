@@ -131,18 +131,22 @@ namespace RegExpToDfa
                         // Make function with input loop
                         // IsInductionDistinguishable
 
-                        int p = Trans[pair.Fst][successorLabel];
-                        int q = Trans[pair.Snd][successorLabel];
-                        TriangularPair<int> successorPair = new TriangularPair<int>(p, q);
-
-                        // For all pairs still undecided if for any successor label/input/suffix
-                        // the pair goes into a pair (p, q) where the states are distinguishable
-                        // for any suffix (that is already marked) we have to mark the pair.
-
-                        // NOTE: BAD that we have to test p not equal to q (use marked table instead)
-                        if (p != q && !undistinguishablePairs.Contains(successorPair)) // successor pair is marked
+                        //int p = Trans[pair.Fst][successorLabel];
+                        //int q = Trans[pair.Snd][successorLabel];
+                        if (Trans[pair.Fst].TryGetValue(successorLabel, out var p) &&
+                            Trans[pair.Snd].TryGetValue(successorLabel, out var q))
                         {
-                            marked.Add(pair);
+                            TriangularPair<int> successorPair = new TriangularPair<int>(p, q);
+
+                            // For all pairs still undecided if for any successor label/input/suffix
+                            // the pair goes into a pair (p, q) where the states are distinguishable
+                            // for any suffix (that is already marked) we have to mark the pair.
+
+                            // NOTE: BAD that we have to test p not equal to q (use marked table instead)
+                            if (p != q && !undistinguishablePairs.Contains(successorPair)) // successor pair is marked
+                            {
+                                marked.Add(pair);
+                            }
                         }
                     }
 
@@ -222,8 +226,9 @@ namespace RegExpToDfa
                 int state = worklist.Dequeue();
                 foreach (var label in GetLabels())
                 {
-                    int toState = Trans[state][label];
-                    if (!visited.Contains(toState))
+                    // Trans indeholder dead states, og er ikke defineret for alle labels,
+                    // og derfor benytter vi TryGetValue
+                    if (Trans[state].TryGetValue(label, out var toState) && !visited.Contains(toState))
                     {
                         worklist.Enqueue(toState);
                         visited.Add(toState);
@@ -272,9 +277,12 @@ namespace RegExpToDfa
 
                 foreach (var label in GetLabels())
                 {
-                    int toState = Trans[blockState.First()][label];
-                    Set<int> toBlockState = blockStates.First(block => block.Contains(toState));
-                    transition.Add(label, toBlockState);
+                    //int toState = Trans[blockState.First()][label];
+                    if (Trans[blockState.First()].TryGetValue(label, out var toState))
+                    {
+                        Set<int> toBlockState = blockStates.First(block => block.Contains(toState));
+                        transition.Add(label, toBlockState);
+                    }
                 }
 
                 blockTrans.Add(blockState, transition);

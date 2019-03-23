@@ -278,7 +278,7 @@ namespace RegExpToDfa
             return acceptStates;
         }
 
-        public Dfa ToDfa()
+        public Dfa ToDfa(bool skipRenaming = false)
         {
             IDictionary<Set<int>, IDictionary<string, Set<int>>>
                 cDfaTrans = CompositeDfaTrans(Start, Trans);
@@ -287,7 +287,7 @@ namespace RegExpToDfa
 
             ICollection<Set<int>> cDfaStates = cDfaTrans.Keys;
 
-            var renamer = new NfaToDfaRenamer(cDfaStates, _predicate);
+            var renamer = new NfaToDfaRenamer(cDfaStates, skipRenaming, _predicate);
 
             // DFA-transitions (delta)
             IDictionary<int, IDictionary<string, int>> dfaTrans =
@@ -300,19 +300,6 @@ namespace RegExpToDfa
             Set<int> dfaAcceptingStateIndices = AcceptStates(cDfaStates, renamer, AcceptingStates);
 
             return new Dfa(dfaStartStateIndex, dfaAcceptingStateIndices, dfaTrans, renamer);
-        }
-
-        /// <summary>
-        /// Nested class for creating distinctly named states when constructing NFAs
-        /// </summary>
-        public class NameSource
-        {
-            private static int _nextName;
-
-            public int Next()
-            {
-                return _nextName++;
-            }
         }
     }
 
@@ -334,8 +321,9 @@ namespace RegExpToDfa
         private readonly Dictionary<Set<int>, int> _nfaStatesToDfaState;
         private readonly List<Set<int>> _dfaStateToNfaStates;
         private readonly Func<int, bool> _predicate;
+        private readonly bool _skipRenaming;
 
-        public NfaToDfaRenamer(ICollection<Set<int>> dfaStates, Func<int, bool> predicate = null)
+        public NfaToDfaRenamer(ICollection<Set<int>> dfaStates, bool skipRenaming, Func<int, bool> predicate = null)
         {
             _nfaStatesToDfaState = new Dictionary<Set<int>, int>(dfaStates.Count);
             _dfaStateToNfaStates = new List<Set<int>>(dfaStates.Count);
@@ -348,6 +336,8 @@ namespace RegExpToDfa
                 count += 1;
             }
 
+            _skipRenaming = skipRenaming;
+
             _predicate = predicate ?? (_ => true);
         }
 
@@ -358,7 +348,9 @@ namespace RegExpToDfa
 
         public string ToDfaStateString(int dfaStateIndex)
         {
-            return _dfaStateToNfaStates[dfaStateIndex].Where(_predicate).ToSetNotation();
+            return _skipRenaming
+                ? dfaStateIndex.ToString()
+                : _dfaStateToNfaStates[dfaStateIndex].Where(_predicate).ToSetNotation();
         }
     }
 }

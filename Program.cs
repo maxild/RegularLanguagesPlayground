@@ -9,21 +9,24 @@ namespace RegExpToDfa
     {
         public static void Main()
         {
-            RegexTextbook.Parse("ab*");
+            //string re = "ab*";
+            //string re = "(a+b)*";
+            //string re = "bb";
+            //string re = "(a+b)*ab";
+            //string re = "((a+b)*ab)*";
+            //string re = "((a+b)*ab)((a+b)*ab)";
+            string re = "(a+b)*abb";
+
+            Regex regex = RegexTextbook.ParseRD(re);
+
+            Dfa dfa = regex.ToDfa(skipRenaming: true);
+
+            dfa.SaveDotFile(GetPath("regex.dot"));
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static void OldMain()
         {
-            // TestNFA: Trying the RE->NFA->DFA translation on three regular expressions
-            //Regex reA = new Sym("a");
-            //Regex reB = new Sym("b");
-
-            //// (a|b)*
-            //Regex reA_Plus_reB_Star = new Star(new Alt(reA, reB));
-
-            //BuildAndShow("dfa0.dot", reA_Plus_reB_Star);
-
             //
             // Equivalence of two DFAs (Example 4.21 in book)
             //
@@ -193,21 +196,6 @@ namespace RegExpToDfa
                 Console.WriteLine($"dfaKeywords.Match({word}) = {dfaKeywords.Match(word)}");
             }
 
-
-            //// bb
-            //Regex reB_Concat_reB = new Seq(reB, reB);
-            //// (a|b)*ab
-            //Regex r = new Seq(reA_Plus_reB_Star, new Seq(reA, reB));
-
-            //// The regular expression (a|b)*ab
-            //BuildAndShow("dfa1.dot", r);
-            //// The regular expression ((a|b)*ab)*
-            //BuildAndShow("dfa2.dot", new Star(r));
-            //// The regular expression ((a|b)*ab)((a|b)*ab)
-            //BuildAndShow("dfa3.dot", new Seq(r, r));
-            //// The regular expression (a|b)*abb, from ASU 1986 p 136
-            //BuildAndShow("dfa4.dot", new Seq(reA_Plus_reB_Star, new Seq(reA, reB_Concat_reB)));
-
             //// SML reals: sign?((digit+(\.digit+)?))([eE]sign?digit+)?
             //Regex d = new Sym("digit");
             //Regex dPlus = new Seq(d, new Star(d));
@@ -227,8 +215,7 @@ namespace RegExpToDfa
             var path = GetPath(filename);
 
             // Create epsilon-NFA
-            var x = new Nfa.NameSource();
-            Nfa nfa = r.MkNfa(x.Next);
+            Nfa nfa = r.ToNfa();
             Console.WriteLine(nfa);
             Console.WriteLine("---");
 
