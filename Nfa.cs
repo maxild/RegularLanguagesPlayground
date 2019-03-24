@@ -278,6 +278,9 @@ namespace RegExpToDfa
             return acceptStates;
         }
 
+        /// <summary>
+        /// McNaughton-Yamada-Thompson algorithm (aka Thompson's construction)
+        /// </summary>
         public Dfa ToDfa(bool skipRenaming = false)
         {
             IDictionary<Set<int>, IDictionary<string, Set<int>>>

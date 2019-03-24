@@ -23,7 +23,7 @@ namespace RegExpToDfa
     //
     // The correct (unambiguous) grammar is based on the following rules:
     //
-    //     1) The unary star (Kleene closure) operator has the highest precedence and is left
+    //     1) The unary star (Kleene closure, iteration) operator has the highest precedence and is left
     //        associative (that is the operator is on the right and binds to the left).
     //     2) Concatenation has the second highest precedence and is left associative.
     //     3) Union has the lowest precedence and is left associative.
@@ -446,7 +446,7 @@ namespace RegExpToDfa
                 {
                     // create new base expression
                     var regex = ParseP();
-                    // see if Kleene closure star is next input
+                    // see if Kleene closure star (iteration operator) is next input
                     return ParseFP(regex);
                 }
                 else

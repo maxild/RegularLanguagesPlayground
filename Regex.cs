@@ -6,7 +6,7 @@ namespace RegExpToDfa
     // Create conversion operators (for the operations which regular languages are closed under)
     //    - Union (works in regex)
     //    - Concatenation (works in regex)
-    //    - Kleene (star) closure (works in regex)
+    //    - Kleene (star, iteration) closure (works in regex)
     //    - Intersection (works on DFA, need DFA to Regex mapping)
     //    - Difference (works on DFA, need DFA to Regex mapping)
     //    - Reversal (works in regex)
@@ -172,7 +172,7 @@ namespace RegExpToDfa
     }
 
     /// <summary>
-    /// Kleene Star NFA builder
+    /// Kleene Star (Iteration) NFA builder
     /// </summary>
     public class Star : Regex
     {

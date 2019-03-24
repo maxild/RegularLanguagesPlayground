@@ -9,6 +9,11 @@ namespace RegExpToDfa
     {
         public static void Main()
         {
+            RegexParser();
+        }
+
+        public static void CourseExercise()
+        {
             var dfa = new Dfa('A', new [] {'B', 'E'});
             dfa.AddTrans('A', "0", 'E');
             dfa.AddTrans('A', "1", 'D');
@@ -30,7 +35,7 @@ namespace RegExpToDfa
             minDfa.SaveDotFile(GetPath("exercise.dot"));
         }
 
-        public static void OldMain2()
+        static void RegexParser()
         {
             //string re = "ab*";
             //string re = "(a+b)*";
@@ -41,12 +46,16 @@ namespace RegExpToDfa
             //string re = "(a+b)*abb";
 
             // L1: From slides on closure properties
-            string re = "((a+b)*a+ε)(bb)*b"; // ends in an odd number of b's
+            //string re = "((a+b)*a+ε)(bb)*b"; // ends in an odd number of b's
 
             // L2: From slides on closure properties
             //string re = "ε+(a+b)*b"; // ends in at least one 'b' and the empty string
 
             // TODO: Create L3 = L1 - L2 (via product DFA, where accepting state is any state where L1 accepts and L2 does not)
+
+            // Are these equivalent
+            //string re = "b*a(a+b)*";
+            string re = "(a+b)*a(a+b)*";
 
             Regex regex = RegexTextbook.ParseRD(re);
 
