@@ -3,6 +3,14 @@ using System.Collections.Generic;
 
 namespace RegExpToDfa
 {
+    // Create conversion operators (for the operations which regular languages are closed under)
+    //    - Union (works in regex)
+    //    - Concatenation (works in regex)
+    //    - Kleene (star) closure (works in regex)
+    //    - Intersection (works on DFA, need DFA to Regex mapping)
+    //    - Difference (works on DFA, need DFA to Regex mapping)
+    //    - Reversal (works in regex)
+
     /// <summary>
     /// Abstract syntax of (textbook) regular expressions
     ///     Base case of single character symbols (denoted by 'c') or empty string (denoted by epsilon)

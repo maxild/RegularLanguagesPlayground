@@ -9,13 +9,44 @@ namespace RegExpToDfa
     {
         public static void Main()
         {
+            var dfa = new Dfa('A', new [] {'B', 'E'});
+            dfa.AddTrans('A', "0", 'E');
+            dfa.AddTrans('A', "1", 'D');
+            dfa.AddTrans('B', "0", 'A');
+            dfa.AddTrans('B', "1", 'C');
+            dfa.AddTrans('C', "0", 'G');
+            dfa.AddTrans('C', "1", 'B');
+            dfa.AddTrans('D', "0", 'E');
+            dfa.AddTrans('D', "1", 'A');
+            dfa.AddTrans('E', "0", 'H');
+            dfa.AddTrans('E', "1", 'C');
+            dfa.AddTrans('F', "0", 'C');
+            dfa.AddTrans('F', "1", 'B');
+            dfa.AddTrans('G', "0", 'F');
+            dfa.AddTrans('G', "1", 'E');
+            dfa.AddTrans('H', "0", 'B');
+            dfa.AddTrans('H', "1", 'H');
+            var minDfa = dfa.ToMinimumDfa();
+            minDfa.SaveDotFile(GetPath("exercise.dot"));
+        }
+
+        public static void OldMain2()
+        {
             //string re = "ab*";
             //string re = "(a+b)*";
             //string re = "bb";
             //string re = "(a+b)*ab";
             //string re = "((a+b)*ab)*";
             //string re = "((a+b)*ab)((a+b)*ab)";
-            string re = "(a+b)*abb";
+            //string re = "(a+b)*abb";
+
+            // L1: From slides on closure properties
+            string re = "((a+b)*a+ε)(bb)*b"; // ends in an odd number of b's
+
+            // L2: From slides on closure properties
+            //string re = "ε+(a+b)*b"; // ends in at least one 'b' and the empty string
+
+            // TODO: Create L3 = L1 - L2 (via product DFA, where accepting state is any state where L1 accepts and L2 does not)
 
             Regex regex = RegexTextbook.ParseRD(re);
 

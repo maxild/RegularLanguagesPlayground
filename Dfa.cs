@@ -5,7 +5,8 @@ using System.Linq;
 
 namespace RegExpToDfa
 {
-    // TODO: Make Match(string s) : bool
+    // TODO: ToRegex: Convert Dfa to Regex
+    // TODO: Convert two DFAs to their product DFA (Intersection, Difference of regular languages are regular languages)
 
     // Note: Keys of dictionary transitions are sorted such that states are ordered 0,1,2,3,4 (or whatever)
 
