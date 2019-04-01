@@ -1,4 +1,4 @@
-namespace RegExpToDfa
+namespace FiniteAutomata
 {
     /// <summary>
     /// A transition to another state on a given label (input) in the transition graph (transition table)

@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using FiniteAutomata;
 
-namespace RegExpToDfa
+namespace CLI.TestDriver.Parsers
 {
     // ------------------------------------------------------------------------------------------------
     // Concrete syntax given with the following grammar that is based on the recursive definition of

@@ -2,10 +2,12 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
+using CLI.TestDriver.Parsers;
+using FiniteAutomata;
 
-namespace RegExpToDfa
+namespace CLI.TestDriver
 {
-    class Program
+    static class Program
     {
         public static void Main()
         {
@@ -86,6 +88,7 @@ namespace RegExpToDfa
 
             eqDfas.SaveDotFile(GetPath("dfa_eq.dot"));
 
+            //System.Console.WriteLine();
             Console.WriteLine($"Eq state pairs: {eqDfas.DisplayEquivalentPairs()}");
             Console.WriteLine($"Eq state sets: {eqDfas.DisplayMergedEqSets()}");
 
@@ -271,14 +274,26 @@ namespace RegExpToDfa
 
         private static string GetPath(string filename)
         {
+            string artifactsPath = GetArtifactsPath();
+            Directory.CreateDirectory(artifactsPath);
+            string path = Path.Combine(artifactsPath, filename);
+            return path;
+        }
+
+        private static string GetArtifactsPath()
+        {
             string path = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
-            while (!path.EndsWith("RegExpToDfa"))
+            while (true)
             {
                 path = Path.GetDirectoryName(path);
+                if (Directory.GetDirectories(path, ".git", SearchOption.TopDirectoryOnly).Length == 1)
+                {
+                    break;
+                }
             }
 
-            path = Path.Combine(path, filename);
-            return path;
+            string artifactsPath = Path.Combine(path, "artifacts");
+            return artifactsPath;
         }
     }
 

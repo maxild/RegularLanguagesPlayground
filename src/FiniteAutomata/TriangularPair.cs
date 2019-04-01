@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace RegExpToDfa
+namespace FiniteAutomata
 {
     /// <summary>
     /// Pair/tuple that by convention has a smaller fst value than snd value.

@@ -4,8 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
-
-namespace RegExpToDfa
+namespace FiniteAutomata
 {
     /// <summary>
     /// A set, with element-based hash codes, built upon <see cref="HashSet{T}"/>

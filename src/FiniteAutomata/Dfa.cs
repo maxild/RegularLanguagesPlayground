@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace RegExpToDfa
+namespace FiniteAutomata
 {
     // TODO: ToRegex: Convert Dfa to Regex
     // TODO: Convert two DFAs to their product DFA (Intersection, Difference of regular languages are regular languages)

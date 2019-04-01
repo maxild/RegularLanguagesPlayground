@@ -1,0 +1,12 @@
+<Project>
+
+    <!-- When searching for a Directory.Build.props file, MSBuild walks the directory structure upwards from your project location  -->
+    <Import Project="..\Directory.Build.props" />
+
+    <PropertyGroup>
+        <IsTestProject>false</IsTestProject>
+        <IsPackable>false</IsPackable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+</Project>

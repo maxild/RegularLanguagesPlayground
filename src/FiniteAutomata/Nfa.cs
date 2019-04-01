@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RegExpToDfa
+namespace FiniteAutomata
 {
     // Idea for testing finite/infinite DFA
     // 1. Eliminate states that are not reachable

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <OutputType>Library</OutputType>
+        <RootNamespace>FiniteAutomata</RootNamespace>
+    </PropertyGroup>
+
+    <!-- NuGet metadata properties -->
+    <PropertyGroup>
+        <Description>Library with epsilon-NFA and DFA implementations</Description>
+    </PropertyGroup>
+
+</Project>

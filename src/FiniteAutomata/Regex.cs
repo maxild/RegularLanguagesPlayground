@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace RegExpToDfa
+namespace FiniteAutomata
 {
     // Create conversion operators (for the operations which regular languages are closed under)
     //    - Union (works in regex)
