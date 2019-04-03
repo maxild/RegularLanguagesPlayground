@@ -37,7 +37,7 @@ namespace ContextFreeGrammar
     ///
     /// LR(0) (dotted) core item: every state is completely determined by its subset of core items
     /// </summary>
-    public sealed class ProductionItem : IEquatable<ProductionItem>
+    public struct ProductionItem : IEquatable<ProductionItem>
     {
         // The canonical collection of sets of LR(0) items
         private const char DOT = '•'; // Bullet
@@ -78,10 +78,18 @@ namespace ContextFreeGrammar
         /// </summary>
         public bool IsShiftItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsTerminal;
 
+        public Symbol GetNextSymbol() => _dotPosition < _production.Tail.Count ? _production.Tail[_dotPosition] : null;
+
+        public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol
+        {
+            return (TSymbol) GetNextSymbol();
+        }
+
+        public ProductionItem GetNextItem() => new ProductionItem(_production, _productionIndex, _dotPosition + 1);
+
+
         public bool Equals(ProductionItem other)
         {
-            if (other == null) return false;
-            if (ReferenceEquals(this, other)) return true;
             return _productionIndex == other._productionIndex && _dotPosition == other._dotPosition;
         }
 
@@ -101,11 +109,12 @@ namespace ContextFreeGrammar
 
         public override string ToString()
         {
-            StringBuilder dottedTail = _production.Tail
+            ProductionItem self = this;
+            StringBuilder dottedTail = self._production.Tail
                 .Aggregate((i: 0, sb: new StringBuilder()),
                     (t, symbol) =>
                     {
-                        if (t.i == _dotPosition)
+                        if (t.i == self._dotPosition)
                         {
                             t.sb.Append(DOT);
                         }

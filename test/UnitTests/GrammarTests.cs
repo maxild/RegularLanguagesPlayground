@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using ContextFreeGrammar;
 using Shouldly;
 using Xunit;
@@ -33,8 +35,63 @@ namespace UnitTests
 ");
 
             // Create LR(0) Automaton
+            grammar.IsReduced.ShouldBeTrue();
+            grammar.IsAugmented.ShouldBeTrue();
 
-            // Create states
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = new Nfa<ProductionItem, Symbol>(new ProductionItem(grammar.Productions[0], 0, 0));
+
+            // (a) For every terminal a in T, if A → α.aβ is a marked production, then
+            //     there is a transition on input a from state A → α.aβ to state A → αa.β
+            //     obtained by "shifting the dot"
+            // (b) For every variable B in V, if A → α.Bβ is a marked production, then
+            //     there is a transition on input B from state A → α.Bβ to state A → αB.β
+            //     obtained by "shifting the dot", and transitions on input ϵ (the empty string)
+            //     to all states B → .γ(i), for all productions B → γ(i) in P with left-hand side B.
+            int productionIndex = 0;
+            foreach (var production in grammar)
+            {
+                for (int dotPosition = 0; dotPosition <= production.Tail.Count; dotPosition += 1)
+                {
+                    // (productionIndex, dotPosition) is identifier
+                    var item = new ProductionItem(production, productionIndex, dotPosition);
+
+                    // (a) A → α.aβ
+                    if (item.IsShiftItem)
+                    {
+                        // shift item
+                        characteristicStringsNfa.AddTransition(item, item.GetNextSymbol<Terminal>(), item.GetNextItem());
+                    }
+
+                    // (b) A → α.Bβ
+                    if (item.IsGotoItem)
+                    {
+                        var nonTerminal = item.GetNextSymbol<NonTerminal>();
+                        // goto item
+                        characteristicStringsNfa.AddTransition(item, nonTerminal, item.GetNextItem());
+                        // closure items
+                        foreach (var closureItems in grammar.GetEquivalentItemsOf(nonTerminal))
+                        {
+                            // Expecting to see a non terminal 'B' is the same as expecting to see
+                            // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
+                            characteristicStringsNfa.AddTransition(item, Symbol.Epsilon, closureItems);
+                        }
+                    }
+
+                    // (c) A → β. Accepting states has dot shifted all the way to the end.
+                    if (item.IsReduceItem)
+                    {
+                        characteristicStringsNfa.AcceptingStates.Add(item);
+                    }
+                }
+
+                productionIndex += 1;
+            }
+
+            // create states: Create DFA (epsilon-closure)
+            //var characteristicStringsDfa = ...
+
+            // Create it directly...in single step
         }
     }
 

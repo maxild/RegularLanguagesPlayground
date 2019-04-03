@@ -207,7 +207,7 @@ namespace CLI.TestDriver
             // TODO: Vi antager, at alfabetet er de mulige ord i 'web' og 'ebay', da grafen ellers bliver meget uoverskuelig
             // NOTE: Grafen er allerede uoverskuelig pga de mange pile, da hver vertex kun kan have et input
 
-            // 9,1,0 is part of every state
+            // 9,1,0 is part of every state, so we remove them from the naming strategy
             var nfaKeywords = new Nfa(9, new [] {4, 8}, s => new Set<int>(new[] {0,1,9}).Contains(s) == false);
             nfaKeywords.AddTrans(9, null, 1);
             nfaKeywords.AddTrans(9, null, 0);

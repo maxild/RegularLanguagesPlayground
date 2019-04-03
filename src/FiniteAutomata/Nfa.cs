@@ -37,15 +37,14 @@ namespace FiniteAutomata
     {
         private readonly Func<int, bool> _predicate;
 
-        public Nfa(int startState, int exitState)
+        /// <summary>
+        /// Create NFA machine building block.
+        /// </summary>
+        /// <param name="startState">Start state (Thompson)</param>
+        /// <param name="acceptState">Exit state (Thompson)</param>
+        public Nfa(int startState, int acceptState)
+            : this(startState, new []{acceptState}, null)
         {
-            Start = startState;
-            AcceptingStates = new Set<int>(new []{exitState});
-            // for every state
-            Trans = new Dictionary<int, List<Transition>>();
-            // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
-            if (!startState.Equals(exitState))
-                Trans.Add(exitState, new List<Transition>());
         }
 
         public Nfa(int startState, IEnumerable<int> acceptingStates, Func<int, bool> predicate)
@@ -80,9 +79,9 @@ namespace FiniteAutomata
 
         /// <summary>
         /// For any state we can find a list of transitions -- i.e.
-        /// Trans[q] is a list of pairs {(a, p1), (a,p2), (b, p1),....}
-        /// where the pair (a, p1) show us that on on input 'a' we move
-        /// to state p1. We use a list because the same input can be any
+        /// Trans[q] is a list of pairs {(a, p1), (a, p2), (b, p1),....}
+        /// where the pair (a, p1) show us that on input 'a' we move
+        /// to state p1. We use a list because the same input can be in
         /// many pairs (non-deterministic) machine.
         /// </summary>
         public IDictionary<int, List<Transition>> Trans { get; }
