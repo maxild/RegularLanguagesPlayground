@@ -20,35 +20,29 @@ namespace FiniteAutomata
             _inner = new HashSet<T>();
         }
 
-        // we cannot use capacity because of this constructor
-        //public Set(T x) : this()
-        //{
-        //    Add(x);
-        //}
-
         public Set(IEnumerable<T> coll) : this()
         {
             foreach (T x in coll)
                 Add(x);
         }
 
-        public bool Contains(T x)
+        public bool Contains(T item)
         {
-            return _inner.Contains(x);
+            return _inner.Contains(item);
         }
 
-        public void Add(T x)
+        public void Add(T item)
         {
-            if (!Contains(x))
+            if (!Contains(item))
             {
-                _inner.Add(x);
+                _inner.Add(item);
                 _cachedHash = null;
             }
         }
 
-        public bool Remove(T x)
+        public bool Remove(T item)
         {
-            bool removed = _inner.Remove(x);
+            bool removed = _inner.Remove(item);
             if (removed)
                 _cachedHash = null;
             return removed;
@@ -66,9 +60,9 @@ namespace FiniteAutomata
 
         public int Count => _inner.Count;
 
-        public void CopyTo(T[] arr, int i)
+        public void CopyTo(T[] array, int arrayIndex)
         {
-            _inner.CopyTo(arr, i);
+            _inner.CopyTo(array, arrayIndex);
         }
 
         public void Clear()
@@ -169,7 +163,7 @@ namespace FiniteAutomata
         }
     }
 
-    public static class SetExtenions
+    public static class SetExtensions
     {
         public static string ToSetNotation<T>(this IEnumerable<T> values)
         {

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <OutputType>Library</OutputType>
+        <RootNamespace>ContextFreeGrammar</RootNamespace>
+    </PropertyGroup>
+
+    <!-- NuGet metadata properties -->
+    <PropertyGroup>
+        <Description>Library with grammar and LL(k) and LR(k) parser stuff.</Description>
+    </PropertyGroup>
+</Project>
