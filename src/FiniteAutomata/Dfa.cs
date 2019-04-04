@@ -1,7 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Text;
+using AutomataLib;
 
 namespace FiniteAutomata
 {
@@ -367,52 +368,52 @@ namespace FiniteAutomata
             }
         }
 
-        // Write an input file for the dot program.  You can find dot at
-        // http://www.research.att.com/sw/tools/graphviz/
-
-        // TODO: Should not save, only create text for graphviz dot tool (DOT definition)
-        public void SaveDotFile(string path)
+        public string ToDotLanguage(DotRankDirection direction = DotRankDirection.LeftRight)
         {
-            using (var fileStream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
-
-            using (var sw = new StreamWriter(fileStream))
+            var sb = new StringBuilder();
+            sb.AppendLine("// Format this file as a Postscript file with ");
+            sb.AppendLine($"//    dot -Tps [filename.dot] -o out.ps\n");
+            sb.AppendLine("digraph dfa {");
+            switch (direction)
             {
-                sw.WriteLine("// Format this file as a Postscript file with ");
-                sw.WriteLine("//    dot " + path + " -Tps -o out.ps\n");
-                sw.WriteLine("digraph dfa {");
-                sw.WriteLine("size=\"11,8.25\";");
-                //sw.WriteLine("rotate=90;");
-                sw.WriteLine("rankdir=LR;");
-                sw.WriteLine("n999999 [style=invis];"); // Invisible start node
-                sw.WriteLine("n999999 -> n" + Start); // Edge into start state
-
-                // labels that indicate the NFA states of the subset construction
-                foreach (int state in Trans.Keys)
-                    sw.WriteLine("n" + state + " [label=\"" + _renamer.ToDfaStateString(state) + "\"]");
-
-                // Accept states are double circles
-                foreach (int state in Trans.Keys)
-                    if (Accept.Contains(state))
-                        sw.WriteLine("n" + state + " [peripheries=2];");
-
-                // The transitions
-                foreach (KeyValuePair<int, IDictionary<string, int>> entry in Trans)
-                {
-                    int fromState = entry.Key; // from-state
-                    foreach (KeyValuePair<string, int> s1Trans in entry.Value)
-                    {
-                        string input = s1Trans.Key;
-                        int toState = s1Trans.Value;
-                        sw.WriteLine("n" + fromState + " -> n" + toState + " [label=\"" + input + "\"];");
-                    }
-                }
-
-                sw.WriteLine("}");
-
-                // Ensure we overwrite an existing file
-                fileStream.SetLength(fileStream.Position);
+                    case DotRankDirection.TopBottom:
+                        sb.AppendLine("size=\"8.25,11\"; /* A4 paper portrait: 8.27 × 11.69 inches */");
+                        sb.AppendLine("rankdir=TB;");
+                        break;
+                    case DotRankDirection.LeftRight:
+                        sb.AppendLine("size=\"11,8.25\"; /* A4 paper landscape: 11.69 x 8.27 inches */");
+                        sb.AppendLine("rankdir=LR;");
+                        break;
             }
 
+            // start state arrow indicator
+            sb.AppendLine("n999999 [style=invis];");    // Invisible start node
+            sb.AppendLine("n999999 -> n" + Start);      // Edge into start state
+
+            // label states (overriding default n0, n1 names)
+            foreach (int state in Trans.Keys)
+                sb.AppendLine("n" + state + " [label=\"" + _renamer.ToDfaStateString(state) + "\"]");
+
+            // accept states are double circles
+            foreach (int state in Trans.Keys)
+                if (Accept.Contains(state))
+                    sb.AppendLine("n" + state + " [peripheries=2];");
+
+            // nodes and edges are defined by transitions
+            foreach (KeyValuePair<int, IDictionary<string, int>> entry in Trans)
+            {
+                int fromState = entry.Key;
+                foreach (KeyValuePair<string, int> s1Trans in entry.Value)
+                {
+                    string label = s1Trans.Key;
+                    int toState = s1Trans.Value;
+                    sb.AppendLine("n" + fromState + " -> n" + toState + " [label=\"" + label + "\"];");
+                }
+            }
+
+            sb.AppendLine("}");
+
+            return sb.ToString();
         }
     }
 

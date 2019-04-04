@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ContextFreeGrammar\ContextFreeGrammar.csproj" />
     <ProjectReference Include="..\FiniteAutomata\FiniteAutomata.csproj" />
   </ItemGroup>
 

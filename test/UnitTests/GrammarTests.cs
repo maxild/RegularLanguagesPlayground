@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using ContextFreeGrammar;
 using Shouldly;
 using Xunit;
@@ -10,7 +7,7 @@ namespace UnitTests
     public class GrammarTests
     {
         [Fact]
-        public void Test()
+        public void Stringify()
         {
             // Augmented Grammar (assumed reduced, i.e. no useless symbols).
             //
@@ -38,55 +35,7 @@ namespace UnitTests
             grammar.IsReduced.ShouldBeTrue();
             grammar.IsAugmented.ShouldBeTrue();
 
-            // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = new Nfa<ProductionItem, Symbol>(new ProductionItem(grammar.Productions[0], 0, 0));
-
-            // (a) For every terminal a in T, if A → α.aβ is a marked production, then
-            //     there is a transition on input a from state A → α.aβ to state A → αa.β
-            //     obtained by "shifting the dot"
-            // (b) For every variable B in V, if A → α.Bβ is a marked production, then
-            //     there is a transition on input B from state A → α.Bβ to state A → αB.β
-            //     obtained by "shifting the dot", and transitions on input ϵ (the empty string)
-            //     to all states B → .γ(i), for all productions B → γ(i) in P with left-hand side B.
-            int productionIndex = 0;
-            foreach (var production in grammar)
-            {
-                for (int dotPosition = 0; dotPosition <= production.Tail.Count; dotPosition += 1)
-                {
-                    // (productionIndex, dotPosition) is identifier
-                    var item = new ProductionItem(production, productionIndex, dotPosition);
-
-                    // (a) A → α.aβ
-                    if (item.IsShiftItem)
-                    {
-                        // shift item
-                        characteristicStringsNfa.AddTransition(item, item.GetNextSymbol<Terminal>(), item.GetNextItem());
-                    }
-
-                    // (b) A → α.Bβ
-                    if (item.IsGotoItem)
-                    {
-                        var nonTerminal = item.GetNextSymbol<NonTerminal>();
-                        // goto item
-                        characteristicStringsNfa.AddTransition(item, nonTerminal, item.GetNextItem());
-                        // closure items
-                        foreach (var closureItems in grammar.GetEquivalentItemsOf(nonTerminal))
-                        {
-                            // Expecting to see a non terminal 'B' is the same as expecting to see
-                            // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
-                            characteristicStringsNfa.AddTransition(item, Symbol.Epsilon, closureItems);
-                        }
-                    }
-
-                    // (c) A → β. Accepting states has dot shifted all the way to the end.
-                    if (item.IsReduceItem)
-                    {
-                        characteristicStringsNfa.AcceptingStates.Add(item);
-                    }
-                }
-
-                productionIndex += 1;
-            }
+            //var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
 
             // create states: Create DFA (epsilon-closure)
             //var characteristicStringsDfa = ...
@@ -95,25 +44,29 @@ namespace UnitTests
         }
     }
 
-    public class ProductionItemTests
+    public class NumberUtilsTests
     {
         [Fact]
-        public void Test()
+        public void LowDWord()
         {
-            var production = Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("E"));
-            new ProductionItem(production, 0, 0).ToString().ShouldBe("E → •E+E");
-            new ProductionItem(production, 0, 1).ToString().ShouldBe("E → E•+E");
-            new ProductionItem(production, 0, 2).ToString().ShouldBe("E → E+•E");
-            new ProductionItem(production, 0, 3).ToString().ShouldBe("E → E+E•");
-            Assert.Throws<ArgumentException>(() => new ProductionItem(production, 0, 4));
+            const ushort EXPECTED = 0xAA00; // no short literal in C#
+            NumberUtils.LowDWord(0x0000AA00).ShouldBe(EXPECTED);
         }
-    }
 
-    public static class GrammarExtensions
-    {
-        public static Production GoesTo(this NonTerminal head, params Symbol[] tail)
+        [Fact]
+        public void HighDWord()
         {
-            return new Production(head, tail);
+            const ushort EXPECTED = 0x00AA; // no short literal in C#
+            NumberUtils.HighDWord(0x00AA0000).ShouldBe(EXPECTED);
+        }
+
+        [Fact]
+        public void CombineDWords()
+        {
+            const ushort LOW = 0x00_10;
+            const ushort HIGH = 0x00_20;
+            const int EXPECTED = 0x00_20_00_10;
+            NumberUtils.CombineDWords(LOW, HIGH).ShouldBe(EXPECTED);
         }
     }
 }

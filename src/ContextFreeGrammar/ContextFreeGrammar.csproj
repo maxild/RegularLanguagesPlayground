@@ -10,4 +10,7 @@
     <PropertyGroup>
         <Description>Library with grammar and LL(k) and LR(k) parser stuff.</Description>
     </PropertyGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\SharedLib\SharedLib.csproj" />
+    </ItemGroup>
 </Project>

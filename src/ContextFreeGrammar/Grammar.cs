@@ -72,24 +72,75 @@ namespace ContextFreeGrammar
             }
         }
 
-        //public IEnumerable<ProductionItem> DottedItems
-        //{
-        //    get
-        //    {
-        //        int productionIndex = 0;
-        //        foreach (var production in Productions)
-        //        {
-        //            foreach (var symbol in production.Tail)
-        //            {
-        //                yield return new ProductionItem(production, productionIndex, );
-        //            }
+        public Nfa<ProductionItem, Symbol> GetCharacteristicStringsNfa()
+        {
+            if (Productions.Count == 0)
+            {
+                throw new InvalidOperationException("The grammar has no productions.");
+            }
 
-        //            productionIndex += 0;
-        //        }
-        //    }
-        //}
+            if (!IsAugmented)
+            {
+                throw new InvalidOperationException("The grammar should be augmented with canonical S' -> S production.");
+            }
 
+            if (!IsReduced)
+            {
+                throw new InvalidOperationException("The grammar contains useless symbols.");
+            }
 
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = new Nfa<ProductionItem, Symbol>(new ProductionItem(Productions[0], 0, 0));
+
+            // (a) For every terminal a in T, if A → α.aβ is a marked production, then
+            //     there is a transition on input a from state A → α.aβ to state A → αa.β
+            //     obtained by "shifting the dot"
+            // (b) For every variable B in V, if A → α.Bβ is a marked production, then
+            //     there is a transition on input B from state A → α.Bβ to state A → αB.β
+            //     obtained by "shifting the dot", and transitions on input ϵ (the empty string)
+            //     to all states B → .γ(i), for all productions B → γ(i) in P with left-hand side B.
+            int productionIndex = 0;
+            foreach (var production in Productions)
+            {
+                for (int dotPosition = 0; dotPosition <= production.Tail.Count; dotPosition += 1)
+                {
+                    // (productionIndex, dotPosition) is identifier
+                    var item = new ProductionItem(production, productionIndex, dotPosition);
+
+                    // (a) A → α.aβ
+                    if (item.IsShiftItem)
+                    {
+                        // shift item
+                        characteristicStringsNfa.AddTransition(item, item.GetNextSymbol<Terminal>(), item.GetNextItem());
+                    }
+
+                    // (b) A → α.Bβ
+                    if (item.IsGotoItem)
+                    {
+                        var nonTerminal = item.GetNextSymbol<NonTerminal>();
+                        // goto item
+                        characteristicStringsNfa.AddTransition(item, nonTerminal, item.GetNextItem());
+                        // closure items
+                        foreach (var closureItems in GetEquivalentItemsOf(nonTerminal))
+                        {
+                            // Expecting to see a non terminal 'B' is the same as expecting to see
+                            // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
+                            characteristicStringsNfa.AddTransition(item, Symbol.Epsilon, closureItems);
+                        }
+                    }
+
+                    // (c) A → β. Accepting states has dot shifted all the way to the end.
+                    if (item.IsReduceItem)
+                    {
+                        characteristicStringsNfa.AcceptingStates.Add(item);
+                    }
+                }
+
+                productionIndex += 1;
+            }
+
+            return characteristicStringsNfa;
+        }
 
         public IEnumerator<Production> GetEnumerator()
         {
@@ -106,34 +157,6 @@ namespace ContextFreeGrammar
             return Productions
                 .Aggregate((i: 0, sb: new StringBuilder()), (t, p) => (t.i + 1, t.sb.AppendLine($"{t.i}: {p}"))).sb
                 .ToString();
-        }
-    }
-
-
-    /// <summary>
-    /// A transition to another state on a given label in the transition graph.
-    /// </summary>
-    public struct Transition<TState, TAlphabet>
-    {
-        /// <summary>
-        /// Input (character) that labels the transition
-        /// </summary>
-        public TAlphabet Label;
-
-        /// <summary>
-        /// State we transition into on <see cref="Label"/>
-        /// </summary>
-        public TState ToState;
-
-        public Transition(TAlphabet label, TState toState)
-        {
-            Label = label;
-            ToState = toState;
-        }
-
-        public override string ToString()
-        {
-            return "-" + Label + "-> " + ToState;
         }
     }
 }

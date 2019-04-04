@@ -37,7 +37,7 @@ namespace ContextFreeGrammar
     ///
     /// LR(0) (dotted) core item: every state is completely determined by its subset of core items
     /// </summary>
-    public struct ProductionItem : IEquatable<ProductionItem>
+    public struct ProductionItem : IEquatable<ProductionItem>, INumberedItem
     {
         // The canonical collection of sets of LR(0) items
         private const char DOT = '•'; // Bullet
@@ -107,6 +107,12 @@ namespace ContextFreeGrammar
             }
         }
 
+        // HACK
+        int INumberedItem.Number =>
+            NumberUtils.CombineDWords(NumberUtils.LowDWord(_productionIndex), NumberUtils.LowDWord(_dotPosition));
+
+        string INumberedItem.Label => ToString();
+
         public override string ToString()
         {
             ProductionItem self = this;
@@ -127,6 +133,41 @@ namespace ContextFreeGrammar
             }
 
             return $"{_production.Head} → {dottedTail}";
+        }
+    }
+
+    public interface INumberedItem
+    {
+        int Number { get; }
+        string Label { get; }
+    }
+
+
+    public static class NumberUtils
+    {
+        public static int CombineDWords(ushort low, ushort high)
+        {
+            return ((int)(low & 0xffff) | ((int)(high & 0xffff) << 16));
+        }
+
+        public static ushort HighDWord(uint a)
+        {
+            return (ushort)(a >> 16);
+        }
+
+        public static ushort HighDWord(int a)
+        {
+            return (ushort)(a >> 16);
+        }
+
+        public static ushort LowDWord(uint a)
+        {
+            return (ushort)(a & 0xffff);
+        }
+
+        public static ushort LowDWord(int a)
+        {
+            return (ushort)(a & 0xffff);
         }
     }
 }

@@ -73,7 +73,7 @@ namespace CLI.TestDriver.Parsers
     //       Maybe (left-most) derivation can be saved such that (DOT) tree can be created from
     //       those instructions without defining tree by defining C# types and instances. A derivation is
     //       simply a path through the LL(1) parse table. This can be saved into an array/list of productions used.
-    // TODO: Parse method should construct abstract syntax tree (make ToDotFile on Regex and Dfa, and maybe Nfa)
+    // TODO: Parse method should construct abstract syntax tree (make ToDotLanguage on Regex and Dfa, and maybe Nfa)
 
     /// <summary>
     /// Textbook grammar used in 'Automata Theory' for RE.

@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using CLI.TestDriver.Parsers;
+using ContextFreeGrammar;
 using FiniteAutomata;
 
 namespace CLI.TestDriver
@@ -11,7 +12,33 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            RegexParser();
+            //RegexParser();
+            CourseExercise();
+        }
+
+        public static void LRParsing()
+        {
+            // Augmented Grammar (assumed reduced, i.e. no useless symbols).
+            //
+            // ({S,E}, {a,b}, P, S) with P given by
+            //
+            // The purpose of this new starting production (S) is to indicate to the parser when
+            // it should stop parsing and announce acceptance of input.
+            //
+            // 0: S → E
+            // 1: E → aEb
+            // 2: E → ab
+            var grammar = new Grammar(Symbol.Vs("S", "E"), Symbol.Ts('a', 'b'), Symbol.V("S"))
+            {
+                Symbol.V("S").GoesTo(Symbol.V("E")),
+                Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
+            };
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = new Nfa<ProductionItem, Symbol>(new ProductionItem(grammar.Productions[0], 0, 0));
+
+            characteristicStringsNfa.ToDotLanguage();
         }
 
         public static void CourseExercise()
@@ -34,7 +61,7 @@ namespace CLI.TestDriver
             dfa.AddTrans('H', "0", 'B');
             dfa.AddTrans('H', "1", 'H');
             var minDfa = dfa.ToMinimumDfa();
-            minDfa.SaveDotFile(GetPath("exercise.dot"));
+            SaveFile("exercise.dot", minDfa.ToDotLanguage());
         }
 
         static void RegexParser()
@@ -63,7 +90,7 @@ namespace CLI.TestDriver
 
             Dfa dfa = regex.ToDfa(skipRenaming: true);
 
-            dfa.SaveDotFile(GetPath("regex.dot"));
+            SaveFile("regex.dot", dfa.ToDotLanguage());
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -86,7 +113,7 @@ namespace CLI.TestDriver
             eqDfas.AddTrans('E', "0", 'C');
             eqDfas.AddTrans('E', "1", 'E');
 
-            eqDfas.SaveDotFile(GetPath("dfa_eq.dot"));
+            SaveFile("dfa_eq.dot", eqDfas.ToDotLanguage());
 
             //System.Console.WriteLine();
             Console.WriteLine($"Eq state pairs: {eqDfas.DisplayEquivalentPairs()}");
@@ -113,14 +140,14 @@ namespace CLI.TestDriver
             nonMinDfa.AddTrans('H', "0", 'G');
             nonMinDfa.AddTrans('H', "1", 'D');
 
-            nonMinDfa.SaveDotFile(GetPath("dfaNonMin.dot"));
+            SaveFile("dfaNonMin.dot", nonMinDfa.ToDotLanguage());
 
             Console.WriteLine($"Eq state pairs: {nonMinDfa.DisplayEquivalentPairs()}");
             Console.WriteLine($"Eq state sets: {nonMinDfa.DisplayMergedEqSets()}");
 
             Dfa minDfa = nonMinDfa.ToMinimumDfa();
 
-            minDfa.SaveDotFile(GetPath("dfaMin.dot"));
+            SaveFile("dfaMin.dot", minDfa.ToDotLanguage());
 
             //
             // epsilon-NFA accepting accepting decimal numbers
@@ -193,7 +220,7 @@ namespace CLI.TestDriver
 
             Dfa dfaDecimal = nfaDecimal.ToDfa();
 
-            dfaDecimal.SaveDotFile(GetPath("dfa_decimal.dot"));
+            SaveFile("dfa_decimal.dot", dfaDecimal.ToDotLanguage());
 
             foreach (var word in new [] {"+d.d", "-.", "-.d", ".", "d.", "d.d", ".d"})
             {
@@ -230,7 +257,7 @@ namespace CLI.TestDriver
             Dfa dfaKeywords = nfaKeywords.ToDfa();
 
             // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
-            dfaKeywords.SaveDotFile(GetPath("dfa_keywords.dot"));
+            SaveFile("dfa_keywords.dot", dfaKeywords.ToDotLanguage());
 
             Console.WriteLine("");
             foreach (var word in new [] {"goto", "web", "ebay", "webay", "web1"})
@@ -253,23 +280,9 @@ namespace CLI.TestDriver
             //BuildAndShow("dfa5.dot", smlReal);
         }
 
-        public static void BuildAndShow(string filename, Regex r)
+        private static void SaveFile(string filename, string contents)
         {
-            var path = GetPath(filename);
-
-            // Create epsilon-NFA
-            Nfa nfa = r.ToNfa();
-            Console.WriteLine(nfa);
-            Console.WriteLine("---");
-
-            // Create DFA (subset construction)
-            Dfa dfa = nfa.ToDfa();
-            Console.WriteLine(dfa);
-            Console.WriteLine("Writing DFA graph to file " + path);
-
-            // Write DFA to graph
-            dfa.SaveDotFile(path);
-            Console.WriteLine();
+            File.WriteAllText(GetPath(filename), contents);
         }
 
         private static string GetPath(string filename)

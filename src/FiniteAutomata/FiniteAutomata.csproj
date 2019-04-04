@@ -11,4 +11,8 @@
         <Description>Library with epsilon-NFA and DFA implementations</Description>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\SharedLib\SharedLib.csproj" />
+    </ItemGroup>
+
 </Project>
