@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using AutomataLib;
 
 namespace ContextFreeGrammar
 {
@@ -36,11 +37,19 @@ namespace ContextFreeGrammar
     /// by some production rule.
     ///
     /// LR(0) (dotted) core item: every state is completely determined by its subset of core items
+    ///
+    /// The "core" of an LR item. This includes a production and the position
+    /// of a marker (the "dot") within the production. Typically item cores
+    /// are written using a production with an embedded "dot" to indicate their
+    /// position: B → α"."β
+    /// This represents a point in a parse where the parser is trying to match
+    /// the given production, and has succeeded in matching everything before the
+    /// "dot" (and hence is expecting to see the symbols after the dot next).
     /// </summary>
     public struct ProductionItem : IEquatable<ProductionItem>, INumberedItem
     {
-        // The canonical collection of sets of LR(0) items
         private const char DOT = '•'; // Bullet
+
         private readonly Production _production;
         private readonly int _productionIndex;
         private readonly int _dotPosition;

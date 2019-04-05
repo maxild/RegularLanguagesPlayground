@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using AutomataLib;
 
 namespace ContextFreeGrammar
 {
@@ -11,6 +12,9 @@ namespace ContextFreeGrammar
     /// </summary>
     public class Grammar : IEnumerable<Production>
     {
+        // TODO: Do we need a map?
+        // private readonly Dictionary<NonTerminal, List<Production>> _productionMap;
+
         public Grammar(IEnumerable<NonTerminal> variables, IEnumerable<Terminal> terminals, NonTerminal startSymbol)
         {
             Productions = new List<Production>();
@@ -72,6 +76,7 @@ namespace ContextFreeGrammar
             }
         }
 
+        // Step 1 of 2: The canonical collection of sets of LR(0) items
         public Nfa<ProductionItem, Symbol> GetCharacteristicStringsNfa()
         {
             if (Productions.Count == 0)

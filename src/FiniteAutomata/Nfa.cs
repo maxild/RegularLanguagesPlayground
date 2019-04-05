@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AutomataLib;
 
 namespace FiniteAutomata
 {
@@ -33,7 +34,8 @@ namespace FiniteAutomata
     ///  (2) Replace composite states (Set of int) by simple states
     ///      (int). This is done by methods Rename and MkRenamer.
     /// </remarks>
-    public class Nfa
+    public class Nfa<TAlphabet>
+        where TAlphabet : IEquatable<TAlphabet>
     {
         private readonly Func<int, bool> _predicate;
 
@@ -51,12 +53,12 @@ namespace FiniteAutomata
         {
             Start = startState;
             AcceptingStates = new Set<int>(acceptingStates);
-            Trans = new Dictionary<int, List<Transition>>();
+            Trans = new Dictionary<int, List<Transition<TAlphabet>>>();
             // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
             foreach (var acceptingState in AcceptingStates)
             {
                 if (!startState.Equals(acceptingState))
-                    Trans.Add(acceptingState, new List<Transition>());
+                    Trans.Add(acceptingState, new List<Transition<TAlphabet>>());
             }
 
             _predicate = predicate;
@@ -84,25 +86,25 @@ namespace FiniteAutomata
         /// to state p1. We use a list because the same input can be in
         /// many pairs (non-deterministic) machine.
         /// </summary>
-        public IDictionary<int, List<Transition>> Trans { get; }
+        public IDictionary<int, List<Transition<TAlphabet>>> Trans { get; }
 
-        public void AddTrans(int s1, string label, int s2)
+        public void AddTrans(int s1, TAlphabet label, int s2)
         {
-            List<Transition> transitions;
+            List<Transition<TAlphabet>> transitions;
             if (Trans.ContainsKey(s1))
             {
                 transitions = Trans[s1];
             }
             else
             {
-                transitions = new List<Transition>();
+                transitions = new List<Transition<TAlphabet>>();
                 Trans.Add(s1, transitions);
             }
 
-            transitions.Add(new Transition(label, s2));
+            transitions.Add(new Transition<TAlphabet>(label, s2));
         }
 
-        public void AddTrans(KeyValuePair<int, List<Transition>> tr)
+        public void AddTrans(KeyValuePair<int, List<Transition<TAlphabet>>> tr)
         {
             // Assumption: if tr is in trans, it maps to an empty list (end state)
             Trans.Remove(tr.Key);
@@ -138,9 +140,9 @@ namespace FiniteAutomata
         //      the transition S -label-> Tclose to the DFA transition relation, for
         //      every label.
 
-        static IDictionary<Set<int>, IDictionary<string, Set<int>>> CompositeDfaTrans(
+        static IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> CompositeDfaTrans(
             int startState,
-            IDictionary<int, List<Transition>> trans)
+            IDictionary<int, List<Transition<TAlphabet>>> trans)
         {
             // Lazy form of Subset Construction where only reachable nodes are converted
 
@@ -150,7 +152,7 @@ namespace FiniteAutomata
             markedVisitedStates.Enqueue(s0EpsClosure);
 
             // The transition relation of the DFA = (States, Transition)
-            var result = new Dictionary<Set<int>, IDictionary<string, Set<int>>>();
+            var result = new Dictionary<Set<int>, IDictionary<TAlphabet, Set<int>>>();
 
             while (markedVisitedStates.Count != 0)
             {
@@ -158,14 +160,14 @@ namespace FiniteAutomata
                 if (!result.ContainsKey(subset))
                 {
                     // The (S, label) -> T transition relation being constructed for a given S
-                    IDictionary<string, Set<int>> subsetTrans =
-                        new Dictionary<string, Set<int>>();
+                    IDictionary<TAlphabet, Set<int>> subsetTrans =
+                        new Dictionary<TAlphabet, Set<int>>();
 
                     // For all s in S, consider all transitions (s, label) -> t
                     foreach (int s in subset)
                     {
                         // For all non-epsilon transitions s -label-> t, add t to T
-                        foreach (Transition tr in trans[s])
+                        foreach (var tr in trans[s])
                         {
                             if (tr.Label != null) // not epsilon
                             {
@@ -188,9 +190,9 @@ namespace FiniteAutomata
                     }
 
                     // Epsilon-close all T such that (S, label) -> T, and put on worklist
-                    Dictionary<string, Set<int>> subsetTransClosed =
-                        new Dictionary<string, Set<int>>();
-                    foreach (KeyValuePair<string, Set<int>> entry in subsetTrans)
+                    Dictionary<TAlphabet, Set<int>> subsetTransClosed =
+                        new Dictionary<TAlphabet, Set<int>>();
+                    foreach (KeyValuePair<TAlphabet, Set<int>> entry in subsetTrans)
                     {
                         Set<int> toSubsetEpsClosure = EpsilonClose(entry.Value, trans);
                         subsetTransClosed.Add(entry.Key, toSubsetEpsClosure);
@@ -210,14 +212,14 @@ namespace FiniteAutomata
         /// <param name="states">The set of states to closure</param>
         /// <param name="trans">The transitions of the NFA.</param>
         /// <returns>The epsilon closure of the given states.</returns>
-        static Set<int> EpsilonClose(Set<int> states, IDictionary<int, List<Transition>> trans)
+        static Set<int> EpsilonClose(Set<int> states, IDictionary<int, List<Transition<TAlphabet>>> trans)
         {
             var markedVisitedStates = new Queue<int>(states); // mark visited states
             var result = new Set<int>(states);
             while (markedVisitedStates.Count != 0)
             {
                 int s = markedVisitedStates.Dequeue();
-                foreach (Transition tr in trans[s])
+                foreach (var tr in trans[s])
                 {
                     // TODO: Create better representation of single letters and empty string (epsilon)
                     if (tr.Label == null && !result.Contains(tr.ToState))
@@ -240,19 +242,18 @@ namespace FiniteAutomata
         // int, use the result of MkRenamer to replace all Sets of ints
         // by ints.
 
-        static IDictionary<int, IDictionary<string, int>> Rename(
+        static IDictionary<int, IDictionary<TAlphabet, int>> Rename(
             NfaToDfaRenamer renamer,
-            IDictionary<Set<int>, IDictionary<string, Set<int>>> dfaTrans)
+            IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> dfaTrans)
         {
-            // TODO: Dictionary not perfect here (alphabet must be ASCII and table-driven approach better)
-            var newDfaTrans = new SortedDictionary<int, IDictionary<string, int>>(); // keys/states are sorted
+            var newDfaTrans = new SortedDictionary<int, IDictionary<TAlphabet, int>>(); // keys/states are sorted
 
-            foreach (KeyValuePair<Set<int>, IDictionary<string, Set<int>>> entry
+            foreach (KeyValuePair<Set<int>, IDictionary<TAlphabet, Set<int>>> entry
                 in dfaTrans)
             {
                 Set<int> dfaState = entry.Key;
-                IDictionary<string, int> newDfaTransRow = new Dictionary<string, int>();
-                foreach (KeyValuePair<string, Set<int>> tr in entry.Value)
+                var newDfaTransRow = new Dictionary<TAlphabet, int>();
+                foreach (KeyValuePair<TAlphabet, Set<int>> tr in entry.Value)
                 {
                     newDfaTransRow.Add(tr.Key, renamer.ToDfaStateIndex(tr.Value));
                 }
@@ -280,9 +281,9 @@ namespace FiniteAutomata
         /// <summary>
         /// McNaughton-Yamada-Thompson algorithm (aka Thompson's construction)
         /// </summary>
-        public Dfa ToDfa(bool skipRenaming = false)
+        public Dfa<TAlphabet> ToDfa(bool skipRenaming = false)
         {
-            IDictionary<Set<int>, IDictionary<string, Set<int>>>
+            IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>>
                 cDfaTrans = CompositeDfaTrans(Start, Trans);
 
             Set<int> cDfaStart = EpsilonClose(new Set<int>(new [] {Start}), Trans);
@@ -292,7 +293,7 @@ namespace FiniteAutomata
             var renamer = new NfaToDfaRenamer(cDfaStates, skipRenaming, _predicate);
 
             // DFA-transitions (delta)
-            IDictionary<int, IDictionary<string, int>> dfaTrans =
+            IDictionary<int, IDictionary<TAlphabet, int>> dfaTrans =
                 Rename(renamer, cDfaTrans);
 
             // The singleton start state = q_0
@@ -301,7 +302,7 @@ namespace FiniteAutomata
             // The subset of accepting states = F
             Set<int> dfaAcceptingStateIndices = AcceptStates(cDfaStates, renamer, AcceptingStates);
 
-            return new Dfa(dfaStartStateIndex, dfaAcceptingStateIndices, dfaTrans, renamer);
+            return new Dfa<TAlphabet>(dfaStartStateIndex, dfaAcceptingStateIndices, dfaTrans, renamer);
         }
     }
 

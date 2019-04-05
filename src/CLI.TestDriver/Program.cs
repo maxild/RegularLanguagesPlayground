@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
+using AutomataLib;
 using CLI.TestDriver.Parsers;
 using ContextFreeGrammar;
 using FiniteAutomata;
@@ -12,8 +13,13 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
+            //LRParsing();
+            //CourseExercise();
             //RegexParser();
-            CourseExercise();
+            //KeywordAutomata();
+            //EquivalenceOfTwoDfas();
+            //NonMinimalDfa();
+            DecimalAutomata();
         }
 
         public static void LRParsing()
@@ -43,7 +49,7 @@ namespace CLI.TestDriver
 
         public static void CourseExercise()
         {
-            var dfa = new Dfa('A', new [] {'B', 'E'});
+            var dfa = new Dfa<string>('A', new [] {'B', 'E'});
             dfa.AddTrans('A', "0", 'E');
             dfa.AddTrans('A', "1", 'D');
             dfa.AddTrans('B', "0", 'A');
@@ -64,7 +70,7 @@ namespace CLI.TestDriver
             SaveFile("exercise.dot", minDfa.ToDotLanguage());
         }
 
-        static void RegexParser()
+        public static void RegexParser()
         {
             //string re = "ab*";
             //string re = "(a+b)*";
@@ -88,18 +94,60 @@ namespace CLI.TestDriver
 
             Regex regex = RegexTextbook.ParseRD(re);
 
-            Dfa dfa = regex.ToDfa(skipRenaming: true);
+            var dfa = regex.ToDfa(skipRenaming: true);
 
             SaveFile("regex.dot", dfa.ToDotLanguage());
         }
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static void OldMain()
+        public static void KeywordAutomata()
+        {
+            //
+            // Keyword search: Build NFA directly
+            //
+
+            // TODO: Vi antager, at alfabetet er de mulige ord i 'web' og 'ebay', da grafen ellers bliver meget uoverskuelig
+            // NOTE: Grafen er allerede uoverskuelig pga de mange pile, da hver vertex kun kan have et input
+
+            // 9,1,0 is part of every state, so we remove them from the naming strategy
+            var nfaKeywords = new Nfa<string>(9, new [] {4, 8}, s => new Set<int>(new[] {0,1,9}).Contains(s) == false);
+            nfaKeywords.AddTrans(9, null, 1);
+            nfaKeywords.AddTrans(9, null, 0);
+            // guessing is smart in NFA
+            nfaKeywords.AddTrans(9, "w", 9);
+            nfaKeywords.AddTrans(9, "e", 9);
+            nfaKeywords.AddTrans(9, "b", 9);
+            nfaKeywords.AddTrans(9, "a", 9);
+            nfaKeywords.AddTrans(9, "y", 9);
+            // web
+            nfaKeywords.AddTrans(1, "w", 2);
+            nfaKeywords.AddTrans(2, "e", 3);
+            nfaKeywords.AddTrans(3, "b", 4);
+            // ebay
+            nfaKeywords.AddTrans(0, "e", 5);
+            nfaKeywords.AddTrans(5, "b", 6);
+            nfaKeywords.AddTrans(6, "a", 7);
+            nfaKeywords.AddTrans(7, "y", 8);
+
+            var dfaKeywords = nfaKeywords.ToDfa();
+
+            // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
+            SaveFile("dfa_keywords.dot", dfaKeywords.ToDotLanguage());
+
+            Console.WriteLine("");
+
+            foreach (var word in new[] { "goto", "web", "ebay", "webay", "web1" })
+            {
+                // NFA is tail whatever, that is webay is a match because the suffix ebay is matched
+                Console.WriteLine($"dfaKeywords.Match({word}) = {dfaKeywords.Match(word)}");
+            }
+        }
+
+        public static void EquivalenceOfTwoDfas()
         {
             //
             // Equivalence of two DFAs (Example 4.21 in book)
             //
-            var eqDfas = new Dfa('A', new [] {'A', 'C', 'D'}); // start state is redundant for finding equivalent blocks
+            var eqDfas = new Dfa<string>('A', new [] {'A', 'C', 'D'}); // start state is redundant for finding equivalent blocks
             // First DFA
             eqDfas.AddTrans('A', "0", 'A');
             eqDfas.AddTrans('A', "1", 'B');
@@ -118,11 +166,14 @@ namespace CLI.TestDriver
             //System.Console.WriteLine();
             Console.WriteLine($"Eq state pairs: {eqDfas.DisplayEquivalentPairs()}");
             Console.WriteLine($"Eq state sets: {eqDfas.DisplayMergedEqSets()}");
+        }
 
+        public static void NonMinimalDfa()
+        {
             //
             // Non-minimal DFA (Exercise 4.4.1 in the book)
             //
-            var nonMinDfa = new Dfa('A', new [] {'D'});
+            var nonMinDfa = new Dfa<string>('A', new [] {'D'});
             nonMinDfa.AddTrans('A', "0", 'B');
             nonMinDfa.AddTrans('A', "1", 'A');
             nonMinDfa.AddTrans('B', "0", 'A');
@@ -145,15 +196,18 @@ namespace CLI.TestDriver
             Console.WriteLine($"Eq state pairs: {nonMinDfa.DisplayEquivalentPairs()}");
             Console.WriteLine($"Eq state sets: {nonMinDfa.DisplayMergedEqSets()}");
 
-            Dfa minDfa = nonMinDfa.ToMinimumDfa();
+            var minDfa = nonMinDfa.ToMinimumDfa();
 
             SaveFile("dfaMin.dot", minDfa.ToDotLanguage());
+        }
 
+        public static void DecimalAutomata()
+        {
             //
             // epsilon-NFA accepting accepting decimal numbers
             //
 
-            var nfaDecimal = new Nfa(0, 5);
+            var nfaDecimal = new Nfa<string>(0, 5);
 
             // TODO: Because we do not support ranges let d = [0-9]
             // TODO: Support characterRanges as spacial labels/inputs on transitions
@@ -218,54 +272,19 @@ namespace CLI.TestDriver
             // epsilon-transition to accepting/final state
             nfaDecimal.AddTrans(3, null, 5);
 
-            Dfa dfaDecimal = nfaDecimal.ToDfa();
+            var dfaDecimal = nfaDecimal.ToDfa();
 
             SaveFile("dfa_decimal.dot", dfaDecimal.ToDotLanguage());
 
-            foreach (var word in new [] {"+d.d", "-.", "-.d", ".", "d.", "d.d", ".d"})
+            foreach (var word in new[] { "+d.d", "-.", "-.d", ".", "d.", "d.d", ".d" })
             {
                 Console.WriteLine($"dfaDecimal.Match({word}) = {dfaDecimal.Match(word)}");
             }
+        }
 
-            //
-            // Keyword search: Build NFA directly
-            //
-
-            // TODO: Vi antager, at alfabetet er de mulige ord i 'web' og 'ebay', da grafen ellers bliver meget uoverskuelig
-            // NOTE: Grafen er allerede uoverskuelig pga de mange pile, da hver vertex kun kan have et input
-
-            // 9,1,0 is part of every state, so we remove them from the naming strategy
-            var nfaKeywords = new Nfa(9, new [] {4, 8}, s => new Set<int>(new[] {0,1,9}).Contains(s) == false);
-            nfaKeywords.AddTrans(9, null, 1);
-            nfaKeywords.AddTrans(9, null, 0);
-            // guessing is smart in NFA
-            nfaKeywords.AddTrans(9, "w", 9);
-            nfaKeywords.AddTrans(9, "e", 9);
-            nfaKeywords.AddTrans(9, "b", 9);
-            nfaKeywords.AddTrans(9, "a", 9);
-            nfaKeywords.AddTrans(9, "y", 9);
-            // web
-            nfaKeywords.AddTrans(1, "w", 2);
-            nfaKeywords.AddTrans(2, "e", 3);
-            nfaKeywords.AddTrans(3, "b", 4);
-            // ebay
-            nfaKeywords.AddTrans(0, "e", 5);
-            nfaKeywords.AddTrans(5, "b", 6);
-            nfaKeywords.AddTrans(6, "a", 7);
-            nfaKeywords.AddTrans(7, "y", 8);
-
-            Dfa dfaKeywords = nfaKeywords.ToDfa();
-
-            // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
-            SaveFile("dfa_keywords.dot", dfaKeywords.ToDotLanguage());
-
-            Console.WriteLine("");
-            foreach (var word in new [] {"goto", "web", "ebay", "webay", "web1"})
-            {
-                // NFA is tail whatever, that is webay is a match because the suffix ebay is matched
-                Console.WriteLine($"dfaKeywords.Match({word}) = {dfaKeywords.Match(word)}");
-            }
-
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public static void OldMain()
+        {
             //// SML reals: sign?((digit+(\.digit+)?))([eE]sign?digit+)?
             //Regex d = new Sym("digit");
             //Regex dPlus = new Seq(d, new Star(d));

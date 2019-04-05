@@ -1,3 +1,5 @@
+using AutomataLib;
+
 namespace ContextFreeGrammar
 {
     public static class GrammarExtensions

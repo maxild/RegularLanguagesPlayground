@@ -183,4 +183,17 @@ namespace ContextFreeGrammar
             sb.AppendLine("}");
         }
     }
+
+    ///// <summary>
+    ///// Basic Automata
+    ///// </summary>
+    ///// <typeparam name="TAlphabet"></typeparam>
+    //public class Automata<TAlphabet>
+    //{
+    //    private Dictionary<int, List<Move<TAlphabet>>> _delta;
+    //    // states are always integers
+    //    private int _startState;
+    //    private HashSet<int> _acceptingStates;
+    //    private int _maxState;
+    //}
 }

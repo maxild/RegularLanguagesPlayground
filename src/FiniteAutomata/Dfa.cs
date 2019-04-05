@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,14 +17,15 @@ namespace FiniteAutomata
     /// from state number (int) to a Map from label (a String,
     /// non-null) to a target state (an int).
     /// </summary>
-    public class Dfa
+    public class Dfa<TAlphabet>
+        where TAlphabet : IEquatable<TAlphabet>
     {
         private readonly IDfaStateRenamer _renamer;
 
         public Dfa(
             int startState,
             Set<int> acceptStates,
-            IDictionary<int, IDictionary<string, int>> trans,
+            IDictionary<int, IDictionary<TAlphabet, int>> trans,
             IDfaStateRenamer renamer)
         {
             Start = startState;
@@ -41,7 +43,7 @@ namespace FiniteAutomata
         {
             Start = startState;
             Accept = new Set<int>(acceptingStates.Select(x => (int)x));
-            Trans = new SortedDictionary<int, IDictionary<string, int>>(); // keys, states are sorted
+            Trans = new SortedDictionary<int, IDictionary<TAlphabet, int>>(); // keys, states are sorted
             _renamer = new CharStateRenamer();
         }
 
@@ -49,18 +51,18 @@ namespace FiniteAutomata
 
         public Set<int> Accept { get; }
 
-        public IDictionary<int, IDictionary<string, int>> Trans { get; }
+        public IDictionary<int, IDictionary<TAlphabet, int>> Trans { get; }
 
-        public void AddTrans(int s1, string label, int s2)
+        public void AddTrans(int s1, TAlphabet label, int s2)
         {
-            IDictionary<string, int> transitions;
+            IDictionary<TAlphabet, int> transitions;
             if (Trans.ContainsKey(s1))
             {
                 transitions = Trans[s1];
             }
             else
             {
-                transitions = new Dictionary<string, int>();
+                transitions = new Dictionary<TAlphabet, int>();
                 Trans.Add(s1, transitions);
             }
             transitions.Add(label, s2);
@@ -75,10 +77,9 @@ namespace FiniteAutomata
         public bool Match(string s)
         {
             int state = Start;
-            foreach (char c in s)
+            foreach (TAlphabet letter in Letterizer<TAlphabet>.Default.GetLetters(s))
             {
-                string input = new string(c, 1);
-                if (Trans[state].TryGetValue(input, out int newState))
+                if (Trans[state].TryGetValue(letter, out int newState))
                 {
                     state = newState;
                 }
@@ -126,7 +127,7 @@ namespace FiniteAutomata
                 // marked pairs in this induction step
                 var marked = new List<TriangularPair<int>>();
 
-                foreach (string successorLabel in GetLabels())
+                foreach (TAlphabet successorLabel in GetLabels())
                 {
                     foreach (var pair in undistinguishablePairs)
                     {
@@ -241,7 +242,7 @@ namespace FiniteAutomata
             return visited;
         }
 
-        public Dfa ToMinimumDfa(bool skipRemovalOfUnreachableStates = false)
+        public Dfa<TAlphabet> ToMinimumDfa(bool skipRemovalOfUnreachableStates = false)
         {
             // First eliminate any state(s) that cannot be reached from the start state
             var minimizedStates = skipRemovalOfUnreachableStates
@@ -262,7 +263,7 @@ namespace FiniteAutomata
             List<Set<int>> acceptBlocks = new List<Set<int>>();
 
             // The transition relation of the DFA = (States, Transition)
-            var blockTrans = new Dictionary<Set<int>, IDictionary<string, Set<int>>>();
+            var blockTrans = new Dictionary<Set<int>, IDictionary<TAlphabet, Set<int>>>();
 
             foreach (var blockState in blockStates)
             {
@@ -275,7 +276,7 @@ namespace FiniteAutomata
                     acceptBlocks.Add(blockState);
                 }
 
-                IDictionary<string, Set<int>> transition = new Dictionary<string, Set<int>>();
+                IDictionary<TAlphabet, Set<int>> transition = new Dictionary<TAlphabet, Set<int>>();
 
                 foreach (var label in GetLabels())
                 {
@@ -292,27 +293,26 @@ namespace FiniteAutomata
 
             var renamer = new MinimizedDfaRenamer(blockStates, _renamer);
 
-            IDictionary<int, IDictionary<string, int>> minDfaTrans = Rename(renamer, blockTrans);
+            IDictionary<int, IDictionary<TAlphabet, int>> minDfaTrans = Rename(renamer, blockTrans);
 
             int minDfaStartState = renamer.ToDfaStateIndex(startBlockState);
 
             Set<int> minDfaAcceptStates = AcceptStates(blockStates, renamer, acceptBlocks);
 
-            return new Dfa(minDfaStartState, minDfaAcceptStates, minDfaTrans, renamer);
+            return new Dfa<TAlphabet>(minDfaStartState, minDfaAcceptStates, minDfaTrans, renamer);
         }
 
-        static IDictionary<int, IDictionary<string, int>> Rename(
+        static IDictionary<int, IDictionary<TAlphabet, int>> Rename(
             MinimizedDfaRenamer renamer,
-            IDictionary<Set<int>, IDictionary<string, Set<int>>> trans)
+            IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> trans)
         {
-            var newDfaTrans = new SortedDictionary<int, IDictionary<string, int>>(); // keys/states are sorted
+            var newDfaTrans = new SortedDictionary<int, IDictionary<TAlphabet, int>>(); // keys/states are sorted
 
-            foreach (KeyValuePair<Set<int>, IDictionary<string, Set<int>>> entry
-                in trans)
+            foreach (KeyValuePair<Set<int>, IDictionary<TAlphabet, Set<int>>> entry in trans)
             {
                 Set<int> blockState = entry.Key;
-                IDictionary<string, int> newDfaTransRow = new Dictionary<string, int>();
-                foreach (KeyValuePair<string, Set<int>> tr in entry.Value)
+                IDictionary<TAlphabet, int> newDfaTransRow = new Dictionary<TAlphabet, int>();
+                foreach (KeyValuePair<TAlphabet, Set<int>> tr in entry.Value)
                 {
                     newDfaTransRow.Add(tr.Key, renamer.ToDfaStateIndex(tr.Value));
                 }
@@ -354,10 +354,10 @@ namespace FiniteAutomata
             return marked;
         }
 
-        IEnumerable<string> GetLabels()
+        IEnumerable<TAlphabet> GetLabels()
         {
             // A hack, because the model is wrong
-            return new Set<string>(Trans.Values.SelectMany(dict => dict.Keys));
+            return new Set<TAlphabet>(Trans.Values.SelectMany(dict => dict.Keys));
         }
 
         class CharStateRenamer : IDfaStateRenamer
@@ -400,12 +400,12 @@ namespace FiniteAutomata
                     sb.AppendLine("n" + state + " [peripheries=2];");
 
             // nodes and edges are defined by transitions
-            foreach (KeyValuePair<int, IDictionary<string, int>> entry in Trans)
+            foreach (KeyValuePair<int, IDictionary<TAlphabet, int>> entry in Trans)
             {
                 int fromState = entry.Key;
-                foreach (KeyValuePair<string, int> s1Trans in entry.Value)
+                foreach (KeyValuePair<TAlphabet, int> s1Trans in entry.Value)
                 {
-                    string label = s1Trans.Key;
+                    TAlphabet label = s1Trans.Key;
                     int toState = s1Trans.Value;
                     sb.AppendLine("n" + fromState + " -> n" + toState + " [label=\"" + label + "\"];");
                 }

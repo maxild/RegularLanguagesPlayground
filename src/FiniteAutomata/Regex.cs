@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AutomataLib;
 
 namespace FiniteAutomata
 {
@@ -23,7 +24,7 @@ namespace FiniteAutomata
         /// <summary>
         /// Convert to Thompson epsilon-NFA.
         /// </summary>
-        public Nfa ToNfa()
+        public Nfa<string> ToNfa()
         {
             var nameSource = new NameSource();
             return MkNfa(nameSource.Next);
@@ -32,18 +33,18 @@ namespace FiniteAutomata
         /// <summary>
         /// Convert to minimum state DFA.
         /// </summary>
-        public Dfa ToDfa(bool skipRenaming = false)
+        public Dfa<string> ToDfa(bool skipRenaming = false)
         {
-            Nfa nfa = ToNfa();
+            var nfa = ToNfa();
 
-            Dfa dfa = nfa.ToDfa(skipRenaming);
+            var dfa = nfa.ToDfa(skipRenaming);
 
-            Dfa minDfa = dfa.ToMinimumDfa();
+            var minDfa = dfa.ToMinimumDfa();
 
             return minDfa;
         }
 
-        public abstract Nfa MkNfa(Func<int> nameFunc); // abstract factory for NFA-composite
+        public abstract Nfa<string> MkNfa(Func<int> nameFunc); // abstract factory for NFA-composite
 
         /// <summary>
         /// Nested class for creating distinctly named states when constructing NFAs
@@ -66,11 +67,11 @@ namespace FiniteAutomata
     {
         // The resulting nfa0 has form s0s -eps-> s0e
 
-        public override Nfa MkNfa(Func<int> nameFunc)
+        public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
             int startState = nameFunc();
             int exitState = nameFunc();
-            Nfa nfa0 = new Nfa(startState, exitState);
+            var nfa0 = new Nfa<string>(startState, exitState);
             nfa0.AddTrans(startState, null, exitState);
             return nfa0;
         }
@@ -92,11 +93,11 @@ namespace FiniteAutomata
         }
 
         // The resulting nfa0 has form s0s -sym-> s0e
-        public override Nfa MkNfa(Func<int> nameFunc)
+        public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
             int startState = nameFunc();
             int exitState = nameFunc();
-            Nfa nfa = new Nfa(startState, exitState);
+            var nfa = new Nfa<string>(startState, exitState);
             nfa.AddTrans(startState, _sym, exitState);
             return nfa;
         }
@@ -119,14 +120,14 @@ namespace FiniteAutomata
         // If   nfa1 has form s1s ----> s1e
         // and  nfa2 has form s2s ----> s2e
         // then nfa0 has form s1s ----> s1e -eps-> s2s ----> s2e
-        public override Nfa MkNfa(Func<int> nameFunc)
+        public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
-            Nfa nfa1 = _r1.MkNfa(nameFunc);
-            Nfa nfa2 = _r2.MkNfa(nameFunc);
-            Nfa nfa0 = new Nfa(nfa1.Start, nfa2.GetRequiredSingleAcceptingState());
-            foreach (KeyValuePair<int, List<Transition>> entry in nfa1.Trans)
+            var nfa1 = _r1.MkNfa(nameFunc);
+            var nfa2 = _r2.MkNfa(nameFunc);
+            var nfa0 = new Nfa<string>(nfa1.Start, nfa2.GetRequiredSingleAcceptingState());
+            foreach (KeyValuePair<int, List<Transition<string>>> entry in nfa1.Trans)
                 nfa0.AddTrans(entry);
-            foreach (KeyValuePair<int, List<Transition>> entry in nfa2.Trans)
+            foreach (KeyValuePair<int, List<Transition<string>>> entry in nfa2.Trans)
                 nfa0.AddTrans(entry);
             nfa0.AddTrans(nfa1.GetRequiredSingleAcceptingState(), null, nfa2.Start);
             return nfa0;
@@ -152,16 +153,16 @@ namespace FiniteAutomata
         // then nfa0 has form s0s -eps-> s1s ----> s1e -eps-> s0e
         //                    s0s -eps-> s2s ----> s2e -eps-> s0e
 
-        public override Nfa MkNfa(Func<int> nameFunc)
+        public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
-            Nfa nfa1 = _r1.MkNfa(nameFunc);
-            Nfa nfa2 = _r2.MkNfa(nameFunc);
+            var nfa1 = _r1.MkNfa(nameFunc);
+            var nfa2 = _r2.MkNfa(nameFunc);
             int startState = nameFunc();
             int exitState = nameFunc();
-            Nfa nfa0 = new Nfa(startState, exitState);
-            foreach (KeyValuePair<int, List<Transition>> entry in nfa1.Trans)
+            var nfa0 = new Nfa<string>(startState, exitState);
+            foreach (KeyValuePair<int, List<Transition<string>>> entry in nfa1.Trans)
                 nfa0.AddTrans(entry);
-            foreach (KeyValuePair<int, List<Transition>> entry in nfa2.Trans)
+            foreach (KeyValuePair<int, List<Transition<string>>> entry in nfa2.Trans)
                 nfa0.AddTrans(entry);
             nfa0.AddTrans(startState, null, nfa1.Start);
             nfa0.AddTrans(startState, null, nfa2.Start);
@@ -188,12 +189,12 @@ namespace FiniteAutomata
         //                    s0s -eps-> s1s
         //                    s1e -eps-> s0s
 
-        public override Nfa MkNfa(Func<int> nameFunc)
+        public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
-            Nfa nfa1 = _r.MkNfa(nameFunc);
+            var nfa1 = _r.MkNfa(nameFunc);
             int startState = nameFunc();
-            Nfa nfa0 = new Nfa(startState, startState);
-            foreach (KeyValuePair<int, List<Transition>> entry in nfa1.Trans)
+            var nfa0 = new Nfa<string>(startState, startState);
+            foreach (KeyValuePair<int, List<Transition<string>>> entry in nfa1.Trans)
                 nfa0.AddTrans(entry);
             nfa0.AddTrans(startState, null, nfa1.Start);
             nfa0.AddTrans(nfa1.GetRequiredSingleAcceptingState(), null, startState);

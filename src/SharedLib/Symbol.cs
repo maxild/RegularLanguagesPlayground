@@ -2,8 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ContextFreeGrammar
+namespace AutomataLib
 {
+    // TODO: After supporting BNF (written a parser) we should really soften the requirements that
+    // Variables are uppercase letters and terminals are a single lowercase letter
+
+    // TODO: We really need a Lexer!!!!! that generate stream of <num, "123">, <id, "x">,...etc without using symboltable
+    //            var t = new Lexer(LexerSpecification spec, string content);
+    //            Terminal token = t.GetNext(); // <name, value>
+    //            string name = token.Name;
+    //            string value = token.Lexeme;
+
+    // NOTE: Name of terminal symbols are the only interesting terminal-attribute when building the parser. However
+    //       when using the parser to accept/recognize a string, or to build a parse-tree we need a Lexer of some kind.
+
     /// <summary>
     /// Grammar symbol (in T or V)
     /// </summary>
@@ -133,9 +145,9 @@ namespace ContextFreeGrammar
         /// an optional attribute value (lexeme, symbol table lookup etc) of any terminal/token are the
         /// same thing, and this thing is a single character.
         /// </summary>
-        /// <param name="value">The single character name/value of the terminal.</param>
-        internal Terminal(char value)
-            : base(new string(value, 1))
+        /// <param name="name">The single character name of the terminal.</param>
+        internal Terminal(char name)
+            : base(new string(name, 1))
         {
         }
 
@@ -143,15 +155,4 @@ namespace ContextFreeGrammar
 
         public override bool IsEpsilon => false;
     }
-
-    //public class GrammarVariables
-    //{
-
-    //}
-
-    //public class GrammarTerminals<TToken>
-    //{
-
-    //}
-
 }
