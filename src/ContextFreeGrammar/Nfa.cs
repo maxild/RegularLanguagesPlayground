@@ -14,8 +14,8 @@ namespace ContextFreeGrammar
         where TAlphabet : IEquatable<TAlphabet>
         where TState : IEquatable<TState>, INumberedItem
     {
-        private static readonly ISet<TState> DEAD_STATE = new HashSet<TState>();
-        private IDictionary<TState, IDictionary<TAlphabet, ISet<TState>>> _trans;
+        private static readonly ISet<TState> s_deadState = new HashSet<TState>();
+        private readonly IDictionary<TState, IDictionary<TAlphabet, ISet<TState>>> _delta;
 
         private int _version;
         private ISet<TState> _states;
@@ -29,7 +29,7 @@ namespace ContextFreeGrammar
             _states = new HashSet<TState> { startState};
             _alphabet = new HashSet<TAlphabet>();
             AcceptingStates = new HashSet<TState>();
-            _trans = new Dictionary<TState, IDictionary<TAlphabet, ISet<TState>>>();
+            _delta = new Dictionary<TState, IDictionary<TAlphabet, ISet<TState>>>();
         }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace ContextFreeGrammar
                 {
                     var states = new HashSet<TState>();
                     states.Add(StartState);
-                    foreach (var transOfFromState in _trans)
+                    foreach (var transOfFromState in _delta)
                     {
                         states.Add(transOfFromState.Key);
                         foreach (KeyValuePair<TAlphabet, ISet<TState>> transitions in transOfFromState.Value)
@@ -61,6 +61,8 @@ namespace ContextFreeGrammar
                             states.UnionWith(transitions.Value);
                         }
                     }
+
+                    _states = states;
                     _statesVersion = _version;
                 }
 
@@ -78,10 +80,12 @@ namespace ContextFreeGrammar
                 if (_alphabetVersion != _version)
                 {
                     var alphabet = new HashSet<TAlphabet>();
-                    foreach (IDictionary<TAlphabet, ISet<TState>> transOfSomeFromState in _trans.Values)
+                    foreach (IDictionary<TAlphabet, ISet<TState>> transOfSomeFromState in _delta.Values)
                     {
                         alphabet.UnionWith(transOfSomeFromState.Keys);
                     }
+
+                    _alphabet = alphabet;
                     _alphabetVersion = _version;
                 }
 
@@ -92,14 +96,14 @@ namespace ContextFreeGrammar
         public void AddTransition(TState from, TAlphabet label, TState to)
         {
             IDictionary<TAlphabet, ISet<TState>> transOfFromState;
-            if (_trans.ContainsKey(from))
+            if (_delta.ContainsKey(from))
             {
-                transOfFromState = _trans[from];
+                transOfFromState = _delta[from];
             }
             else
             {
                 transOfFromState = new Dictionary<TAlphabet, ISet<TState>>();
-                _trans.Add(from, transOfFromState);
+                _delta.Add(from, transOfFromState);
             }
 
             ISet<TState> fromStates;
@@ -123,11 +127,11 @@ namespace ContextFreeGrammar
         /// </summary>
         public ISet<TState> Delta(TState state, TAlphabet label)
         {
-            if (_trans.TryGetValue(state, out var transOfFromState) && transOfFromState.TryGetValue(label, out var toStates))
+            if (_delta.TryGetValue(state, out var transOfFromState) && transOfFromState.TryGetValue(label, out var toStates))
             {
                 return toStates;
             }
-            return DEAD_STATE;
+            return s_deadState;
         }
 
         public void ToDotLanguage(DotRankDirection direction = DotRankDirection.LeftRight)
@@ -167,7 +171,7 @@ namespace ContextFreeGrammar
             }
 
             // nodes and edges are defined by transitions
-            foreach (KeyValuePair<TState, IDictionary<TAlphabet, ISet<TState>>> entry in _trans)
+            foreach (KeyValuePair<TState, IDictionary<TAlphabet, ISet<TState>>> entry in _delta)
             {
                 TState fromState = entry.Key;
                 foreach (KeyValuePair<TAlphabet, ISet<TState>> transOfFromState in entry.Value)

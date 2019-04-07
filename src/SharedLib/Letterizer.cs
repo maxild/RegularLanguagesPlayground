@@ -8,11 +8,9 @@ namespace AutomataLib
     {
         public abstract IEnumerable<TAlphabet> GetLetters(string s);
 
-        static readonly Letterizer<TAlphabet> s_defaultLetterizer = CreateComparer();
+        public static Letterizer<TAlphabet> Default { get; } = CreateLetterizer();
 
-        public static Letterizer<TAlphabet> Default => s_defaultLetterizer;
-
-        private static Letterizer<TAlphabet> CreateComparer()
+        private static Letterizer<TAlphabet> CreateLetterizer()
         {
             Type t = typeof(TAlphabet);
             if (t == typeof(char))
