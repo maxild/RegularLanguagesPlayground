@@ -1,8 +1,15 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AutomataLib;
 
-namespace UnitTests
+namespace AutomataRepresentations
 {
+    // Sources:
+    // Dragon book pp pp. 144-146 (1st ed), pp 184-186 (2nd edition)
+    // https://compilers.iecc.com/comparch/article/94-10-131
+    // https://stackoverflow.com/questions/29139162/dfa-state-transition-table-compression
+    // https://linux.thai.net/~thep/datrie/
+    // https://anoopsarkar.github.io/compilers-class/assets/lectures/lex9-implementing-dfas.pdf
+    // PROBLEM: I still don't understand how to build the base-next-check-default arrays!!!
     public class DfaCompressedTable<TState>
     {
         private readonly int[] _base; // parallel to states
@@ -21,7 +28,6 @@ namespace UnitTests
 
         // NOTE: In a Lexer another array would reference the pattern that was matched (if any)
         // such that user actions can be invoked
-
 
         public DfaCompressedTable(
             IEnumerable<TState> states, // should be unique...we do not test this here

@@ -86,6 +86,7 @@ namespace FiniteAutomata
         /// to state p1. We use a list because the same input can be in
         /// many pairs (non-deterministic) machine.
         /// </summary>
+        // TODO: It should be private implementation detail how the DFA is implemented
         public IDictionary<int, List<TargetTransitionPair<TAlphabet, int>>> Trans { get; }
 
         public void AddTrans(Transition<TAlphabet, int> t)

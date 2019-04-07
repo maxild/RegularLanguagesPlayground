@@ -22,11 +22,4 @@ namespace AutomataRepresentations
         IEnumerable<Transition<char, int>> GetTransitions();
         IEnumerable<Transition<char, int>> GetTrimmedTransitions();
     }
-
-    public interface IDeterministicFiniteAutomaton : IFiniteAutomaton
-    {
-        int TransitionFunction(int state, IEnumerable<char> input);
-
-        bool IsMatch(string input);
-    }
 }

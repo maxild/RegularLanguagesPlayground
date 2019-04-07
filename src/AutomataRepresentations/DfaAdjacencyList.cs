@@ -8,6 +8,13 @@ namespace AutomataRepresentations
     /// it just need to be equatable. The space complexity may be further reduced by considering a default (target)
     /// state associated to each adjacency list (the most frequently occurring target of a given adjacency list is
     /// an obvious choice as default for this adjacency list). We have chosen the error state as the default state.
+    ///
+    /// Advantages:
+    ///   - The alphabet does not have to indexable
+    ///   - The alphabet does not have to be defined as fixed in advance
+    ///   - Only transitions of trimmed DFA need to be in RAM
+    /// Disadvantage
+    ///    - Slower transition function, means slower recognize algorithm
     /// </summary>
     public class DfaAdjacencyList<TState>
     {
@@ -27,7 +34,8 @@ namespace AutomataRepresentations
 
         private int NextState(int s, char c)
         {
-            // linear search: could be a binary search if we sorted the list
+            // linear search for input symbol: could be a binary search if we
+            // sorted the list (important if we have many transitions on states)
             for (int i = 0; i < _nextState[s].Length; i++)
             {
                 if (_nextState[s][i].Label == c)
@@ -36,9 +44,7 @@ namespace AutomataRepresentations
                 }
             }
 
-            return 0; // default pair is (any, 0)
+            return 0; // default transition is to the dead state
         }
     }
-
-    // TODO: Store triple Transitions (s1, a, s2) in list and use hashing on (s1, a) to retrieve items
 }
