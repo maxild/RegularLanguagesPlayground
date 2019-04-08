@@ -90,18 +90,22 @@ namespace FiniteAutomata
 
         public void AddTrans(int s1, TAlphabet label, int s2)
         {
-            List<Transition<TAlphabet>> transitions;
+            List<Transition<TAlphabet>> transOutOfS1;
             if (Trans.ContainsKey(s1))
             {
-                transitions = Trans[s1];
+                transOutOfS1 = Trans[s1];
             }
             else
             {
-                transitions = new List<Transition<TAlphabet>>();
-                Trans.Add(s1, transitions);
+                transOutOfS1 = new List<Transition<TAlphabet>>();
+                Trans.Add(s1, transOutOfS1);
             }
 
-            transitions.Add(new Transition<TAlphabet>(label, s2));
+            // TODO: It should not be possible to add the same pair (label, toState) twice.
+            // Maybe HashSet of moves/transitions, BUT List is so much easier to grasp and
+            // {(a,1),(a,3),(b,5),(a,3)} is equal equal to {(b,5),(a,1),(a,3)}, because order
+            // of elements and duplicate elements does not matter.
+            transOutOfS1.Add(new Transition<TAlphabet>(label, s2));
         }
 
         public void AddTrans(KeyValuePair<int, List<Transition<TAlphabet>>> tr)

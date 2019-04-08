@@ -6,7 +6,8 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     /// <summary>
-    /// (Q, Σ, delta, q(0), F) from Automata Theory.
+    /// Non-deterministic Finite Automaton (Q, Σ, delta, q(0), F) from Automata Theory (with
+    /// possible ε-transitions, aka ε-moves).
     /// </summary>
     /// <typeparam name="TState"></typeparam>
     /// <typeparam name="TAlphabet"></typeparam>
@@ -14,8 +15,17 @@ namespace ContextFreeGrammar
         where TAlphabet : IEquatable<TAlphabet>
         where TState : IEquatable<TState>, INumberedItem
     {
-        private static readonly ISet<TState> DEAD_STATE = new HashSet<TState>();
-        private IDictionary<TState, IDictionary<TAlphabet, ISet<TState>>> _trans;
+        private static readonly ISet<TState> s_deadState = new HashSet<TState>();
+
+        // Adjacency ('sparse') list representation of digraph with labeled edges (moves, transitions)
+        //
+        //      _delta: array/list of adjacency list of moves/transitions
+        //
+        // We can only use (outer)
+        //
+        //private readonly Dictionary<TState, List<Move<TAlphabet>>> _delta;                // Automaton<TAlphabet> uses this one
+        //private readonly Dictionary<TState, List<Transition<TAlphabet>>> _delta;          // Nfa<TAlphabet> uses this one
+        private readonly Dictionary<TState, IDictionary<TAlphabet, ISet<TState>>> _delta;
 
         private int _version;
         private ISet<TState> _states;
@@ -29,7 +39,7 @@ namespace ContextFreeGrammar
             _states = new HashSet<TState> { startState};
             _alphabet = new HashSet<TAlphabet>();
             AcceptingStates = new HashSet<TState>();
-            _trans = new Dictionary<TState, IDictionary<TAlphabet, ISet<TState>>>();
+            _delta = new Dictionary<TState, IDictionary<TAlphabet, ISet<TState>>>();
         }
 
         /// <summary>
@@ -53,7 +63,7 @@ namespace ContextFreeGrammar
                 {
                     var states = new HashSet<TState>();
                     states.Add(StartState);
-                    foreach (var transOfFromState in _trans)
+                    foreach (var transOfFromState in _delta)
                     {
                         states.Add(transOfFromState.Key);
                         foreach (KeyValuePair<TAlphabet, ISet<TState>> transitions in transOfFromState.Value)
@@ -61,6 +71,8 @@ namespace ContextFreeGrammar
                             states.UnionWith(transitions.Value);
                         }
                     }
+
+                    _states = states;
                     _statesVersion = _version;
                 }
 
@@ -78,10 +90,12 @@ namespace ContextFreeGrammar
                 if (_alphabetVersion != _version)
                 {
                     var alphabet = new HashSet<TAlphabet>();
-                    foreach (IDictionary<TAlphabet, ISet<TState>> transOfSomeFromState in _trans.Values)
+                    foreach (IDictionary<TAlphabet, ISet<TState>> transOfSomeFromState in _delta.Values)
                     {
                         alphabet.UnionWith(transOfSomeFromState.Keys);
                     }
+
+                    _alphabet = alphabet;
                     _alphabetVersion = _version;
                 }
 
@@ -92,14 +106,14 @@ namespace ContextFreeGrammar
         public void AddTransition(TState from, TAlphabet label, TState to)
         {
             IDictionary<TAlphabet, ISet<TState>> transOfFromState;
-            if (_trans.ContainsKey(from))
+            if (_delta.ContainsKey(from))
             {
-                transOfFromState = _trans[from];
+                transOfFromState = _delta[from];
             }
             else
             {
                 transOfFromState = new Dictionary<TAlphabet, ISet<TState>>();
-                _trans.Add(from, transOfFromState);
+                _delta.Add(from, transOfFromState);
             }
 
             ISet<TState> fromStates;
@@ -123,17 +137,27 @@ namespace ContextFreeGrammar
         /// </summary>
         public ISet<TState> Delta(TState state, TAlphabet label)
         {
-            if (_trans.TryGetValue(state, out var transOfFromState) && transOfFromState.TryGetValue(label, out var toStates))
+            if (_delta.TryGetValue(state, out var transOfFromState) && transOfFromState.TryGetValue(label, out var toStates))
             {
                 return toStates;
             }
-            return DEAD_STATE;
+            return s_deadState;
         }
 
-        public void ToDotLanguage(DotRankDirection direction = DotRankDirection.LeftRight)
+        public DeterministicAutomata<TAlphabet> SubsetConstruction()
         {
-            // TODO: We must convert states to integers, and use aliasing
+            // int vs ProductionItemSet...renaming of states, and ToDotLanguage with state descriptions
+            return null;
+        }
 
+        // Web pages for drawing with dot
+        // http://viz-js.com/                       ( The BEST)
+        // https://graphs.grevian.org/graph
+        // http://www.webgraphviz.com/              (NOT good)
+        // Tools for drawing with dot in the browser
+        // https://github.com/magjac/d3-graphviz
+        public string ToDotLanguage(DotRankDirection direction = DotRankDirection.LeftRight)
+        {
             var sb = new StringBuilder();
 
             sb.AppendLine("digraph dfa {");
@@ -150,24 +174,24 @@ namespace ContextFreeGrammar
             }
 
             // start state arrow indicator
-            sb.AppendLine("n999999 [style=invis];"); // Invisible start node
-            sb.AppendLine("n999999 -> n" + StartState.Number);   // Edge into start state
+            sb.AppendLine("n999999 [style=invis];");            // Invisible start node
+            sb.AppendLine("n999999 -> " + StartState.Id + ";"); // Edge into start state
 
             // label states (overriding default n0, n1 names)
             foreach (TState state in States)
             {
-                sb.AppendLine("n" + state.Number + " [label=\"" + state.Label + "\"]");
+                sb.AppendLine(state.Id + " [label=\"" + state.Label + "\"];");
             }
 
             // accept states are double circles
             foreach (TState state in States)
             {
                 if (AcceptingStates.Contains(state))
-                    sb.AppendLine("n" + state.Number + " [peripheries=2];");
+                    sb.AppendLine(state.Id + " [peripheries=2];");
             }
 
             // nodes and edges are defined by transitions
-            foreach (KeyValuePair<TState, IDictionary<TAlphabet, ISet<TState>>> entry in _trans)
+            foreach (KeyValuePair<TState, IDictionary<TAlphabet, ISet<TState>>> entry in _delta)
             {
                 TState fromState = entry.Key;
                 foreach (KeyValuePair<TAlphabet, ISet<TState>> transOfFromState in entry.Value)
@@ -175,14 +199,20 @@ namespace ContextFreeGrammar
                     TAlphabet label = transOfFromState.Key;
                     foreach (TState toState in transOfFromState.Value)
                     {
-                        sb.AppendLine("n" + fromState.Number + " -> n" + toState.Number + " [label=\"" + label + "\"];");
+                        sb.AppendLine(fromState.Id + " -> " + toState.Id + " [label=\"" + label + "\"];");
                     }
                 }
             }
 
             sb.AppendLine("}");
+
+            return sb.ToString();
         }
     }
+
+    // Online Learning Tools
+    // https://aude.imag.fr/aude/
+    // http://automatatutor.com/about/  (http://pages.cs.wisc.edu/~loris/teaching.html)
 
     ///// <summary>
     ///// Basic Automata

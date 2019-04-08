@@ -65,7 +65,7 @@ namespace FiniteAutomata
                 transitions = new Dictionary<TAlphabet, int>();
                 Trans.Add(s1, transitions);
             }
-            transitions.Add(label, s2);
+            transitions.Add(label, s2); // Note: Will throw ArgumentException if key all ready exists
         }
 
         public override string ToString()

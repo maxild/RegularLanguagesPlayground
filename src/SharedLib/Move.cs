@@ -1,4 +1,4 @@
-namespace ContextFreeGrammar
+namespace AutomataLib
 {
     /// <summary>
     /// Directed edge in digraph that represents a labeled transition in the digraph.

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace AutomataLib
@@ -123,8 +124,11 @@ namespace AutomataLib
     /// <summary>
     /// A variable in V.
     /// </summary>
+    [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class NonTerminal : Symbol
     {
+        private string DebuggerDisplay => Name;
+
         internal NonTerminal(string name)
             : base(name)
         {
@@ -138,8 +142,11 @@ namespace AutomataLib
     /// <summary>
     /// The single character terminal (non-essential simplification).
     /// </summary>
+    [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class Terminal : Symbol
     {
+        private string DebuggerDisplay => Name;
+
         /// <summary>
         /// We simplify things by assuming that the name (kind of lexical unit) of a terminal/token and
         /// an optional attribute value (lexeme, symbol table lookup etc) of any terminal/token are the

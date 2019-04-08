@@ -77,6 +77,7 @@ namespace ContextFreeGrammar
         }
 
         // Step 1 of 2: The canonical collection of sets of LR(0) items
+        // First step in creating so called "LR viable prefix recognition machine"
         public Nfa<ProductionItem, Symbol> GetCharacteristicStringsNfa()
         {
             if (Productions.Count == 0)
@@ -97,13 +98,13 @@ namespace ContextFreeGrammar
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = new Nfa<ProductionItem, Symbol>(new ProductionItem(Productions[0], 0, 0));
 
-            // (a) For every terminal a in T, if A → α.aβ is a marked production, then
-            //     there is a transition on input a from state A → α.aβ to state A → αa.β
+            // (a) For every terminal a in T, if A → α"."aβ is a marked production, then
+            //     there is a transition on input a from state A → α"."aβ to state A → αa"."β
             //     obtained by "shifting the dot"
-            // (b) For every variable B in V, if A → α.Bβ is a marked production, then
-            //     there is a transition on input B from state A → α.Bβ to state A → αB.β
-            //     obtained by "shifting the dot", and transitions on input ϵ (the empty string)
-            //     to all states B → .γ(i), for all productions B → γ(i) in P with left-hand side B.
+            // (b) For every variable B in V, if A → α"."Bβ is a marked production, then
+            //     there is a transition on input B from state A → α"."Bβ to state A → αB"."β
+            //     obtained by "shifting the dot", and transitions on input ε (the empty string)
+            //     to all states B → "."γ(i), for all productions B → γ(i) in P with left-hand side B.
             int productionIndex = 0;
             foreach (var production in Productions)
             {
@@ -112,29 +113,31 @@ namespace ContextFreeGrammar
                     // (productionIndex, dotPosition) is identifier
                     var item = new ProductionItem(production, productionIndex, dotPosition);
 
-                    // (a) A → α.aβ
+                    // (a) A → α"."aβ
                     if (item.IsShiftItem)
                     {
-                        // shift item
-                        characteristicStringsNfa.AddTransition(item, item.GetNextSymbol<Terminal>(), item.GetNextItem());
+                        var label = item.GetNextSymbol<Terminal>();
+                        var shiftToItem = item.GetNextItem();
+                        characteristicStringsNfa.AddTransition(item, label, shiftToItem);
                     }
 
-                    // (b) A → α.Bβ
+                    // (b) A → α"."Bβ
                     if (item.IsGotoItem)
                     {
                         var nonTerminal = item.GetNextSymbol<NonTerminal>();
-                        // goto item
-                        characteristicStringsNfa.AddTransition(item, nonTerminal, item.GetNextItem());
+                        var goToItem = item.GetNextItem();
+                        characteristicStringsNfa.AddTransition(item, nonTerminal, goToItem);
+
                         // closure items
-                        foreach (var closureItems in GetEquivalentItemsOf(nonTerminal))
+                        foreach (var closureItem in GetEquivalentItemsOf(nonTerminal))
                         {
                             // Expecting to see a non terminal 'B' is the same as expecting to see
                             // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
-                            characteristicStringsNfa.AddTransition(item, Symbol.Epsilon, closureItems);
+                           characteristicStringsNfa.AddTransition(item, Symbol.Epsilon, closureItem);
                         }
                     }
 
-                    // (c) A → β. Accepting states has dot shifted all the way to the end.
+                    // (c) A → β"." (Accepting states has dot shifted all the way to the end)
                     if (item.IsReduceItem)
                     {
                         characteristicStringsNfa.AcceptingStates.Add(item);
