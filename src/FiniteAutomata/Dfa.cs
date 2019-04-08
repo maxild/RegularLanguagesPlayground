@@ -51,7 +51,7 @@ namespace FiniteAutomata
 
         public Set<int> Accept { get; }
 
-        public IDictionary<int, IDictionary<TAlphabet, int>> Trans { get; }
+        IDictionary<int, IDictionary<TAlphabet, int>> Trans { get; }
 
         public void AddTrans(int s1, TAlphabet label, int s2)
         {

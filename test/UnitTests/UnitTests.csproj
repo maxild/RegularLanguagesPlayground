@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <ProjectReference Include="..\..\src\AutomataRepresentations\AutomataRepresentations.csproj" />
     <ProjectReference Include="..\..\src\ContextFreeGrammar\ContextFreeGrammar.csproj" />
   </ItemGroup>
 </Project>

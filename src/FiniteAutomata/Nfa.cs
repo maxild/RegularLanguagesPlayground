@@ -53,12 +53,12 @@ namespace FiniteAutomata
         {
             Start = startState;
             AcceptingStates = new Set<int>(acceptingStates);
-            Trans = new Dictionary<int, List<Transition<TAlphabet>>>();
+            Trans = new Dictionary<int, List<TargetTransitionPair<TAlphabet, int>>>();
             // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
             foreach (var acceptingState in AcceptingStates)
             {
                 if (!startState.Equals(acceptingState))
-                    Trans.Add(acceptingState, new List<Transition<TAlphabet>>());
+                    Trans.Add(acceptingState, new List<TargetTransitionPair<TAlphabet, int>>());
             }
 
             _predicate = predicate;
@@ -86,29 +86,30 @@ namespace FiniteAutomata
         /// to state p1. We use a list because the same input can be in
         /// many pairs (non-deterministic) machine.
         /// </summary>
-        public IDictionary<int, List<Transition<TAlphabet>>> Trans { get; }
+        // TODO: It should be private implementation detail how the DFA is implemented
+        public IDictionary<int, List<TargetTransitionPair<TAlphabet, int>>> Trans { get; }
 
-        public void AddTrans(int s1, TAlphabet label, int s2)
+        public void AddTrans(Transition<TAlphabet, int> t)
         {
-            List<Transition<TAlphabet>> transOutOfS1;
-            if (Trans.ContainsKey(s1))
+            List<TargetTransitionPair<TAlphabet, int>> transitions;
+            if (Trans.ContainsKey(t.SourceState))
             {
-                transOutOfS1 = Trans[s1];
+                transitions = Trans[t.SourceState];
             }
             else
             {
-                transOutOfS1 = new List<Transition<TAlphabet>>();
-                Trans.Add(s1, transOutOfS1);
+                transitions = new List<TargetTransitionPair<TAlphabet, int>>();
+                Trans.Add(t.SourceState, transitions);
             }
 
             // TODO: It should not be possible to add the same pair (label, toState) twice.
             // Maybe HashSet of moves/transitions, BUT List is so much easier to grasp and
             // {(a,1),(a,3),(b,5),(a,3)} is equal equal to {(b,5),(a,1),(a,3)}, because order
             // of elements and duplicate elements does not matter.
-            transOutOfS1.Add(new Transition<TAlphabet>(label, s2));
+            transitions.Add(Transition.ToPair(t.Label, t.TargetState));
         }
 
-        public void AddTrans(KeyValuePair<int, List<Transition<TAlphabet>>> tr)
+        public void AddTrans(KeyValuePair<int, List<TargetTransitionPair<TAlphabet, int>>> tr)
         {
             // Assumption: if tr is in trans, it maps to an empty list (end state)
             Trans.Remove(tr.Key);
@@ -146,7 +147,7 @@ namespace FiniteAutomata
 
         static IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> CompositeDfaTrans(
             int startState,
-            IDictionary<int, List<Transition<TAlphabet>>> trans)
+            IDictionary<int, List<TargetTransitionPair<TAlphabet, int>>> trans)
         {
             // Lazy form of Subset Construction where only reachable nodes are converted
 
@@ -188,7 +189,7 @@ namespace FiniteAutomata
                                     subsetTrans.Add(tr.Label, toState);
                                 }
 
-                                toState.Add(tr.ToState);
+                                toState.Add(tr.TargetState);
                             }
                         }
                     }
@@ -216,7 +217,7 @@ namespace FiniteAutomata
         /// <param name="states">The set of states to closure</param>
         /// <param name="trans">The transitions of the NFA.</param>
         /// <returns>The epsilon closure of the given states.</returns>
-        static Set<int> EpsilonClose(Set<int> states, IDictionary<int, List<Transition<TAlphabet>>> trans)
+        static Set<int> EpsilonClose(Set<int> states, IDictionary<int, List<TargetTransitionPair<TAlphabet, int>>> trans)
         {
             var markedVisitedStates = new Queue<int>(states); // mark visited states
             var result = new Set<int>(states);
@@ -226,10 +227,10 @@ namespace FiniteAutomata
                 foreach (var tr in trans[s])
                 {
                     // TODO: Create better representation of single letters and empty string (epsilon)
-                    if (tr.Label == null && !result.Contains(tr.ToState))
+                    if (tr.Label == null && !result.Contains(tr.TargetState))
                     {
-                        result.Add(tr.ToState);
-                        markedVisitedStates.Enqueue(tr.ToState);
+                        result.Add(tr.TargetState);
+                        markedVisitedStates.Enqueue(tr.TargetState);
                     }
                 }
             }

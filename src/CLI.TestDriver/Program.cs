@@ -110,23 +110,23 @@ namespace CLI.TestDriver
 
             // 9,1,0 is part of every state, so we remove them from the naming strategy
             var nfaKeywords = new Nfa<string>(9, new [] {4, 8}, s => new Set<int>(new[] {0,1,9}).Contains(s) == false);
-            nfaKeywords.AddTrans(9, null, 1);
-            nfaKeywords.AddTrans(9, null, 0);
+            nfaKeywords.AddTrans(Transition.EpsilonMove<string, int>(9, 1));
+            nfaKeywords.AddTrans(Transition.EpsilonMove<string, int>(9, 0));
             // guessing is smart in NFA
-            nfaKeywords.AddTrans(9, "w", 9);
-            nfaKeywords.AddTrans(9, "e", 9);
-            nfaKeywords.AddTrans(9, "b", 9);
-            nfaKeywords.AddTrans(9, "a", 9);
-            nfaKeywords.AddTrans(9, "y", 9);
+            nfaKeywords.AddTrans(Transition.Move(9, "w", 9));
+            nfaKeywords.AddTrans(Transition.Move(9, "e", 9));
+            nfaKeywords.AddTrans(Transition.Move(9, "b", 9));
+            nfaKeywords.AddTrans(Transition.Move(9, "a", 9));
+            nfaKeywords.AddTrans(Transition.Move(9, "y", 9));
             // web
-            nfaKeywords.AddTrans(1, "w", 2);
-            nfaKeywords.AddTrans(2, "e", 3);
-            nfaKeywords.AddTrans(3, "b", 4);
+            nfaKeywords.AddTrans(Transition.Move(1, "w", 2));
+            nfaKeywords.AddTrans(Transition.Move(2, "e", 3));
+            nfaKeywords.AddTrans(Transition.Move(3, "b", 4));
             // ebay
-            nfaKeywords.AddTrans(0, "e", 5);
-            nfaKeywords.AddTrans(5, "b", 6);
-            nfaKeywords.AddTrans(6, "a", 7);
-            nfaKeywords.AddTrans(7, "y", 8);
+            nfaKeywords.AddTrans(Transition.Move(0, "e", 5));
+            nfaKeywords.AddTrans(Transition.Move(5, "b", 6));
+            nfaKeywords.AddTrans(Transition.Move(6, "a", 7));
+            nfaKeywords.AddTrans(Transition.Move(7, "y", 8));
 
             var dfaKeywords = nfaKeywords.ToDfa();
 
@@ -218,11 +218,11 @@ namespace CLI.TestDriver
             // TODO: Have the program calculate the label with fewest characters, and always use single arcs between any two nodes
 
             // sign
-            nfaDecimal.AddTrans(0, null, 1);
-            nfaDecimal.AddTrans(0, "+", 1);
-            nfaDecimal.AddTrans(0, "-", 1);
+            nfaDecimal.AddTrans(Transition.EpsilonMove<string, int>(0, 1));
+            nfaDecimal.AddTrans(Transition.Move(0, "+", 1));
+            nfaDecimal.AddTrans(Transition.Move(0, "-", 1));
             // optional digits [0-9] before decimal point
-            nfaDecimal.AddTrans(1, "d", 1);
+            nfaDecimal.AddTrans(Transition.Move(1, "d", 1));
             //nfa.AddTrans(1, "1", 1);
             //nfa.AddTrans(1, "2", 1);
             //nfa.AddTrans(1, "3", 1);
@@ -233,9 +233,9 @@ namespace CLI.TestDriver
             //nfa.AddTrans(1, "8", 1);
             //nfa.AddTrans(1, "9", 1);
             // decimal point before mandatory digit(s)
-            nfaDecimal.AddTrans(1, ".", 2);
+            nfaDecimal.AddTrans(Transition.Move(1, ".", 2));
             // digit after state 2
-            nfaDecimal.AddTrans(2, "d", 3);
+            nfaDecimal.AddTrans(Transition.Move(2, "d", 3));
             //nfa.AddTrans(2, "1", 3);
             //nfa.AddTrans(2, "2", 3);
             //nfa.AddTrans(2, "3", 3);
@@ -246,7 +246,7 @@ namespace CLI.TestDriver
             //nfa.AddTrans(2, "8", 3);
             //nfa.AddTrans(2, "9", 3);
             // digit before decimal point
-            nfaDecimal.AddTrans(1, "d", 4);
+            nfaDecimal.AddTrans(Transition.Move(1, "d", 4));
             //nfa.AddTrans(1, "1", 4);
             //nfa.AddTrans(1, "2", 4);
             //nfa.AddTrans(1, "3", 4);
@@ -257,9 +257,9 @@ namespace CLI.TestDriver
             //nfa.AddTrans(1, "8", 4);
             //nfa.AddTrans(1, "9", 4);
             // decimal point after mandatory digit(s)
-            nfaDecimal.AddTrans(4, ".", 3);
+            nfaDecimal.AddTrans(Transition.Move(4, ".", 3));
             // optional digits [0-9] after decimal point
-            nfaDecimal.AddTrans(3, "d", 3);
+            nfaDecimal.AddTrans(Transition.Move(3, "d", 3));
             //nfa.AddTrans(3, "1", 3);
             //nfa.AddTrans(3, "2", 3);
             //nfa.AddTrans(3, "3", 3);
@@ -270,7 +270,7 @@ namespace CLI.TestDriver
             //nfa.AddTrans(3, "8", 3);
             //nfa.AddTrans(3, "9", 3);
             // epsilon-transition to accepting/final state
-            nfaDecimal.AddTrans(3, null, 5);
+            nfaDecimal.AddTrans(Transition.EpsilonMove<string, int>(3, 5));
 
             var dfaDecimal = nfaDecimal.ToDfa();
 
