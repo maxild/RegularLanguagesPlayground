@@ -65,8 +65,15 @@ namespace ContextFreeGrammar
             Productions.Add(production);
         }
 
-        public IEnumerable<ProductionItem> GetEquivalentItemsOf(NonTerminal variable)
+        // TODO: rename to GetClosureItems
+        public IEnumerable<ProductionItem> GetEquivalentItemsOf(Symbol variable)
         {
+            if (!(variable is NonTerminal))
+            {
+                yield break;
+            }
+
+            // only variables (non-terminals) have closure items
             for (int i = 0; i < Productions.Count; i++)
             {
                 if (Productions[i].Head.Equals(variable))
@@ -76,8 +83,17 @@ namespace ContextFreeGrammar
             }
         }
 
-        // Step 1 of 2: The canonical collection of sets of LR(0) items
-        // First step in creating so called "LR viable prefix recognition machine"
+        // LR(0) Automaton is a DFA that we use to recognize the viable prefix/handles in the grammar
+        // The machine can be generated in two different ways:
+        //      NFA -> DFA in 2 passes (steps)
+        //          Step 1 (NFA GOTO):
+        //              NFA, where each state is an item in the canonical collection
+        //              of LR(0) items (ProductionItem instances are the NFA states)
+        //          Step 2 (DFA CLOSURE)
+        //              Subset construction creates the canonical collection of *sets of*
+        //              LR(0) items (ProductionItemSet instances are the DFA states)
+        //      DFA in single-pass:
+        //          Dragon book algorithm (using GOTO and CLOSURE together)
         public Nfa<ProductionItem, Symbol> GetCharacteristicStringsNfa()
         {
             if (Productions.Count == 0)
@@ -95,8 +111,9 @@ namespace ContextFreeGrammar
                 throw new InvalidOperationException("The grammar contains useless symbols.");
             }
 
-            // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = new Nfa<ProductionItem, Symbol>(new ProductionItem(Productions[0], 0, 0));
+            var startItem = new ProductionItem(Productions[0], 0, 0);
+            var transitions = new List<Transition<Symbol, ProductionItem>>();
+            var acceptItems = new List<ProductionItem>();
 
             // (a) For every terminal a in T, if A → α"."aβ is a marked production, then
             //     there is a transition on input a from state A → α"."aβ to state A → αa"."β
@@ -116,38 +133,38 @@ namespace ContextFreeGrammar
                     // (a) A → α"."aβ
                     if (item.IsShiftItem)
                     {
-                        var label = item.GetNextSymbol<Terminal>();
+                        Symbol label = item.GetNextSymbol<Terminal>();
                         var shiftToItem = item.GetNextItem();
-                        characteristicStringsNfa.AddTransition(item, label, shiftToItem);
+                        transitions.Add(Transition.Move(item, label, shiftToItem));
                     }
 
                     // (b) A → α"."Bβ
                     if (item.IsGotoItem)
                     {
-                        var nonTerminal = item.GetNextSymbol<NonTerminal>();
+                        Symbol nonTerminal = item.GetNextSymbol<NonTerminal>();
                         var goToItem = item.GetNextItem();
-                        characteristicStringsNfa.AddTransition(item, nonTerminal, goToItem);
+                        transitions.Add(Transition.Move(item, nonTerminal, goToItem));
 
                         // closure items
                         foreach (var closureItem in GetEquivalentItemsOf(nonTerminal))
                         {
                             // Expecting to see a non terminal 'B' is the same as expecting to see
                             // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
-                           characteristicStringsNfa.AddTransition(item, Symbol.Epsilon, closureItem);
+                           transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem>(item, closureItem));
                         }
                     }
 
                     // (c) A → β"." (Accepting states has dot shifted all the way to the end)
                     if (item.IsReduceItem)
                     {
-                        characteristicStringsNfa.AcceptingStates.Add(item);
+                        acceptItems.Add(item);
                     }
                 }
 
                 productionIndex += 1;
             }
 
-            return characteristicStringsNfa;
+            return new Nfa<ProductionItem, Symbol>(transitions, startItem, acceptItems);
         }
 
         public IEnumerator<Production> GetEnumerator()

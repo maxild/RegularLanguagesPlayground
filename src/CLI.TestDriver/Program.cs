@@ -13,13 +13,13 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            LRParsing();
+            //LRParsing();
             //CourseExercise();
             //RegexParser();
             //KeywordAutomata();
             //EquivalenceOfTwoDfas();
             //NonMinimalDfa();
-            //DecimalAutomata();
+            DecimalAutomata();
         }
 
         public static void LRParsing()
@@ -44,7 +44,7 @@ namespace CLI.TestDriver
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
 
-            SaveFile("NCG.dot", characteristicStringsNfa.ToDotLanguage(DotRankDirection.TopBottom));
+            SaveFile("NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
         }
 
         public static void CourseExercise()
@@ -67,7 +67,7 @@ namespace CLI.TestDriver
             dfa.AddTrans('H', "0", 'B');
             dfa.AddTrans('H', "1", 'H');
             var minDfa = dfa.ToMinimumDfa();
-            SaveFile("exercise.dot", minDfa.ToDotLanguage());
+            SaveFile("exercise.dot", DotLanguagePrinter.ToDotLanguage(minDfa));
         }
 
         public static void RegexParser()
@@ -96,7 +96,7 @@ namespace CLI.TestDriver
 
             var dfa = regex.ToDfa(skipRenaming: true);
 
-            SaveFile("regex.dot", dfa.ToDotLanguage());
+            SaveFile("regex.dot", DotLanguagePrinter.ToDotLanguage(dfa));
         }
 
         public static void KeywordAutomata()
@@ -131,14 +131,14 @@ namespace CLI.TestDriver
             var dfaKeywords = nfaKeywords.ToDfa();
 
             // Den virker, men grafen er uoverskuelig da vi ikke kan placere noderne
-            SaveFile("dfa_keywords.dot", dfaKeywords.ToDotLanguage());
+            SaveFile("dfa_keywords.dot", DotLanguagePrinter.ToDotLanguage(dfaKeywords));
 
             Console.WriteLine("");
 
             foreach (var word in new[] { "goto", "web", "ebay", "webay", "web1" })
             {
                 // NFA is tail whatever, that is webay is a match because the suffix ebay is matched
-                Console.WriteLine($"dfaKeywords.Match({word}) = {dfaKeywords.Match(word)}");
+                Console.WriteLine($"dfaKeywords.Match({word}) = {dfaKeywords.IsMatch(word)}");
             }
         }
 
@@ -161,7 +161,7 @@ namespace CLI.TestDriver
             eqDfas.AddTrans('E', "0", 'C');
             eqDfas.AddTrans('E', "1", 'E');
 
-            SaveFile("dfa_eq.dot", eqDfas.ToDotLanguage());
+            SaveFile("dfa_eq.dot", DotLanguagePrinter.ToDotLanguage(eqDfas));
 
             //System.Console.WriteLine();
             Console.WriteLine($"Eq state pairs: {eqDfas.DisplayEquivalentPairs()}");
@@ -191,14 +191,14 @@ namespace CLI.TestDriver
             nonMinDfa.AddTrans('H', "0", 'G');
             nonMinDfa.AddTrans('H', "1", 'D');
 
-            SaveFile("dfaNonMin.dot", nonMinDfa.ToDotLanguage());
+            SaveFile("dfaNonMin.dot", DotLanguagePrinter.ToDotLanguage(nonMinDfa));
 
             Console.WriteLine($"Eq state pairs: {nonMinDfa.DisplayEquivalentPairs()}");
             Console.WriteLine($"Eq state sets: {nonMinDfa.DisplayMergedEqSets()}");
 
             var minDfa = nonMinDfa.ToMinimumDfa();
 
-            SaveFile("dfaMin.dot", minDfa.ToDotLanguage());
+            SaveFile("dfaMin.dot", DotLanguagePrinter.ToDotLanguage(minDfa));
         }
 
         public static void DecimalAutomata()
@@ -274,11 +274,11 @@ namespace CLI.TestDriver
 
             var dfaDecimal = nfaDecimal.ToDfa();
 
-            SaveFile("dfa_decimal.dot", dfaDecimal.ToDotLanguage());
+            SaveFile("dfa_decimal.dot", DotLanguagePrinter.ToDotLanguage(dfaDecimal));
 
             foreach (var word in new[] { "+d.d", "-.", "-.d", ".", "d.", "d.d", ".d" })
             {
-                Console.WriteLine($"dfaDecimal.Match({word}) = {dfaDecimal.Match(word)}");
+                Console.WriteLine($"dfaDecimal.Match({word}) = {dfaDecimal.IsMatch(word)}");
             }
         }
 

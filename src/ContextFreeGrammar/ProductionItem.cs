@@ -23,7 +23,7 @@ namespace ContextFreeGrammar
     /// "dot" (and hence is expecting to see the symbols after the dot next).
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct ProductionItem : IEquatable<ProductionItem>, INumberedItem
+    public struct ProductionItem : IEquatable<ProductionItem>, IFiniteAutomatonState
     {
         private string DebuggerDisplay => ToString();
         private const char DOT = '•'; // Bullet
@@ -88,11 +88,9 @@ namespace ContextFreeGrammar
             }
         }
 
-        // HACK
-        string INumberedItem.Id => $"n{_productionIndex}a{_dotPosition}";
-        //NumberUtils.CombineDWords(NumberUtils.LowDWord(_productionIndex), NumberUtils.LowDWord(_dotPosition));
+        string IFiniteAutomatonState.Id => $"{_productionIndex}_{_dotPosition}";
 
-        string INumberedItem.Label => ToString();
+        string IFiniteAutomatonState.Label => ToString();
 
         public override string ToString()
         {

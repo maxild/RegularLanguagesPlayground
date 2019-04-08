@@ -6,6 +6,16 @@ namespace AutomataLib
 {
     public static class Transition
     {
+        public static TAlphabet Epsilon<TAlphabet>()
+        {
+            Type t = typeof(TAlphabet);
+            if (typeof(Symbol).IsAssignableFrom(t))
+            {
+                return (TAlphabet)(object)Symbol.Epsilon;
+            }
+            return default;
+        }
+
         public static SourceTransitionPair<TState, TAlphabet> FromPair<TState, TAlphabet>(TState sourceState, TAlphabet label)
         {
             return new SourceTransitionPair<TState, TAlphabet>(sourceState, label);
@@ -18,7 +28,7 @@ namespace AutomataLib
 
         public static TargetTransitionPair<TAlphabet, TState> ToEpsilonPair<TAlphabet, TState>(TAlphabet label, TState targetState)
         {
-            return new TargetTransitionPair<TAlphabet, TState>(default, targetState);
+            return new TargetTransitionPair<TAlphabet, TState>(Epsilon<TAlphabet>(), targetState);
         }
 
         public static Transition<TAlphabet, TState> Move<TAlphabet, TState>(
@@ -41,7 +51,7 @@ namespace AutomataLib
             TState sourceState,
             TState targetState)
         {
-            return new Transition<TAlphabet, TState>(sourceState, default, targetState);
+            return new Transition<TAlphabet, TState>(sourceState, Epsilon<TAlphabet>(), targetState);
         }
 
         public static Transition<char, int> EpsilonMove(
@@ -68,7 +78,7 @@ namespace AutomataLib
             TargetState = targetState;
         }
 
-        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, default);
+        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, Transition.Epsilon<TAlphabet>());
 
         public bool Equals(Transition<TAlphabet, TState> other)
         {
@@ -121,7 +131,7 @@ namespace AutomataLib
             TargetState = targetState;
         }
 
-        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, default);
+        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, Transition.Epsilon<TAlphabet>());
 
         public bool Equals(TargetTransitionPair<TAlphabet, TState> other)
         {
@@ -165,7 +175,7 @@ namespace AutomataLib
             Label = label;
         }
 
-        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, default);
+        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, Transition.Epsilon<TAlphabet>());
 
         public bool Equals(SourceTransitionPair<TState, TAlphabet> other)
         {

@@ -145,7 +145,7 @@ namespace FiniteAutomata
         //      the transition S -label-> Tclose to the DFA transition relation, for
         //      every label.
 
-        static IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> CompositeDfaTrans(
+        static IDictionary<Set<int>, Dictionary<TAlphabet, Set<int>>> CompositeDfaTrans(
             int startState,
             IDictionary<int, List<TargetTransitionPair<TAlphabet, int>>> trans)
         {
@@ -157,7 +157,7 @@ namespace FiniteAutomata
             markedVisitedStates.Enqueue(s0EpsClosure);
 
             // The transition relation of the DFA = (States, Transition)
-            var result = new Dictionary<Set<int>, IDictionary<TAlphabet, Set<int>>>();
+            var result = new Dictionary<Set<int>, Dictionary<TAlphabet, Set<int>>>();
 
             while (markedVisitedStates.Count != 0)
             {
@@ -247,13 +247,13 @@ namespace FiniteAutomata
         // int, use the result of MkRenamer to replace all Sets of ints
         // by ints.
 
-        static IDictionary<int, IDictionary<TAlphabet, int>> Rename(
+        static IDictionary<int, Dictionary<TAlphabet, int>> Rename(
             NfaToDfaRenamer renamer,
-            IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> dfaTrans)
+            IDictionary<Set<int>, Dictionary<TAlphabet, Set<int>>> dfaTrans)
         {
-            var newDfaTrans = new SortedDictionary<int, IDictionary<TAlphabet, int>>(); // keys/states are sorted
+            var newDfaTrans = new SortedDictionary<int, Dictionary<TAlphabet, int>>(); // keys/states are sorted
 
-            foreach (KeyValuePair<Set<int>, IDictionary<TAlphabet, Set<int>>> entry
+            foreach (KeyValuePair<Set<int>, Dictionary<TAlphabet, Set<int>>> entry
                 in dfaTrans)
             {
                 Set<int> dfaState = entry.Key;
@@ -288,7 +288,7 @@ namespace FiniteAutomata
         /// </summary>
         public Dfa<TAlphabet> ToDfa(bool skipRenaming = false)
         {
-            IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>>
+            IDictionary<Set<int>, Dictionary<TAlphabet, Set<int>>>
                 cDfaTrans = CompositeDfaTrans(Start, Trans);
 
             Set<int> cDfaStart = EpsilonClose(new Set<int>(new [] {Start}), Trans);
@@ -298,7 +298,7 @@ namespace FiniteAutomata
             var renamer = new NfaToDfaRenamer(cDfaStates, skipRenaming, _predicate);
 
             // DFA-transitions (delta)
-            IDictionary<int, IDictionary<TAlphabet, int>> dfaTrans =
+            IDictionary<int, Dictionary<TAlphabet, int>> dfaTrans =
                 Rename(renamer, cDfaTrans);
 
             // The singleton start state = q_0

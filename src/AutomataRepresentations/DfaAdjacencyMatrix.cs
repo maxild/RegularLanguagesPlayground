@@ -22,7 +22,7 @@ namespace AutomataRepresentations
     ///    - Input alphabet need to be determined in advance (it must be fixed).
     ///    - Big alphabet (Unicode) requires a lot of RAM.
     /// </summary>
-    public class DfaAdjacencyMatrix<TState> : IDeterministicFiniteAutomaton
+    public class DfaAdjacencyMatrix<TState> : IDeterministicFiniteAutomaton<char, int>, IFiniteAutomatonStateHomomorphism<int>
         where TState : IEquatable<TState>
     {
         private readonly TState[] _stateName; // one-way translation should be sufficient
@@ -198,7 +198,7 @@ namespace AutomataRepresentations
             return Enumerable.Range(1, _maxState);
         }
 
-        public string DescribeState(int state)
+        public string GetStateLabel(int state)
         {
             return _stateName[state].ToString();
         }

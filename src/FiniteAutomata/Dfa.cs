@@ -17,20 +17,30 @@ namespace FiniteAutomata
     /// from state number (int) to a Map from label (a String,
     /// non-null) to a target state (an int).
     /// </summary>
-    public class Dfa<TAlphabet>
+    public class Dfa<TAlphabet> : IDeterministicFiniteAutomaton<TAlphabet, int>, IFiniteAutomatonStateHomomorphism<int>
         where TAlphabet : IEquatable<TAlphabet>
     {
+        class CharStateRenamer : IDfaStateRenamer
+        {
+            public string ToDfaStateString(int dfaStateIndex)
+            {
+                return new string((char) dfaStateIndex, 1);
+            }
+        }
+
         private readonly IDfaStateRenamer _renamer;
+        private readonly Set<int> _acceptStates;
+        private readonly IDictionary<int, Dictionary<TAlphabet, int>> _delta;
 
         public Dfa(
             int startState,
             Set<int> acceptStates,
-            IDictionary<int, IDictionary<TAlphabet, int>> trans,
+            IDictionary<int, Dictionary<TAlphabet, int>> delta,
             IDfaStateRenamer renamer)
         {
-            Start = startState;
-            Accept = acceptStates;
-            Trans = trans;
+            StartState = startState;
+            _acceptStates = acceptStates;
+            _delta = delta;
             _renamer = renamer;
         }
 
@@ -41,56 +51,98 @@ namespace FiniteAutomata
             char startState,
             IEnumerable<char> acceptingStates)
         {
-            Start = startState;
-            Accept = new Set<int>(acceptingStates.Select(x => (int)x));
-            Trans = new SortedDictionary<int, IDictionary<TAlphabet, int>>(); // keys, states are sorted
+            StartState = startState;
+            _acceptStates = new Set<int>(acceptingStates.Select(x => (int)x));
+            _delta = new SortedDictionary<int, Dictionary<TAlphabet, int>>(); // keys, states are sorted
             _renamer = new CharStateRenamer();
         }
 
-        public int Start { get; }
+        public int StartState { get; }
 
-        public Set<int> Accept { get; }
+        public bool IsAcceptState(int state)
+        {
+            return _acceptStates.Contains(state);
+        }
 
-        IDictionary<int, IDictionary<TAlphabet, int>> Trans { get; }
+        public IEnumerable<int> GetStates()
+        {
+            return _delta.Keys;
+        }
+
+        public IEnumerable<int> GetTrimmedStates()
+        {
+            return GetStates();
+        }
+
+        public IEnumerable<int> GetAcceptStates()
+        {
+            return _acceptStates;
+        }
+
+        public IEnumerable<Transition<TAlphabet, int>> GetTransitions()
+        {
+            return from kvp in _delta
+                let sourceState = kvp.Key
+                from pair in kvp.Value
+                let label = pair.Key
+                let targetState = pair.Value
+                select Transition.Move(sourceState, label, targetState);
+        }
+
+        public IEnumerable<Transition<TAlphabet, int>> GetTrimmedTransitions()
+        {
+            return GetTransitions();
+        }
+
+        public int TransitionFunction(int state, IEnumerable<TAlphabet> input)
+        {
+            int s = state;
+            foreach (TAlphabet letter in input)
+            {
+                if (_delta[s].TryGetValue(letter, out int nextState))
+                {
+                    s = nextState;
+                }
+                else
+                {
+                    // Sparse model has to have a fixed dead state
+                    return -1; // dead state
+                }
+            }
+
+            return s;
+        }
+
+        public string GetStateLabel(int state)
+        {
+            return _renamer.ToDfaStateString(state);
+        }
+
+        public bool IsMatch(string input)
+        {
+            int s = TransitionFunction(StartState, Letterizer<TAlphabet>.Default.GetLetters(input));
+            return s != -1 && _acceptStates.Contains(s);
+        }
 
         public void AddTrans(int s1, TAlphabet label, int s2)
         {
-            IDictionary<TAlphabet, int> transitions;
-            if (Trans.ContainsKey(s1))
+            Dictionary<TAlphabet, int> transitions;
+            if (_delta.ContainsKey(s1))
             {
-                transitions = Trans[s1];
+                transitions = _delta[s1];
             }
             else
             {
                 transitions = new Dictionary<TAlphabet, int>();
-                Trans.Add(s1, transitions);
+                _delta.Add(s1, transitions);
             }
-            transitions.Add(label, s2); // Note: Will throw ArgumentException if key all ready exists
-        }
 
-        public override string ToString()
-        {
-            return $"DFA start = {_renamer.ToDfaStateString(Start)}, Accept = " +
-                   Accept.Select(x => _renamer.ToDfaStateString(x)).ToSetNotation();
-        }
-
-        public bool Match(string s)
-        {
-            int state = Start;
-            foreach (TAlphabet letter in Letterizer<TAlphabet>.Default.GetLetters(s))
+            if (!_delta.ContainsKey(s2))
             {
-                if (Trans[state].TryGetValue(letter, out int newState))
-                {
-                    state = newState;
-                }
-                else
-                {
-                    // dead state
-                    return false;
-                }
+                _delta.Add(s2, new Dictionary<TAlphabet, int>());
             }
 
-            return Accept.Contains(state);
+            transitions.Add(label, s2); // Note: Will throw ArgumentException if key all ready exists
         }
 
         // For debugging
@@ -109,9 +161,9 @@ namespace FiniteAutomata
             var undistinguishablePairs = new Set<TriangularPair<int>>(); // not marked!!!
 
             // basis
-            foreach (int p in Trans.Keys)
+            foreach (int p in _delta.Keys)
             {
-                foreach (int q in Trans.Keys)
+                foreach (int q in _delta.Keys)
                 {
                     if (q <= p) continue; // triangular
                     if (!IsBasisDistinguishable(p, q))
@@ -136,8 +188,8 @@ namespace FiniteAutomata
 
                         //int p = Trans[pair.Fst][successorLabel];
                         //int q = Trans[pair.Snd][successorLabel];
-                        if (Trans[pair.Fst].TryGetValue(successorLabel, out var p) &&
-                            Trans[pair.Snd].TryGetValue(successorLabel, out var q))
+                        if (_delta[pair.Fst].TryGetValue(successorLabel, out var p) &&
+                            _delta[pair.Snd].TryGetValue(successorLabel, out var q))
                         {
                             TriangularPair<int> successorPair = new TriangularPair<int>(p, q);
 
@@ -219,10 +271,10 @@ namespace FiniteAutomata
         Set<int> GetReachableStates()
         {
             // Breadth First Traversal
-            var visited = new Set<int>(new[] {Start});
+            var visited = new Set<int>(new[] {StartState});
 
             var worklist = new Queue<int>();
-            worklist.Enqueue(Start);
+            worklist.Enqueue(StartState);
 
             while (worklist.Count > 0)
             {
@@ -231,7 +283,7 @@ namespace FiniteAutomata
                 {
                     // Trans indeholder dead states, og er ikke defineret for alle labels,
                     // og derfor benytter vi TryGetValue
-                    if (Trans[state].TryGetValue(label, out var toState) && !visited.Contains(toState))
+                    if (_delta[state].TryGetValue(label, out var toState) && !visited.Contains(toState))
                     {
                         worklist.Enqueue(toState);
                         visited.Add(toState);
@@ -246,7 +298,7 @@ namespace FiniteAutomata
         {
             // First eliminate any state(s) that cannot be reached from the start state
             var minimizedStates = skipRemovalOfUnreachableStates
-                ? new Set<int>(Trans.Keys)
+                ? new Set<int>(_delta.Keys)
                 : GetReachableStates();
 
             // Use the table filling algorithm to find all the pairs of equivalent states
@@ -267,11 +319,11 @@ namespace FiniteAutomata
 
             foreach (var blockState in blockStates)
             {
-                if (blockState.Contains(Start))
+                if (blockState.Contains(StartState))
                 {
                     startBlockState = blockState;
                 }
-                if (blockState.Any(s => Accept.Contains(s)))
+                if (blockState.Any(s => _acceptStates.Contains(s)))
                 {
                     acceptBlocks.Add(blockState);
                 }
@@ -281,7 +333,7 @@ namespace FiniteAutomata
                 foreach (var label in GetLabels())
                 {
                     //int toState = Trans[blockState.First()][label];
-                    if (Trans[blockState.First()].TryGetValue(label, out var toState))
+                    if (_delta[blockState.First()].TryGetValue(label, out var toState))
                     {
                         Set<int> toBlockState = blockStates.First(block => block.Contains(toState));
                         transition.Add(label, toBlockState);
@@ -293,7 +345,7 @@ namespace FiniteAutomata
 
             var renamer = new MinimizedDfaRenamer(blockStates, _renamer);
 
-            IDictionary<int, IDictionary<TAlphabet, int>> minDfaTrans = Rename(renamer, blockTrans);
+            var minDfaTrans = Rename(renamer, blockTrans);
 
             int minDfaStartState = renamer.ToDfaStateIndex(startBlockState);
 
@@ -302,16 +354,16 @@ namespace FiniteAutomata
             return new Dfa<TAlphabet>(minDfaStartState, minDfaAcceptStates, minDfaTrans, renamer);
         }
 
-        static IDictionary<int, IDictionary<TAlphabet, int>> Rename(
+        static IDictionary<int, Dictionary<TAlphabet, int>> Rename(
             MinimizedDfaRenamer renamer,
             IDictionary<Set<int>, IDictionary<TAlphabet, Set<int>>> trans)
         {
-            var newDfaTrans = new SortedDictionary<int, IDictionary<TAlphabet, int>>(); // keys/states are sorted
+            var newDfaTrans = new SortedDictionary<int, Dictionary<TAlphabet, int>>(); // keys/states are sorted
 
             foreach (KeyValuePair<Set<int>, IDictionary<TAlphabet, Set<int>>> entry in trans)
             {
                 Set<int> blockState = entry.Key;
-                IDictionary<TAlphabet, int> newDfaTransRow = new Dictionary<TAlphabet, int>();
+                var newDfaTransRow = new Dictionary<TAlphabet, int>();
                 foreach (KeyValuePair<TAlphabet, Set<int>> tr in entry.Value)
                 {
                     newDfaTransRow.Add(tr.Key, renamer.ToDfaStateIndex(tr.Value));
@@ -343,13 +395,13 @@ namespace FiniteAutomata
         bool IsBasisDistinguishable(int p, int r)
         {
             bool marked;
-            if (Accept.Contains(p))
+            if (_acceptStates.Contains(p))
             {
-                marked = !Accept.Contains(r);
+                marked = !_acceptStates.Contains(r);
             }
             else
             {
-                marked = Accept.Contains(r);
+                marked = _acceptStates.Contains(r);
             }
             return marked;
         }
@@ -357,63 +409,7 @@ namespace FiniteAutomata
         IEnumerable<TAlphabet> GetLabels()
         {
             // A hack, because the model is wrong
-            return new Set<TAlphabet>(Trans.Values.SelectMany(dict => dict.Keys));
-        }
-
-        class CharStateRenamer : IDfaStateRenamer
-        {
-            public string ToDfaStateString(int dfaStateIndex)
-            {
-                return new string((char) dfaStateIndex, 1);
-            }
-        }
-
-        public string ToDotLanguage(DotRankDirection direction = DotRankDirection.LeftRight)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("// Format this file as a Postscript file with ");
-            sb.AppendLine($"//    dot -Tps [filename.dot] -o out.ps\n");
-            sb.AppendLine("digraph dfa {");
-            switch (direction)
-            {
-                    case DotRankDirection.TopBottom:
-                        sb.AppendLine("size=\"8.25,11\"; /* A4 paper portrait: 8.27 × 11.69 inches */");
-                        sb.AppendLine("rankdir=TB;");
-                        break;
-                    case DotRankDirection.LeftRight:
-                        sb.AppendLine("size=\"11,8.25\"; /* A4 paper landscape: 11.69 x 8.27 inches */");
-                        sb.AppendLine("rankdir=LR;");
-                        break;
-            }
-
-            // start state arrow indicator
-            sb.AppendLine("n999999 [style=invis];");    // Invisible start node
-            sb.AppendLine("n999999 -> n" + Start);      // Edge into start state
-
-            // label states (overriding default n0, n1 names)
-            foreach (int state in Trans.Keys)
-                sb.AppendLine("n" + state + " [label=\"" + _renamer.ToDfaStateString(state) + "\"]");
-
-            // accept states are double circles
-            foreach (int state in Trans.Keys)
-                if (Accept.Contains(state))
-                    sb.AppendLine("n" + state + " [peripheries=2];");
-
-            // nodes and edges are defined by transitions
-            foreach (KeyValuePair<int, IDictionary<TAlphabet, int>> entry in Trans)
-            {
-                int fromState = entry.Key;
-                foreach (KeyValuePair<TAlphabet, int> s1Trans in entry.Value)
-                {
-                    TAlphabet label = s1Trans.Key;
-                    int toState = s1Trans.Value;
-                    sb.AppendLine("n" + fromState + " -> n" + toState + " [label=\"" + label + "\"];");
-                }
-            }
-
-            sb.AppendLine("}");
-
-            return sb.ToString();
+            return new Set<TAlphabet>(_delta.Values.SelectMany(dict => dict.Keys));
         }
     }
 
