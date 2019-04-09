@@ -4,13 +4,42 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
-namespace FiniteAutomata
+namespace AutomataLib
 {
+    /// <summary>
+    /// Minimal Set API
+    /// </summary>
+    public interface ISet<T> : IReadOnlySet<T>
+    {
+        bool Add(T item);
+
+        bool AddRange(IEnumerable<T> other);
+    }
+
+    public interface IReadOnlySet<T> : IReadOnlyCollection<T>
+    {
+        bool Contains(T item);
+
+        bool IsSubsetOf(IEnumerable<T> other);
+
+        bool IsSupersetOf(IEnumerable<T> other);
+
+        bool IsProperSupersetOf(IEnumerable<T> other);
+
+        bool IsProperSubsetOf(IEnumerable<T> other);
+
+        bool Overlaps(IEnumerable<T> other);
+
+        bool SetEquals(IEnumerable<T> other);
+    }
+
+    // TODO: Implement OrderedHashSet that preserves preserves insertion order as in a List
+
     /// <summary>
     /// A set, with element-based hash codes, built upon <see cref="HashSet{T}"/>
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class Set<T> : IEquatable<Set<T>>, ICollection<T> where T : IEquatable<T>
+    public class Set<T> : ISet<T>, IEquatable<Set<T>> where T : IEquatable<T>
     {
         private readonly HashSet<T> _inner;
         private int? _cachedHash; // Cached hash code is valid if non-null (THIS IS SPECIAL)
@@ -20,10 +49,9 @@ namespace FiniteAutomata
             _inner = new HashSet<T>();
         }
 
-        public Set(IEnumerable<T> coll) : this()
+        public Set(IEnumerable<T> items) : this()
         {
-            foreach (T x in coll)
-                Add(x);
+            _inner = new HashSet<T>(items);
         }
 
         public bool Contains(T item)
@@ -31,21 +59,52 @@ namespace FiniteAutomata
             return _inner.Contains(item);
         }
 
-        public void Add(T item)
+        public bool Add(T item)
         {
-            if (!Contains(item))
-            {
-                _inner.Add(item);
+            bool added = _inner.Add(item);
+            if (added)
                 _cachedHash = null;
-            }
+            return added;
         }
 
-        public bool Remove(T item)
+        public bool AddRange(IEnumerable<T> other)
         {
-            bool removed = _inner.Remove(item);
-            if (removed)
+            int c = _inner.Count;
+            _inner.UnionWith(other);
+            bool added = c != _inner.Count;
+            if (added)
                 _cachedHash = null;
-            return removed;
+            return added;
+        }
+
+        public bool IsProperSubsetOf(IEnumerable<T> other)
+        {
+            return _inner.IsProperSubsetOf(other);
+        }
+
+        public bool IsProperSupersetOf(IEnumerable<T> other)
+        {
+            return _inner.IsProperSupersetOf(other);
+        }
+
+        public bool IsSubsetOf(IEnumerable<T> other)
+        {
+            return _inner.IsSubsetOf(other);
+        }
+
+        public bool IsSupersetOf(IEnumerable<T> other)
+        {
+            return _inner.IsSupersetOf(other);
+        }
+
+        public bool Overlaps(IEnumerable<T> other)
+        {
+            return _inner.Overlaps(other);
+        }
+
+        public bool SetEquals(IEnumerable<T> other)
+        {
+            return _inner.SetEquals(other);
         }
 
         public IEnumerator<T> GetEnumerator()
@@ -65,24 +124,6 @@ namespace FiniteAutomata
             _inner.CopyTo(array, arrayIndex);
         }
 
-        public void Clear()
-        {
-            _inner.Clear();
-            _cachedHash = null;
-        }
-
-        public bool IsReadOnly => false;
-
-        // Is this set a subset of that?
-        public bool IsSubsetOf(Set<T> that)
-        {
-            foreach (T x in this)
-                if (!that.Contains(x))
-                    return false;
-            return true;
-        }
-
-        // Create new set as intersection of this and that
         public Set<T> Intersection(Set<T> that)
         {
             Set<T> result = new Set<T>();
@@ -92,7 +133,6 @@ namespace FiniteAutomata
             return result;
         }
 
-        // Create new set as union of this and that
         public Set<T> Union(Set<T> that)
         {
             Set<T> result = new Set<T>(this);
@@ -101,7 +141,6 @@ namespace FiniteAutomata
             return result;
         }
 
-        // Create new set as difference between this and that
         public Set<T> Difference(Set<T> that)
         {
             Set<T> result = new Set<T>();
@@ -123,7 +162,6 @@ namespace FiniteAutomata
             return result;
         }
 
-        // Create new set as symmetric difference between this and that
         public Set<T> SymmetricDifference(Set<T> that)
         {
             Set<T> result = new Set<T>();
@@ -143,9 +181,10 @@ namespace FiniteAutomata
             // NOTE: we reset the cached hash code to null if Set is mutated
             if (!_cachedHash.HasValue)
             {
-                int hashCode = 0;
+                // we use prime numbers
+                int hashCode = 17;
                 foreach (T x in this)
-                    hashCode ^= x.GetHashCode();
+                    hashCode = 31 * hashCode + x.GetHashCode();
                 _cachedHash = hashCode;
             }
 
@@ -154,7 +193,7 @@ namespace FiniteAutomata
 
         public bool Equals(Set<T> other)
         {
-            return other != null && other.Count == Count && other.IsSubsetOf(this);
+            return other != null && _inner.SetEquals(other);
         }
 
         public override string ToString()

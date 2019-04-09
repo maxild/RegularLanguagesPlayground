@@ -1,61 +1,146 @@
 using System.Collections.Generic;
+using System.Linq;
+using AutomataLib;
 
 namespace ContextFreeGrammar
 {
     /// <summary>
     /// Deterministic Finite Automaton (Q, Σ, delta, q(0), F) from Automata Theory.
     /// </summary>
-    /// <typeparam name="TAlphabet"></typeparam>
-    public class DeterministicAutomata<TAlphabet>
+    public class Dfa<TState, TAlphabet> : IDeterministicFiniteAutomaton<TAlphabet, int>, IFiniteAutomatonStateHomomorphism<int>
     {
-        private readonly Dictionary<int, Dictionary<TAlphabet, int>> _delta;
-        private int _version;
-        private ISet<TAlphabet> _alphabet;
-        private int _alphabetVersion;
+        private readonly TState[] _originalStates; // one-way translation should be sufficient to show descriptive labels
+        private readonly Dictionary<TAlphabet, int> _alphabetToIndex;
+        private readonly TAlphabet[] _indexToAlphabet;
 
-        public DeterministicAutomata()
+        private readonly int _maxState;
+        private readonly int[,] _nextState;
+        private readonly HashSet<int> _acceptStates;
+
+        public Dfa(
+            IEnumerable<TState> states,
+            IEnumerable<TAlphabet> alphabet,
+            IEnumerable<Transition<TAlphabet, TState>> transitions,
+            TState startState,
+            IEnumerable<TState> acceptStates)
         {
-            // TODO
-            _version = 0;
-            _delta = new Dictionary<int, Dictionary<TAlphabet, int>>();
+            _originalStates = states.ToArray();
+            _maxState = _originalStates.Length; // 0,1,2,...,maxState, where dead state is at index zero
+
+            // renaming all states to integers
+            var indexMap = new Dictionary<TState, int>(_maxState); // dead state excluded here
+            int stateIndex = 1;
+            foreach (TState state in _originalStates)
+            {
+                indexMap.Add(state, stateIndex);
+                stateIndex += 1;
+            }
+
+            _indexToAlphabet = alphabet.ToArray();
+            _alphabetToIndex = new Dictionary<TAlphabet, int>();
+            for (int i = 0; i < _indexToAlphabet.Length; i++)
+            {
+                _alphabetToIndex[_indexToAlphabet[i]] = i;
+            }
+
+            StartState = indexMap[startState];
+
+            _acceptStates = new HashSet<int>();
+            foreach (TState state in acceptStates)
+            {
+                _acceptStates.Add(indexMap[state]);
+            }
+
+            _nextState = new int[_maxState + 1, _alphabetToIndex.Count];
+
+            foreach (var move in transitions)
+            {
+                int source = indexMap[move.SourceState];
+                int target = indexMap[move.TargetState];
+                _nextState[source, _alphabetToIndex[move.Label]] = target;
+            }
         }
 
-        /// <summary>
-        /// q(0)
-        /// </summary>
         public int StartState { get; }
 
-        /// <summary>
-        /// F
-        /// </summary>
-        public IEnumerable<int> AcceptingStates { get; }
-
-        /// <summary>
-        /// Q
-        /// </summary>
-        public IEnumerable<int> States => _delta.Keys;
-
-        /// <summary>
-        /// Σ
-        /// </summary>
-        public ISet<TAlphabet> Alphabet
+        public bool IsAcceptState(int state)
         {
-            get
+            return _acceptStates.Contains(state);
+        }
+
+        public IEnumerable<int> GetStates()
+        {
+            return Enumerable.Range(0, _maxState);
+        }
+
+        public IEnumerable<int> GetTrimmedStates()
+        {
+            // We do not show the error state, because state graph must be a trimmed DFA
+            return Enumerable.Range(1, _maxState - 1);
+        }
+
+        public IEnumerable<TAlphabet> GetAlphabet()
+        {
+            return _alphabetToIndex.Keys;
+        }
+
+        public IEnumerable<int> GetAcceptStates()
+        {
+            return _acceptStates;
+        }
+
+        public IEnumerable<Transition<TAlphabet, int>> GetTransitions()
+        {
+            for (int s = 0; s < _nextState.GetLength(0); s += 1)
             {
-                if (_alphabetVersion != _version)
+                for (int c = 0; c < _nextState.GetLength(1); c += 1)
                 {
-                    var alphabet = new HashSet<TAlphabet>();
-                    foreach (var transOfSomeFromState in _delta.Values)
-                    {
-                        alphabet.UnionWith(transOfSomeFromState.Keys);
-                    }
-
-                    _alphabet = alphabet;
-                    _alphabetVersion = _version;
+                    int next = _nextState[s, c];
+                    yield return Transition.Move(s, _indexToAlphabet[c], next);
                 }
-
-                return _alphabet;
             }
+        }
+
+        public IEnumerable<Transition<TAlphabet, int>> GetTrimmedTransitions()
+        {
+            // exclude error state
+            for (int s = 1; s < _nextState.GetLength(0); s += 1)
+            {
+                for (int c = 0; c < _nextState.GetLength(1); c += 1)
+                {
+                    int next = _nextState[s, c];
+                    if (next != 0) // exclude error state
+                    {
+                        yield return Transition.Move(s, _indexToAlphabet[c], next);
+                    }
+                }
+            }
+        }
+
+        int NextState(int s, TAlphabet label)
+        {
+            return _nextState[s, _alphabetToIndex[label]];
+        }
+
+        public int TransitionFunction(int state, IEnumerable<TAlphabet> input)
+        {
+            int s = state;
+            foreach (var c in input)
+            {
+                s = NextState(s, c);
+            }
+            return s;
+        }
+
+        public bool IsMatch(string input)
+        {
+            return IsAcceptState(TransitionFunction(StartState, Letterizer<TAlphabet>.Default.GetLetters(input)));
+        }
+
+        public string GetStateLabel(int state)
+        {
+            int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
+            return _originalStates[originalIndex].ToString();
         }
     }
 }

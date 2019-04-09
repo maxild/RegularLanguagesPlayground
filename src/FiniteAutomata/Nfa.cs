@@ -49,10 +49,10 @@ namespace FiniteAutomata
         {
         }
 
-        public Nfa(int startState, IEnumerable<int> acceptingStates, Func<int, bool> predicate)
+        public Nfa(int startState, IEnumerable<int> acceptStates, Func<int, bool> predicate)
         {
             Start = startState;
-            AcceptingStates = new Set<int>(acceptingStates);
+            AcceptingStates = new Set<int>(acceptStates);
             Trans = new Dictionary<int, List<TargetTransitionPair<TAlphabet, int>>>();
             // AddTrans(s1, a, s2) will add new list to any start state s1, but not s2 exit states
             foreach (var acceptingState in AcceptingStates)
@@ -271,16 +271,16 @@ namespace FiniteAutomata
         static Set<int> AcceptStates(
             ICollection<Set<int>> states,
             NfaToDfaRenamer renamer,
-            Set<int> acceptingStates)
+            Set<int> acceptStates)
         {
-            Set<int> acceptStates = new Set<int>();
+            Set<int> result = new Set<int>();
             foreach (Set<int> dfaSubsetState in states)
             {
-                if (acceptingStates.Any(finalState => dfaSubsetState.Contains(finalState)))
-                    acceptStates.Add(renamer.ToDfaStateIndex(dfaSubsetState));
+                if (acceptStates.Any(finalState => dfaSubsetState.Contains(finalState)))
+                    result.Add(renamer.ToDfaStateIndex(dfaSubsetState));
 
             }
-            return acceptStates;
+            return result;
         }
 
         /// <summary>

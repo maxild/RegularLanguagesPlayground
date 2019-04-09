@@ -34,7 +34,7 @@ namespace AutomataRepresentations
             IEnumerable<char> alphabet, // should be unique...we do not test this here
             IEnumerable<Transition<char, TState>> transitions,
             TState startState,
-            IEnumerable<TState> acceptingStates)
+            IEnumerable<TState> acceptStates)
         {
             _base = null;
             _next = null;

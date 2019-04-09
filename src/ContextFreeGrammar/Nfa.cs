@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using AutomataLib;
 
 namespace ContextFreeGrammar
@@ -11,26 +12,18 @@ namespace ContextFreeGrammar
     /// </summary>
     /// <typeparam name="TState"></typeparam>
     /// <typeparam name="TAlphabet"></typeparam>
-    public class Nfa<TState, TAlphabet> : IFiniteAutomaton<TAlphabet, TState>
+    public class Nfa<TState, TAlphabet> : INondeterministicFiniteAutomaton<TAlphabet, TState>
         where TAlphabet : IEquatable<TAlphabet>
         where TState : IEquatable<TState>
     {
-        private static readonly ISet<TState> s_deadState = new HashSet<TState>();
+        //private static readonly ISet<TState> s_deadState = new HashSet<TState>();
 
-        // Adjacency ('sparse') list representation of digraph with labeled edges (moves, transitions)
-        //
-        //      _delta: array/list of adjacency list of moves/transitions
-        //
-        // We can only use (outer)
-        //
-        //private readonly Dictionary<TState, List<Move<TAlphabet>>> _delta;                // Automaton<TAlphabet> uses this one
-        //private readonly Dictionary<TState, List<Transition<TAlphabet>>> _delta;          // Nfa<TAlphabet> uses this one
-        private readonly Dictionary<TState, IDictionary<TAlphabet, ISet<TState>>> _delta;
+        private readonly Dictionary<SourceTransitionPair<TState, TAlphabet>, List<TState>> _delta;
 
         private readonly HashSet<TState> _acceptStates;
         private readonly HashSet<TState> _states;
+        private readonly HashSet<TAlphabet> _alphabet;
 
-        // used to to build DFA in single call
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         public Nfa(
             IEnumerable<Transition<TAlphabet, TState>> transitions,
@@ -41,6 +34,7 @@ namespace ContextFreeGrammar
             _acceptStates = new HashSet<TState>(acceptStates);
             _states = new HashSet<TState>(acceptStates) { startState };
             _delta = new Dictionary<SourceTransitionPair<TState, TAlphabet>, List<TState>>();
+            _alphabet = new HashSet<TAlphabet>();
 
             foreach (var triple in transitions)
             {
@@ -51,6 +45,10 @@ namespace ContextFreeGrammar
                     _delta[pair].Add(triple.TargetState);
                 else
                     _delta[pair] = new List<TState> {triple.TargetState};
+                if (triple.Label.Equals(Transition.Epsilon<TAlphabet>()))
+                    IsEpsilonNfa = true;
+                else
+                    _alphabet.Add(triple.Label); // alphabet does not contain epsilon
             }
         }
 
@@ -70,6 +68,19 @@ namespace ContextFreeGrammar
         {
             return GetStates();
         }
+
+        public IEnumerable<TAlphabet> GetAlphabet()
+        {
+            return _alphabet;
+        }
+
+        // TODO: Maybe remove this
+        public IEnumerable<TAlphabet> GetNullableAlphabet()
+        {
+            return _alphabet.Concat(new []{Transition.Epsilon<TAlphabet>()});
+        }
+
+        public bool IsEpsilonNfa { get; }
 
         public IEnumerable<TState> GetAcceptStates()
         {
@@ -94,10 +105,84 @@ namespace ContextFreeGrammar
             return GetTransitions();
         }
 
-        //public DeterministicAutomata<TAlphabet> SubsetConstruction()
-        //{
-        //    // int vs ProductionItemSet...renaming of states, and ToDotLanguage with state descriptions
-        //    return null;
-        //}
+        public Dfa<Set<TState>, TAlphabet> ToDfa()
+        {
+            var newStartState = EpsilonClose(new Set<TState> {StartState});
+            var newAcceptStates = new HashSet<Set<TState>>();
+            var newTransitions = new List<Transition<TAlphabet, Set<TState>>>();
+
+            var newStates = new HashSet<Set<TState>> {newStartState};
+
+            // Lazy form of Subset Construction where only reachable nodes
+            // are added to the following work list of marked subsets
+            var markedVisitedStates = new Queue<Set<TState>>(); // work list that preserves insertion order
+            markedVisitedStates.Enqueue(newStartState);
+
+            while (markedVisitedStates.Count != 0)
+            {
+                // subset S
+                Set<TState> subsetSourceState = markedVisitedStates.Dequeue();
+
+                if (subsetSourceState.Overlaps(GetAcceptStates()))
+                {
+                    newAcceptStates.Add(subsetSourceState);
+                }
+
+                // For all non-epsilon labels
+                foreach (var label in GetAlphabet())
+                {
+                    // subset T
+                    var subsetTargetState = new Set<TState>();
+
+                    // For all s in S, add all non-epsilon transitions (s, label) -> t to T
+                    foreach (TState s in subsetSourceState)
+                    {
+                        subsetTargetState.AddRange(Delta(Transition.FromPair(s, label)));
+                    }
+
+                    // Epsilon-close all T such that (S, label) -> T
+                    subsetTargetState = EpsilonClose(subsetTargetState);
+
+                    if (!newStates.Contains(subsetTargetState))
+                    {
+                        newStates.Add(subsetTargetState);
+                        markedVisitedStates.Enqueue(subsetTargetState);
+                    }
+
+                    // Add (S, label) -> T transition
+                    newTransitions.Add(Transition.Move(subsetSourceState, label, subsetTargetState));
+                }
+            }
+
+            return new Dfa<Set<TState>, TAlphabet>(newStates, GetAlphabet(), newTransitions, newStartState, newAcceptStates);
+        }
+
+        [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
+        Set<TState> EpsilonClose(IEnumerable<TState> states)
+        {
+            var markedVisitedStates = new Queue<TState>(states);
+            // base step
+            var closure = new Set<TState>(states);
+            // induction step: recurse until no more states in a round
+            while (markedVisitedStates.Count != 0)
+            {
+                TState sourceState = markedVisitedStates.Dequeue();
+                // if any epsilon-moves add them all to the closure (union)
+                foreach (var targetState in Delta(Transition.FromEpsilonPair<TState, TAlphabet>(sourceState)))
+                {
+                    if (!closure.Contains(targetState))
+                    {
+                        closure.Add(targetState);
+                        markedVisitedStates.Enqueue(targetState);
+                    }
+                }
+            }
+            return closure;
+        }
+
+        IEnumerable<TState> Delta(SourceTransitionPair<TState, TAlphabet> pair)
+        {
+            return _delta.TryGetValue(pair, out var targetStates) ? targetStates : Enumerable.Empty<TState>();
+        }
     }
 }

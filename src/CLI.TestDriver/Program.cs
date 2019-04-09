@@ -13,13 +13,13 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            //LRParsing();
+            LRParsing();
             //CourseExercise();
             //RegexParser();
             //KeywordAutomata();
             //EquivalenceOfTwoDfas();
             //NonMinimalDfa();
-            DecimalAutomata();
+            //DecimalAutomata();
         }
 
         public static void LRParsing()
@@ -45,6 +45,10 @@ namespace CLI.TestDriver
             var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
 
             SaveFile("NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight));
         }
 
         public static void CourseExercise()

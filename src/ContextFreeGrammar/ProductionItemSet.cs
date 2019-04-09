@@ -1,43 +1,54 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
+using AutomataLib;
 
 namespace ContextFreeGrammar
 {
     /// <summary>
-    /// A set of LR(0) items constructed via the subset construction algorithm. Each set of LR items,
+    /// A set of LR(0) items constructed via the subset construction algorithm. Each set of LR(0) items,
     /// constructed from the NFA of all possible items, will represent a single state in a DFA. This
     /// DFA is our so called "LR(0) viable prefix recognition machine".
     /// The DFA states (and transitions) can also be constructed in a more efficient single pass algorithm.
     /// </summary>
+    [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class ProductionItemSet : IEquatable<ProductionItemSet>
     {
-        public ProductionItemSet(ProductionItem coreItem, IEnumerable<ProductionItem> closureItems)
+        private string DebuggerDisplay => CoreItems.ToSetNotation();
+
+        private readonly HashSet<ProductionItem> _coreItems;
+        private readonly List<ProductionItem> _closureItems;
+
+        public ProductionItemSet(IEnumerable<ProductionItem> items)
         {
-            CoreItem = coreItem;
-            ClosureItems = new HashSet<ProductionItem>(closureItems);
+            _coreItems = new HashSet<ProductionItem>();
+            _closureItems = new List<ProductionItem>();
+            foreach (var item in items)
+            {
+                if (item.IsCoreItem)
+                    _coreItems.Add(item);
+                else
+                    _closureItems.Add(item);
+            }
         }
 
-        // The partially parsed rules for a state are called its core LR(0) items. If we also call S′ −→ .S
-        // a core item, we observe that every state in the DFA is completely determined by its subset of core items.
-        // The other items in the state are obtained via ϵ-closure. Therefore the DFA can be constructed in
-        // one step without the intermediate NFA.
-        public ProductionItem CoreItem { get; } // NOTE: After minimization many core items in one DFA state
+        /// <summary>
+        /// The partially parsed rules for a state are called its core LR(0) items.
+        /// If we also call S′ −→ .S a core item, we observe that every state in the
+        /// DFA is completely determined by its subset of core items.
+        /// </summary>
+        public IEnumerable<ProductionItem> CoreItems => _coreItems;
 
-        // These additional items are called the "closure" of the core items. All closure items
-        // have the dot at the beginning of the rule, and these items have therefore not been parsed yet,
-        // and therefore the closure items are not partially parsed rules.
-        public IReadOnlyCollection<ProductionItem> ClosureItems { get; }
-
-        public bool Contains(ProductionItem item)
-        {
-            return CoreItem.Equals(item) || ClosureItems.Contains(item);
-        }
+        /// <summary>
+        /// The closure items (obtained via ϵ-closure) do not determine the state of the LR(0) automaton,
+        /// because they can all be forgotten about, and regenerated on the fly. All closure items have
+        /// the dot at the beginning of the rule, and are therefore not parsed yet.
+        /// </summary>
+        public IEnumerable<ProductionItem> ClosureItems => _closureItems;
 
         public bool Equals(ProductionItemSet other)
         {
-            if (other == null) return false;
-            return CoreItem.Equals(other.CoreItem);
+            return other != null && _coreItems.SetEquals(other.CoreItems);
         }
 
         public override bool Equals(object obj)
@@ -48,7 +59,15 @@ namespace ContextFreeGrammar
 
         public override int GetHashCode()
         {
-            return CoreItem.GetHashCode();
+            int hashCode = 17;
+            foreach (var item in CoreItems)
+                hashCode = 31 * hashCode + item.GetHashCode();
+            return hashCode;
+        }
+
+        public override string ToString()
+        {
+            return string.Concat(CoreItems.ToSetNotation(), Environment.NewLine, ClosureItems.ToSetNotation());
         }
     }
 }

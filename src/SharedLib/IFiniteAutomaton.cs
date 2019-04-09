@@ -15,7 +15,10 @@ namespace AutomataLib
         IEnumerable<TState> GetStates();
         IEnumerable<TState> GetTrimmedStates();
 
-        //IEnumerable<TAlphabet> GetAlphabet();
+        /// <summary>
+        /// Alphabet without epsilon
+        /// </summary>
+        IEnumerable<TAlphabet> GetAlphabet();
 
         IEnumerable<TState> GetAcceptStates();
 

@@ -25,7 +25,7 @@ namespace AutomataRepresentations
     public class DfaAdjacencyMatrix<TState> : IDeterministicFiniteAutomaton<char, int>, IFiniteAutomatonStateHomomorphism<int>
         where TState : IEquatable<TState>
     {
-        private readonly TState[] _stateName; // one-way translation should be sufficient
+        private readonly TState[] _stateLabel; // one-way translation should be sufficient
 
         // NOTE: We require that input alphabet is a (sub)range of US-ASCII codes (127)
         // internal state machine based on int transitions (int source, int label, int target)
@@ -59,10 +59,10 @@ namespace AutomataRepresentations
             IEnumerable<char> alphabet, // should be unique...we do not test this here
             IEnumerable<Transition<char, TState>> transitions,
             TState startState,
-            IEnumerable<TState> acceptingStates)
+            IEnumerable<TState> acceptStates)
         {
-            _stateName = states.ToArray();
-            _maxState = _stateName.Length - 1;
+            _stateLabel = states.ToArray();
+            _maxState = _stateLabel.Length - 1;
 
             char minAscii = char.MaxValue, maxAscii = char.MinValue;
             foreach (char c in alphabet)
@@ -86,18 +86,18 @@ namespace AutomataRepresentations
 
             _minAscii = minAscii;
             _maxAscii = maxAscii;
-            _nextState = new int[_stateName.Length, alphabetSize];
+            _nextState = new int[_stateLabel.Length, alphabetSize];
 
-            StartState = Array.IndexOf(_stateName, startState);
+            StartState = Array.IndexOf(_stateLabel, startState);
             if (StartState < 0)
             {
                 throw new ArgumentException($"The start state '{startState}' is not contained in the set of states.");
             }
 
             _acceptStates = new HashSet<int>();
-            foreach (TState acceptingState in acceptingStates)
+            foreach (TState acceptingState in acceptStates)
             {
-                int accept = Array.IndexOf(_stateName, acceptingState);
+                int accept = Array.IndexOf(_stateLabel, acceptingState);
                 if (accept < 0)
                 {
                     throw new ArgumentException($"The accept state '{acceptingState}' is not contained in the set of states.");
@@ -106,12 +106,12 @@ namespace AutomataRepresentations
             }
 
             var hash = new Dictionary<TState, int>();
-            for (int i = 0; i < _stateName.Length; i++)
+            for (int i = 0; i < _stateLabel.Length; i++)
             {
-                hash.Add(_stateName[i], i);
+                hash.Add(_stateLabel[i], i);
             }
 
-            if (hash.Count != _stateName.Length)
+            if (hash.Count != _stateLabel.Length)
             {
                 throw new ArgumentException("States must have unique names");
             }
@@ -195,12 +195,12 @@ namespace AutomataRepresentations
         public IEnumerable<int> GetTrimmedStates()
         {
             // We do not show the error state, because state graph must be a trimmed DFA
-            return Enumerable.Range(1, _maxState);
+            return Enumerable.Range(1, _maxState - 1);
         }
 
         public string GetStateLabel(int state)
         {
-            return _stateName[state].ToString();
+            return _stateLabel[state].ToString();
         }
 
         public IEnumerable<char> GetAlphabet()
@@ -209,6 +209,11 @@ namespace AutomataRepresentations
             {
                 yield return c;
             }
+        }
+
+        public IEnumerable<char> GetNullableAlphabet()
+        {
+            throw new NotImplementedException();
         }
 
         public int StartState { get; }

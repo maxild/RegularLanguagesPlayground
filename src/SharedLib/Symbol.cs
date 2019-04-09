@@ -125,7 +125,7 @@ namespace AutomataLib
     /// A variable in V.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class NonTerminal : Symbol
+    public class NonTerminal : Symbol, IEquatable<NonTerminal>
     {
         private string DebuggerDisplay => Name;
 
@@ -137,13 +137,18 @@ namespace AutomataLib
         public override bool IsTerminal => false;
 
         public override bool IsEpsilon => false;
+
+        public bool Equals(NonTerminal other)
+        {
+            return base.Equals(other);
+        }
     }
 
     /// <summary>
     /// The single character terminal (non-essential simplification).
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class Terminal : Symbol
+    public class Terminal : Symbol, IEquatable<Terminal>
     {
         private string DebuggerDisplay => Name;
 
@@ -161,5 +166,10 @@ namespace AutomataLib
         public override bool IsTerminal => true;
 
         public override bool IsEpsilon => false;
+
+        public bool Equals(Terminal other)
+        {
+            return base.Equals(other);
+        }
     }
 }

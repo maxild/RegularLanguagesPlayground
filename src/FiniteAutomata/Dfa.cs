@@ -13,9 +13,7 @@ namespace FiniteAutomata
     // Note: Keys of dictionary transitions are sorted such that states are ordered 0,1,2,3,4 (or whatever)
 
     /// <summary>
-    /// A deterministic finite automaton (DFA) is represented as a Map
-    /// from state number (int) to a Map from label (a String,
-    /// non-null) to a target state (an int).
+    /// A deterministic finite automaton (DFA).
     /// </summary>
     public class Dfa<TAlphabet> : IDeterministicFiniteAutomaton<TAlphabet, int>, IFiniteAutomatonStateHomomorphism<int>
         where TAlphabet : IEquatable<TAlphabet>
@@ -29,17 +27,17 @@ namespace FiniteAutomata
         }
 
         private readonly IDfaStateRenamer _renamer;
-        private readonly Set<int> _acceptStates;
+        private readonly HashSet<int> _acceptStates;
         private readonly IDictionary<int, Dictionary<TAlphabet, int>> _delta;
 
         public Dfa(
             int startState,
-            Set<int> acceptStates,
+            IEnumerable<int> acceptStates,
             IDictionary<int, Dictionary<TAlphabet, int>> delta,
             IDfaStateRenamer renamer)
         {
             StartState = startState;
-            _acceptStates = acceptStates;
+            _acceptStates = new HashSet<int>(acceptStates);
             _delta = delta;
             _renamer = renamer;
         }
@@ -49,10 +47,10 @@ namespace FiniteAutomata
         /// </summary>
         public Dfa(
             char startState,
-            IEnumerable<char> acceptingStates)
+            IEnumerable<char> acceptStates)
         {
             StartState = startState;
-            _acceptStates = new Set<int>(acceptingStates.Select(x => (int)x));
+            _acceptStates = new HashSet<int>(acceptStates.Select(x => (int)x));
             _delta = new SortedDictionary<int, Dictionary<TAlphabet, int>>(); // keys, states are sorted
             _renamer = new CharStateRenamer();
         }
@@ -72,6 +70,11 @@ namespace FiniteAutomata
         public IEnumerable<int> GetTrimmedStates()
         {
             return GetStates();
+        }
+
+        public IEnumerable<TAlphabet> GetAlphabet()
+        {
+            throw new NotImplementedException();
         }
 
         public IEnumerable<int> GetAcceptStates()
@@ -158,7 +161,7 @@ namespace FiniteAutomata
         {
             // table filling algorithm:
 
-            var undistinguishablePairs = new Set<TriangularPair<int>>(); // not marked!!!
+            var undistinguishablePairs = new HashSet<TriangularPair<int>>(); // not marked!!!
 
             // basis
             foreach (int p in _delta.Keys)

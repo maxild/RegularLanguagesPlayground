@@ -49,7 +49,7 @@ namespace UnitTests
                     Transition.Move(19, '$', 8),
                 },
                 startState: 1,
-                acceptingStates: SetOf(8));
+                acceptStates: SetOf(8));
 
             // sparse transition table that would benefit from compression
             dfaTrie.AlphabetSize.ShouldBe(101 - 36 + 1);
@@ -80,7 +80,7 @@ namespace UnitTests
                     Transition.Move(6, 'e', 7),
                 },
                 startState: 1,
-                acceptingStates: SetOf(7));
+                acceptStates: SetOf(7));
 
             // sparse transition table that would benefit from compression
             //dfaTrie.AlphabetSize.ShouldBe(101 - 36 + 1);

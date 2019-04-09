@@ -21,6 +21,11 @@ namespace AutomataLib
             return new SourceTransitionPair<TState, TAlphabet>(sourceState, label);
         }
 
+        public static SourceTransitionPair<TState, TAlphabet> FromEpsilonPair<TState, TAlphabet>(TState sourceState)
+        {
+            return new SourceTransitionPair<TState, TAlphabet>(sourceState, Epsilon<TAlphabet>());
+        }
+
         public static TargetTransitionPair<TAlphabet, TState> ToPair<TAlphabet, TState>(TAlphabet label, TState targetState)
         {
             return new TargetTransitionPair<TAlphabet, TState>(label, targetState);

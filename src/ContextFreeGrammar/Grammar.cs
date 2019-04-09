@@ -18,8 +18,8 @@ namespace ContextFreeGrammar
         public Grammar(IEnumerable<NonTerminal> variables, IEnumerable<Terminal> terminals, NonTerminal startSymbol)
         {
             Productions = new List<Production>();
-            Variables = new HashSet<NonTerminal>(variables);
-            Terminals = new HashSet<Terminal>(terminals);
+            Variables = new Set<NonTerminal>(variables);
+            Terminals = new Set<Terminal>(terminals);
             StartSymbol = startSymbol;
         }
 
@@ -38,12 +38,12 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Non-terminal grammar symbols.
         /// </summary>
-        public ISet<NonTerminal> Variables { get; }
+        public IReadOnlySet<NonTerminal> Variables { get; }
 
         /// <summary>
         /// Terminal grammar symbols.
         /// </summary>
-        public ISet<Terminal> Terminals { get; }
+        public IReadOnlySet<Terminal> Terminals { get; }
 
         /// <summary>
         /// Productions are numbered by index 0,1,2,...

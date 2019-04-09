@@ -45,6 +45,13 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
+        /// Any item B −→ α.β where α is not ε (the empty string),
+        /// or the start rule S' -> .S item (of the augmented grammar that
+        /// is the production by convention).
+        /// </summary>
+        public bool IsCoreItem => _dotPosition > 0 || _productionIndex == 0;
+
+        /// <summary>
         /// A −→ α. (accepting state)
         /// </summary>
         public bool IsReduceItem => _dotPosition == _production.Tail.Count;
@@ -67,7 +74,6 @@ namespace ContextFreeGrammar
         }
 
         public ProductionItem GetNextItem() => new ProductionItem(_production, _productionIndex, _dotPosition + 1);
-
 
         public bool Equals(ProductionItem other)
         {
