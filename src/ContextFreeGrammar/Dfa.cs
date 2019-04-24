@@ -70,13 +70,13 @@ namespace ContextFreeGrammar
 
         public IEnumerable<int> GetStates()
         {
-            return Enumerable.Range(0, _maxState);
+            return Enumerable.Range(0, _maxState + 1);  // 0, 1, 2,..., maxState
         }
 
         public IEnumerable<int> GetTrimmedStates()
         {
-            // We do not show the error state, because state graph must be a trimmed DFA
-            return Enumerable.Range(1, _maxState - 1);
+            // We do not show the dead state
+            return Enumerable.Range(1, _maxState);      // 1, 2,..., maxState
         }
 
         public IEnumerable<TAlphabet> GetAlphabet()
@@ -103,7 +103,7 @@ namespace ContextFreeGrammar
 
         public IEnumerable<Transition<TAlphabet, int>> GetTrimmedTransitions()
         {
-            // exclude error state
+            // exclude dead (error) state
             for (int s = 1; s < _nextState.GetLength(0); s += 1)
             {
                 for (int c = 0; c < _nextState.GetLength(1); c += 1)
@@ -137,9 +137,15 @@ namespace ContextFreeGrammar
             return IsAcceptState(TransitionFunction(StartState, Letterizer<TAlphabet>.Default.GetLetters(input)));
         }
 
-        public string GetStateLabel(int state)
+        public string GetStateLabel(int state, string sep)
         {
             int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
+            // HACK: we special case subsets of LR(0) items to make graphviz images prettier
+            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem> productionItems)
+            {
+                // LR(0) items separated by '\l' ('\l' in dot language makes the preceding text left aligned in Graphviz tool)
+                return string.Join(sep, productionItems) + sep;
+            }
             return _originalStates[originalIndex].ToString();
         }
     }

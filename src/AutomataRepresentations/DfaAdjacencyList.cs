@@ -20,7 +20,7 @@ namespace AutomataRepresentations
     {
         // each state has an adjacency list of character-state pairs,
         // and if label is not on the list we go to state 0 (error state)
-        private TargetTransitionPair<char, int>[][] _nextState = null; // jagged array of (label, next)-pairs
+        private readonly TargetTransitionPair<char, int>[][] _nextState = null; // jagged array of (label, next)-pairs
 
         public DfaAdjacencyList(
             IEnumerable<TState> states, // should be unique...we do not test this here

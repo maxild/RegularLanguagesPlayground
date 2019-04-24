@@ -1,46 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 
 namespace AutomataLib
 {
     /// <summary>
-    /// Minimal Set API
-    /// </summary>
-    public interface ISet<T> : IReadOnlySet<T>
-    {
-        bool Add(T item);
-
-        bool AddRange(IEnumerable<T> other);
-    }
-
-    public interface IReadOnlySet<T> : IReadOnlyCollection<T>
-    {
-        bool Contains(T item);
-
-        bool IsSubsetOf(IEnumerable<T> other);
-
-        bool IsSupersetOf(IEnumerable<T> other);
-
-        bool IsProperSupersetOf(IEnumerable<T> other);
-
-        bool IsProperSubsetOf(IEnumerable<T> other);
-
-        bool Overlaps(IEnumerable<T> other);
-
-        bool SetEquals(IEnumerable<T> other);
-    }
-
-    // TODO: Implement OrderedHashSet that preserves preserves insertion order as in a List
-
-    /// <summary>
     /// A set, with element-based hash codes, built upon <see cref="HashSet{T}"/>
     /// </summary>
     /// <typeparam name="T"></typeparam>
+    [DebuggerTypeProxy(typeof(EnumerableDebugView<>)), DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class Set<T> : ISet<T>, IEquatable<Set<T>> where T : IEquatable<T>
     {
+        private string DebuggerDisplay => Count > 0
+            ? $"{this.ToVectorString()}, Count = {Count}"
+            : $"Count = {Count}";
+
         private readonly HashSet<T> _inner;
         private int? _cachedHash; // Cached hash code is valid if non-null (THIS IS SPECIAL)
 
@@ -198,26 +174,7 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            return this.ToSetNotation();
-        }
-    }
-
-    public static class SetExtensions
-    {
-        public static string ToSetNotation<T>(this IEnumerable<T> values)
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.Append("{ ");
-            bool first = true;
-            foreach (T x in values)
-            {
-                if (!first)
-                    sb.Append(", ");
-                sb.Append(x);
-                first = false;
-            }
-            sb.Append(" }");
-            return sb.ToString();
+            return this.ToVectorString();
         }
     }
 }

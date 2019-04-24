@@ -198,7 +198,7 @@ namespace AutomataRepresentations
             return Enumerable.Range(1, _maxState - 1);
         }
 
-        public string GetStateLabel(int state)
+        public string GetStateLabel(int state, string sep)
         {
             return _stateLabel[state].ToString();
         }
@@ -209,11 +209,6 @@ namespace AutomataRepresentations
             {
                 yield return c;
             }
-        }
-
-        public IEnumerable<char> GetNullableAlphabet()
-        {
-            throw new NotImplementedException();
         }
 
         public int StartState { get; }

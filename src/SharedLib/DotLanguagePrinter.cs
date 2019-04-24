@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 
 namespace AutomataLib
@@ -15,7 +16,8 @@ namespace AutomataLib
     {
         public static string ToDotLanguage<TAlphabet, TState>(
             IFiniteAutomaton<TAlphabet, TState> fa,
-            DotRankDirection direction = DotRankDirection.LeftRight)
+            DotRankDirection direction = DotRankDirection.LeftRight,
+            bool skipStateLabeling = false)
         {
             var sb = new StringBuilder();
 
@@ -33,16 +35,26 @@ namespace AutomataLib
             }
 
             // start state arrow indicator
-            sb.AppendLine("n999999 [style=invis];");                            // Invisible pseudo node required
-            sb.AppendLine("n999999 -> n" + fa.GetStateId(fa.StartState));    // Edge into start state
+            sb.AppendLine("n999999 [style=invis];");                                // Invisible pseudo node required
+            sb.AppendLine("n999999 -> n" + fa.GetStateId(fa.StartState) + ";");     // Edge into start state
 
             // label states (overriding default n0, n1 names)
-            foreach (TState state in fa.GetTrimmedStates())
+            if (skipStateLabeling)
             {
-                sb.AppendLine("n" + fa.GetStateId(state) + " [label=\"" + fa.GetStateLabel(state) + "\"]");
+                foreach (TState state in fa.GetTrimmedStates())
+                {
+                    sb.AppendLine("n" + fa.GetStateId(state) + " [label=\"" + fa.GetStateId(state) + "\"];");
+                }
+            }
+            else
+            {
+                foreach (TState state in fa.GetTrimmedStates())
+                {
+                    sb.AppendLine("n" + fa.GetStateId(state) + " [label=\"" + fa.GetStateLabel(state, "\\l") + "\"];");
+                }
             }
 
-            // accepting states are double circles
+            // accept states are double circles
             foreach (TState state in fa.GetAcceptStates())
             {
                 sb.AppendLine("n" + fa.GetStateId(state) + " [peripheries=2];");
@@ -53,6 +65,15 @@ namespace AutomataLib
             {
                 sb.AppendLine("n" + fa.GetStateId(t.SourceState) + " -> n" + fa.GetStateId(t.TargetState) +
                               " [label=\"" + t.Label + "\"];");
+            }
+
+            if (skipStateLabeling)
+            {
+                sb.AppendLine("node [shape=box];");
+                foreach (TState state in fa.GetTrimmedStates().Reverse())
+                {
+                    sb.AppendLine("b" + fa.GetStateId(state) + " [label=\"" + fa.GetStateId(state) + ": " + fa.GetStateLabel(state, "\\l     ") + "\"];");
+                }
             }
 
             sb.AppendLine("}");

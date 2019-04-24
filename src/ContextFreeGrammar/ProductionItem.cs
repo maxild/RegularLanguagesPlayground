@@ -45,24 +45,24 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Any item B −→ α.β where α is not ε (the empty string),
+        /// Any item B → α.β where α is not ε (the empty string),
         /// or the start rule S' -> .S item (of the augmented grammar that
-        /// is the production by convention).
+        /// is the first production of index zero by convention).
         /// </summary>
         public bool IsCoreItem => _dotPosition > 0 || _productionIndex == 0;
 
         /// <summary>
-        /// A −→ α. (accepting state)
+        /// A → α. (accepting state)
         /// </summary>
         public bool IsReduceItem => _dotPosition == _production.Tail.Count;
 
         /// <summary>
-        /// B −→ α.Xβ (X in V)
+        /// B → α.Xβ (X in V)
         /// </summary>
         public bool IsGotoItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsNonTerminal;
 
         /// <summary>
-        /// B −→ α.aβ (a in T)
+        /// B → α.aβ (a in T)
         /// </summary>
         public bool IsShiftItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsTerminal;
 

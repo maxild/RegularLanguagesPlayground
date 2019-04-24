@@ -65,8 +65,7 @@ namespace ContextFreeGrammar
             Productions.Add(production);
         }
 
-        // TODO: rename to GetClosureItems
-        public IEnumerable<ProductionItem> GetEquivalentItemsOf(Symbol variable)
+        private IEnumerable<ProductionItem> GetClosureItemsOf(Symbol variable)
         {
             if (!(variable is NonTerminal))
             {
@@ -146,7 +145,7 @@ namespace ContextFreeGrammar
                         transitions.Add(Transition.Move(item, nonTerminal, goToItem));
 
                         // closure items
-                        foreach (var closureItem in GetEquivalentItemsOf(nonTerminal))
+                        foreach (var closureItem in GetClosureItemsOf(nonTerminal))
                         {
                             // Expecting to see a non terminal 'B' is the same as expecting to see
                             // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P

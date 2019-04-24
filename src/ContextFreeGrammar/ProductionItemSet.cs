@@ -14,7 +14,7 @@ namespace ContextFreeGrammar
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class ProductionItemSet : IEquatable<ProductionItemSet>
     {
-        private string DebuggerDisplay => CoreItems.ToSetNotation();
+        private string DebuggerDisplay => CoreItems.ToVectorString();
 
         private readonly HashSet<ProductionItem> _coreItems;
         private readonly List<ProductionItem> _closureItems;
@@ -67,7 +67,7 @@ namespace ContextFreeGrammar
 
         public override string ToString()
         {
-            return string.Concat(CoreItems.ToSetNotation(), Environment.NewLine, ClosureItems.ToSetNotation());
+            return string.Concat(CoreItems.ToVectorString(), Environment.NewLine, ClosureItems.ToVectorString());
         }
     }
 }

@@ -13,7 +13,8 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            LRParsing();
+            //LRParsing();
+            LRParsing2();
             //CourseExercise();
             //RegexParser();
             //KeywordAutomata();
@@ -48,7 +49,33 @@ namespace CLI.TestDriver
 
             var dfa = characteristicStringsNfa.ToDfa();
 
-            SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight));
+            SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
+        public static void LRParsing2()
+        {
+            // 0: S → E
+            // 1: E → E + T
+            // 2: E → T
+            // 3: T → T * a
+            // 4: T → a
+            var grammar = new Grammar(Symbol.Vs("S", "E"), Symbol.Ts('a', 'b'), Symbol.V("S"))
+            {
+                Symbol.V("S").GoesTo(Symbol.V("E")),
+                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                Symbol.V("E").GoesTo(Symbol.V("T")),
+                Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.T('a')),
+                Symbol.V("T").GoesTo(Symbol.T('a'))
+            };
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("NCG2.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("DCG2.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
         public static void CourseExercise()

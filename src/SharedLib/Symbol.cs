@@ -20,7 +20,7 @@ namespace AutomataLib
     /// <summary>
     /// Grammar symbol (in T or V)
     /// </summary>
-    public abstract class Symbol : IEquatable<Symbol>
+    public abstract class Symbol : IEquatable<Symbol>, IComparable<Symbol>
     {
         public static readonly Terminal Epsilon = new Eps();
 
@@ -118,6 +118,13 @@ namespace AutomataLib
         public override int GetHashCode()
         {
             return Name.GetHashCode();
+        }
+
+        public int CompareTo(Symbol other)
+        {
+            if (ReferenceEquals(this, other)) return 0;
+            if (ReferenceEquals(null, other)) return 1;
+            return string.Compare(Name, other.Name, StringComparison.Ordinal);
         }
     }
 

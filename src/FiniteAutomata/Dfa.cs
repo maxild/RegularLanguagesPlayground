@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using AutomataLib;
 
 namespace FiniteAutomata
@@ -116,7 +115,7 @@ namespace FiniteAutomata
             return s;
         }
 
-        public string GetStateLabel(int state)
+        public string GetStateLabel(int state, string sep)
         {
             return _renamer.ToDfaStateString(state);
         }
@@ -153,7 +152,7 @@ namespace FiniteAutomata
         {
             return GetEquivalentPairs()
                 .Select(p => new TriangularPair<string>(_renamer.ToDfaStateString(p.Fst), _renamer.ToDfaStateString(p.Snd)))
-                .ToSetNotation();
+                .ToVectorString();
         }
 
         // TODO: Uses non-reachable states (inefficient)
@@ -234,8 +233,8 @@ namespace FiniteAutomata
             TriangularPair<int>[] eqStatePairs = GetEquivalentPairs();
             Set<int>[] mergedEqSets = GetMergedEqSets(eqStatePairs);
             return mergedEqSets.Select(set =>set
-                    .Select(stateIndex => _renamer.ToDfaStateString(stateIndex)).ToSetNotation())
-                .ToSetNotation();
+                    .Select(stateIndex => _renamer.ToDfaStateString(stateIndex)).ToVectorString())
+                .ToVectorString();
         }
 
         Set<int>[] GetMergedEqSets(TriangularPair<int>[] eqStatePairs)
@@ -445,7 +444,7 @@ namespace FiniteAutomata
 
         public string ToDfaStateString(int dfaStateIndex)
         {
-            return _dfaStateToBlockState[dfaStateIndex].Select(s => _renamer.ToDfaStateString(s)).ToSetNotation();
+            return _dfaStateToBlockState[dfaStateIndex].Select(s => _renamer.ToDfaStateString(s)).ToVectorString();
         }
     }
 }

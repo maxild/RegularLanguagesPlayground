@@ -22,7 +22,7 @@ namespace ContextFreeGrammar
 
         private readonly HashSet<TState> _acceptStates;
         private readonly HashSet<TState> _states;
-        private readonly HashSet<TAlphabet> _alphabet;
+        private readonly SortedSet<TAlphabet> _alphabet; // ASCII sort order
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         public Nfa(
@@ -34,7 +34,7 @@ namespace ContextFreeGrammar
             _acceptStates = new HashSet<TState>(acceptStates);
             _states = new HashSet<TState>(acceptStates) { startState };
             _delta = new Dictionary<SourceTransitionPair<TState, TAlphabet>, List<TState>>();
-            _alphabet = new HashSet<TAlphabet>();
+            _alphabet = new SortedSet<TAlphabet>();
 
             foreach (var triple in transitions)
             {
@@ -74,12 +74,6 @@ namespace ContextFreeGrammar
             return _alphabet;
         }
 
-        // TODO: Maybe remove this
-        public IEnumerable<TAlphabet> GetNullableAlphabet()
-        {
-            return _alphabet.Concat(new []{Transition.Epsilon<TAlphabet>()});
-        }
-
         public bool IsEpsilonNfa { get; }
 
         public IEnumerable<TState> GetAcceptStates()
@@ -105,13 +99,30 @@ namespace ContextFreeGrammar
             return GetTransitions();
         }
 
+        /// <summary>
+        /// Create Deterministic Finite Automaton by lazy form of subset construction (Rabin and Scott, )
+        /// </summary>
+        /// <returns>Deterministic Finite Automaton created by lazy form of subset construction</returns>
         public Dfa<Set<TState>, TAlphabet> ToDfa()
         {
+            // The subset construction is an example of a fixed-point computation, where an application of a
+            // monotone function to some collection of sets drawn from a domain whose structure is known is
+            // performed iteratively. The computation will terminate when an iteration step produces a state
+            // where further iteration produces the same answer — a “fixed point” in the space of successive
+            // iterates.
+            //
+            // For the subset construction, the domain is the power set of all possible subsets of the NFA states.
+            // The while loop adds elements (subsets) to Q; it cannot remove an element from Q. We can view
+            // the while loop as a monotone increasing function f, which means that for a set x, f(x) ≥ x. (The
+            // comparison operator ≥ is ⊇.) Since Q can have at most 2^N distinct elements, the while loop can iterate
+            // at most 2^N times. It may, of course, reach a fixed point and halt more quickly than that.
+
             var newStartState = EpsilonClose(new Set<TState> {StartState});
+
             var newAcceptStates = new HashSet<Set<TState>>();
             var newTransitions = new List<Transition<TAlphabet, Set<TState>>>();
 
-            var newStates = new HashSet<Set<TState>> {newStartState};
+            var newStates = new InsertionOrderedSet<Set<TState>> {newStartState};
 
             // Lazy form of Subset Construction where only reachable nodes
             // are added to the following work list of marked subsets
@@ -134,13 +145,16 @@ namespace ContextFreeGrammar
                     // subset T
                     var subsetTargetState = new Set<TState>();
 
-                    // For all s in S, add all non-epsilon transitions (s, label) -> t to T
+                    // Core Items: For all s in S, add all non-epsilon transitions (s, label) -> t to T
                     foreach (TState s in subsetSourceState)
                     {
                         subsetTargetState.AddRange(Delta(Transition.FromPair(s, label)));
                     }
 
-                    // Epsilon-close all T such that (S, label) -> T
+                    // Ignore empty subset (implicit transition to dead state in this case)
+                    if (subsetTargetState.Count == 0) continue;
+
+                    // Closure Items: Epsilon-close all T such that (S, label) -> T
                     subsetTargetState = EpsilonClose(subsetTargetState);
 
                     if (!newStates.Contains(subsetTargetState))

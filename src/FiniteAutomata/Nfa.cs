@@ -358,7 +358,7 @@ namespace FiniteAutomata
         {
             return _skipRenaming
                 ? dfaStateIndex.ToString()
-                : _dfaStateToNfaStates[dfaStateIndex].Where(_predicate).ToSetNotation();
+                : _dfaStateToNfaStates[dfaStateIndex].Where(_predicate).ToVectorString();
         }
     }
 }
