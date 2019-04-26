@@ -59,7 +59,7 @@ namespace CLI.TestDriver
             // 2: E → T
             // 3: T → T * a
             // 4: T → a
-            var grammar = new Grammar(Symbol.Vs("S", "E"), Symbol.Ts('a', 'b'), Symbol.V("S"))
+            var grammar = new Grammar(Symbol.Vs("S", "E", "T"), Symbol.Ts('a', '+', '*'), Symbol.V("S"))
             {
                 Symbol.V("S").GoesTo(Symbol.V("E")),
                 Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),

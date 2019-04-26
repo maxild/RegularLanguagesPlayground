@@ -22,7 +22,9 @@ namespace AutomataLib
     /// </summary>
     public abstract class Symbol : IEquatable<Symbol>, IComparable<Symbol>
     {
-        public static readonly Terminal Epsilon = new Eps();
+        public static readonly Symbol Epsilon = new Eps();
+
+        public static readonly Terminal Eof = new EndOfFileMarker();
 
         public static NonTerminal V(string name)
         {
@@ -44,18 +46,33 @@ namespace AutomataLib
             return names.Select(name => new Terminal(name));
         }
 
-        class Eps : Terminal
+        class Eps : Symbol
         {
-            public Eps() : base('ε')
+            public Eps() : base(new string('ε', 1))
             {
             }
 
+            public override bool IsTerminal => false;
+
+            public override bool IsNonTerminal => false;
+
             /// <summary>
             /// Base case for nullable, but nullable is something to discover by solving
-            /// recursive equations of set variables (fix point, discovery algorithm).
+            /// recursive equations of set variables (fix point iteration, discovery algorithm).
             /// </summary>
             /// <returns>true iff terminal symbol is nullable (e.g. empty string)</returns>
             public override bool IsEpsilon => true;
+
+            public override bool IsEof => false;
+        }
+
+        class EndOfFileMarker : Terminal
+        {
+            public EndOfFileMarker() : base('$')
+            {
+            }
+
+            public override bool IsEof => true;
         }
 
         protected Symbol(string name)
@@ -81,9 +98,11 @@ namespace AutomataLib
 
         public abstract bool IsTerminal { get;}
 
-        public bool IsNonTerminal => !IsTerminal;
+        public abstract bool IsNonTerminal { get; }
 
         public abstract bool IsEpsilon { get; }
+
+        public abstract bool IsEof { get; }
 
         public bool Equals(Symbol other)
         {
@@ -143,7 +162,11 @@ namespace AutomataLib
 
         public override bool IsTerminal => false;
 
+        public override bool IsNonTerminal => true;
+
         public override bool IsEpsilon => false;
+
+        public override bool IsEof => false;
 
         public bool Equals(NonTerminal other)
         {
@@ -172,7 +195,11 @@ namespace AutomataLib
 
         public override bool IsTerminal => true;
 
+        public override bool IsNonTerminal => false;
+
         public override bool IsEpsilon => false;
+
+        public override bool IsEof => false;
 
         public bool Equals(Terminal other)
         {

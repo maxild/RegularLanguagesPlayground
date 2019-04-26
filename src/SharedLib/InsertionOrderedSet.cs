@@ -13,15 +13,15 @@ namespace AutomataLib
     /// <typeparam name="T"></typeparam>
     [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
     [DebuggerTypeProxy(typeof(EnumerableDebugView<>)), DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class InsertionOrderedSet<T> : ISet<T>, IEquatable<InsertionOrderedSet<T>> where T : IEquatable<T>
+    public class InsertionOrderedSet<T> : ISet<T>, IReadOnlyOrderedSet<T>, IEquatable<InsertionOrderedSet<T>>
+        where T : IEquatable<T>
     {
         private string DebuggerDisplay => Count > 0
             ? $"{this.ToVectorString()}, Count = {Count}"
             : $"Count = {Count}";
 
-
-        private readonly IDictionary<T, LinkedListNode<T>> _dictionary;
-        private readonly LinkedList<T> _linkedList;
+        private readonly IDictionary<T, int> _dictionary;
+        private readonly List<T> _list;
         private int? _cachedHash; // Cached hash code is valid if non-null (THIS IS SPECIAL)
 
         public InsertionOrderedSet()
@@ -29,48 +29,39 @@ namespace AutomataLib
         {
         }
 
-        public InsertionOrderedSet(IEqualityComparer<T> comparer)
+        public InsertionOrderedSet(IEnumerable<T> items)
+            : this(EqualityComparer<T>.Default)
         {
-            _dictionary = new Dictionary<T, LinkedListNode<T>>(comparer);
-            _linkedList = new LinkedList<T>();
+            AddRange(items);
         }
 
-        public int Count => _dictionary.Count;
+        public InsertionOrderedSet(IEqualityComparer<T> comparer)
+        {
+            _dictionary = new Dictionary<T, int>(comparer);
+            _list = new List<T>();
+        }
+
+        public int Count => _list.Count;
 
         public bool Add(T item)
         {
             if (_dictionary.ContainsKey(item)) return false;
-            LinkedListNode<T> node = _linkedList.AddLast(item);
-            _dictionary.Add(item, node);
+            _list.Add(item);
+            _dictionary.Add(item, _list.Count - 1);
             _cachedHash = null;
             return true;
         }
 
         public bool AddRange(IEnumerable<T> other)
         {
-            bool added = false;
+            int c = _list.Count;
             foreach (var item in other)
-                added = Add(item) || added;
+                Add(item);
+            bool added = c != _list.Count;
             if (added)
                 _cachedHash = null;
             return added;
         }
-
-        //public void Clear()
-        //{
-        //    _linkedList.Clear();
-        //    _dictionary.Clear();
-        //    _cachedHash = null;
-        //}
-
-        //public bool Remove(T item)
-        //{
-        //    bool found = _dictionary.TryGetValue(item, out var node);
-        //    if (!found) return false;
-        //    _dictionary.Remove(item);
-        //    _linkedList.Remove(node);
-        //    return true;
-        //}
 
         public bool Contains(T item)
         {
@@ -118,14 +109,9 @@ namespace AutomataLib
             return otherHashset.SetEquals(this);
         }
 
-        //public void CopyTo(T[] array, int arrayIndex)
-        //{
-        //    _linkedList.CopyTo(array, arrayIndex);
-        //}
-
         public IEnumerator<T> GetEnumerator()
         {
-            return _linkedList.GetEnumerator();
+            return _list.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -134,6 +120,11 @@ namespace AutomataLib
         }
 
         // Compute hash code based on set contents, and cache it
+        public int IndexOf(T item)
+        {
+            return _dictionary.TryGetValue(item, out var index) ? index : -1;
+        }
+
         [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
         public override int GetHashCode()
         {
@@ -159,5 +150,7 @@ namespace AutomataLib
         {
             return this.ToVectorString();
         }
+
+        public T this[int index] => _list[index];
     }
 }

@@ -47,7 +47,7 @@ namespace AutomataLib
         {
             int c = _inner.Count;
             _inner.UnionWith(other);
-            bool added = c != _inner.Count;
+            bool added = _inner.Count > c;
             if (added)
                 _cachedHash = null;
             return added;
