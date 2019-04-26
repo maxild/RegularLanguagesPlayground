@@ -11,10 +11,10 @@ namespace ContextFreeGrammar
     // First and Follow functions associated with a grammar G is important when conducting LL and
     // LR (SLR(1), LR(1), LALR(1)) parser, because the setting up of parsing table is aided by them
 
-    //  If α is any string of grammar symbols, let First(α) be the set of terminals that begin the
+    // If α is any string of grammar symbols, let First(α) be the set of terminals that begin the
     // strings derived from α, if α *=> ε, then ε is also in First(α).
 
-    //  Define Follow(A), for non-terminal A, to be the set of terminals a that can appear immediately
+    // Define Follow(A), for non-terminal A, to be the set of terminals a that can appear immediately
     // to the right of A in some sentential form. That is, the set of terminals a such that there
     // exists a derivation of the form S *=> αAaβ for some α and β. Note that there may, at some time
     // during the derivation, have been symbols between A and a, but if so, they derived ε and disappeared.
@@ -184,7 +184,7 @@ namespace ContextFreeGrammar
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<Terminal> FOLLOW(Symbol symbol)
+        public IReadOnlySet<Terminal> FOLLOW(NonTerminal symbol)
         {
             return Follow[symbol];
         }
@@ -215,8 +215,8 @@ namespace ContextFreeGrammar
             }
         }
 
-        private Dictionary<Symbol, Set<Terminal>> _follow;
-        protected Dictionary<Symbol, Set<Terminal>> Follow
+        private Dictionary<NonTerminal, Set<Terminal>> _follow;
+        protected Dictionary<NonTerminal, Set<Terminal>> Follow
         {
             get
             {
@@ -227,21 +227,9 @@ namespace ContextFreeGrammar
             }
         }
 
-        // =============================================================================
-        // Fixed-point problems can (sometimes) be solved using iteration:
-        // Guess an initial value x0, then apply the function iteratively, until the
-        // fixed point is reached:
-        //
-        //      x(1) := f(x(0))
-        //      x(2) := f(x(1))
-        //          .
-        //          .
-        //          .
-        //      x(n) := f(x(n-1))
-        //
-        // until x(n) == x(n-1)
-        // This is called a fixed-point iteration, and x(n) is the fixed point.
-        // =============================================================================
+        // This method is kept around, because we might need to calculate nullable predicate, if calculating
+        // FIRST and FOLLOW sets using a Graph representing all the recursive set constraints as a relation and
+        // using Graph traversal as an efficient iteration technique to solve for the unique least fixed-point solution.
         private Dictionary<Symbol, bool> ComputeNullable()
         {
             // extend nullable to all grammar symbols, including epsilon (to avoid need
@@ -270,23 +258,8 @@ namespace ContextFreeGrammar
             return nlblMap;
         }
 
-        // TODO: ComputeFirst and ComputeFollow as different procedures, where ComputeFollow requires ComputeFirst, but uses FIRST/NULLABLE API
-
-        // Usual solutions apply some least-fixpoint-computation strategy that can roughly be
-        // sketched as follows (I'll deal with FIRST only):
-        //
-        //  Compute obvious initializing sets of FIRST(A) for all nonterminals A.
-        //  REPEAT
-        //      Find all dependencies in the grammar where some set FIRST(A)
-        //      must obviously contain some set FIRST(B) for some nonterminals A
-        //      and B, and (re-)compute FIRST(A) := FIRST(A) + FIRST(B).
-        //  UNTIL, during a complete grammar examination, none of the set unions
-        //      computed has added any new elements
-
-        // See also https://compilers.iecc.com/comparch/article/01-04-079 for
-        // algorithm based on set-valued functions over graphs
-
-        // From the dragon book
+        // From the dragon book...we compute nullable predicate in separate least fixed-point iteration, and
+        // make First only have range of terminal symbols (that is First do not contain epsilon in my implementation)
         //=======================================================================================================
         // To compute First(X) for all grammar symbols, apply the Following rules until no more terminals or ε can
         // be added to any First set.
@@ -302,12 +275,121 @@ namespace ContextFreeGrammar
         // if for all i=1,…,n, First(Xi) contains ε, then First(α) contains ε.
         //=======================================================================================================
         [SuppressMessage("ReSharper", "InconsistentNaming")]
+        private (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<Terminal>>) ComputeFirst()
+        {
+            // We extend Nullable and First to the entire vocabulary of grammar symbols, including epsilon
+            var nullableMap = ComputeNullable();
+            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
+
+            // Base case: First(a) = {a} for all terminal symbols a in T.
+            foreach (var symbol in Terminals)
+                firstMap[symbol].Add(symbol);
+
+            // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                // For each production X → Y1 Y2...Yn
+                foreach (var production in Productions)
+                {
+                    // FirstDelta(X) = FIRST(Y1) U ... U FIRST(Yk), where k, 1 <= k <= n, is
+                    // the largest integer such that Nullable(Y1) = ... = Nullable(Yk) = true
+                    // is added to First(X)
+                    for (int i = 0; i < production.Length; i++)
+                    {
+                        var Yi = production.Tail[i];
+                        if (firstMap[production.Head].AddRange(firstMap[Yi]))
+                            changed = true;
+                        if (!nullableMap[Yi])
+                            break;
+                    }
+                }
+            }
+
+            return (nullableMap, firstMap);
+        }
+
+        // Also inspired by Dragon book....should be changed to more clever Graph Traversal Method
+        // See also https://compilers.iecc.com/comparch/article/01-04-079 for sketch of algorithm
+        // based on set-valued functions over digraph containing relations/edges for all set constraints
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public (Dictionary<Symbol, bool>,
+                Dictionary<Symbol, Set<Terminal>>,
+                Dictionary<NonTerminal, Set<Terminal>>) ComputeFollow()
+        {
+            var (nullableMap, firstMap) = ComputeFirst();
+
+            // Why extend Follow to all symbols??? shouldn't it be defined only for terminal symbols???
+            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
+
+            // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
+            // already been extended with a new nonterminal start symbol S' and a production S' -> S$ in P.
+            if (!IsAugmentedWithEofMarker)
+                followMap[StartSymbol].Add(Symbol.Eof);
+
+            // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                // For each production X → Y1 Y2...Yn
+                foreach (var production in Productions)
+                {
+                    for (int i = 0; i < production.Length; i++)
+                    {
+                        // for each Yi that is a nonterminal symbol
+                        var Yi = production.TailAs<NonTerminal>(i);
+                        if (Yi == null) continue;
+                        // Let m = First(Y(i+1)...Yn)
+                        var m = First(production.Tail.Skip(i + 1));
+                        // add m to Follow(Yi)
+                        changed = followMap[Yi].AddRange(m) || changed;
+                        // add Follow(X) to Follow(Yi)
+                        if (!Yi.Equals(production.Head) && Nullable(production.Tail.Skip(i + 1)))
+                            changed = followMap[Yi].AddRange(followMap[production.Head]) || changed;
+                    }
+                }
+            }
+
+            return (nullableMap, firstMap, followMap);
+
+            // extend First to words of symbols
+            Set<Terminal> First(IEnumerable<Symbol> symbols)
+            {
+                var m = new Set<Terminal>();
+                foreach (var symbol in symbols)
+                {
+                    m.AddRange(firstMap[symbol]);
+                    if (!nullableMap[symbol]) break;
+                }
+
+                return m;
+            }
+            // extend Nullable to words of symbols
+            bool Nullable(IEnumerable<Symbol> symbols)
+            {
+                return symbols.All(symbol => nullableMap[symbol]);
+            }
+        }
+
         public void ComputeNullableAndFirstAndFollow()
+        {
+            var (nullableMap, firstMap, followMap) = ComputeFollow();
+            _nullable = nullableMap;
+            _first = firstMap;
+            _follow = followMap;
+            _fixedPointVersion = _version;
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        [SuppressMessage("ReSharper", "UnusedMember.Global")]
+        public void OldComputeNullableAndFirstAndFollow()
         {
             // we keep a separate nullable map, instead of adding epsilon to First sets
             var nullableMap = AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
             var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
-            var followMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
+            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
 
             // Base case: First(a) = {a} for all terminal symbols a in T.
             foreach (var symbol in Terminals)
@@ -339,15 +421,19 @@ namespace ContextFreeGrammar
                     for (var i = 0; i < production.Length; i++)
                     {
                         // X → Y1 Y2...Yn
-                        Symbol Yi = production.Tail[i];
+                        Symbol yi = production.Tail[i]; // FIRST is extended to all symbols
 
                         // If all symbols Y1 Y2...Y(i-1) preceding Yi are nullable,
                         if (i == 0 || production.Tail.Take(i).All(symbol => nullableMap[symbol]))
                         {
                             // then everything in First(Yi) is in First(X)
-                            if (firstMap[production.Head].AddRange(firstMap[Yi]))
+                            if (firstMap[production.Head].AddRange(firstMap[yi]))
                                 changed = true;
                         }
+
+                        // for each Yi that is a nonterminal symbol
+                        NonTerminal Yi = yi as NonTerminal; // FOLLOW is only defined w.r.t. nonterminal symbols.
+                        if (Yi == null) continue;
 
                         // If all symbols Y(i+1)...Yn succeeding Yi are nullable,
                         if (i == production.Tail.Count - 1 || production.Tail.Skip(i + 1).All(symbol => nullableMap[symbol]))
@@ -496,8 +582,8 @@ namespace ContextFreeGrammar
         public override string ToString()
         {
             return Productions
-                .Aggregate((i: 0, sb: new StringBuilder()), (t, p) => (t.i + 1, t.sb.AppendLine($"{t.i}: {p}"))).sb
-                .ToString();
+                .Aggregate((i: 0, sb: new StringBuilder()), (t, p) => (t.i + 1, t.sb.AppendLine($"{t.i}: {p}")))
+                .sb.ToString();
         }
     }
 }

@@ -26,6 +26,11 @@ namespace ContextFreeGrammar
         /// </summary>
         public IReadOnlyList<Symbol> Tail { get; } // TODO: Epsilon could be empty Tail
 
+        public TSymbol TailAs<TSymbol>(int i) where TSymbol : Symbol
+        {
+            return Tail[i] as TSymbol;
+        }
+
         public int Length => Tail.Count;
 
         public bool IsEpsilon => Tail.Count == 1 && Tail[0].IsEpsilon;
