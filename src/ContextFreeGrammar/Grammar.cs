@@ -270,6 +270,22 @@ namespace ContextFreeGrammar
             return nlblMap;
         }
 
+        // TODO: ComputeFirst and ComputeFollow as different procedures, where ComputeFollow requires ComputeFirst, but uses FIRST/NULLABLE API
+
+        // Usual solutions apply some least-fixpoint-computation strategy that can roughly be
+        // sketched as follows (I'll deal with FIRST only):
+        //
+        //  Compute obvious initializing sets of FIRST(A) for all nonterminals A.
+        //  REPEAT
+        //      Find all dependencies in the grammar where some set FIRST(A)
+        //      must obviously contain some set FIRST(B) for some nonterminals A
+        //      and B, and (re-)compute FIRST(A) := FIRST(A) + FIRST(B).
+        //  UNTIL, during a complete grammar examination, none of the set unions
+        //      computed has added any new elements
+
+        // See also https://compilers.iecc.com/comparch/article/01-04-079 for
+        // algorithm based on set-valued functions over graphs
+
         // From the dragon book
         //=======================================================================================================
         // To compute First(X) for all grammar symbols, apply the Following rules until no more terminals or ε can
@@ -283,7 +299,7 @@ namespace ContextFreeGrammar
         //
         // Now define First(α) for any string α = X1X2…Xn as follows. First(α) contains First(X1)-{ε}.For each
         // i=2,…,n, if First(Xk) contains ε for all k=1,…,i-1, then First(α) contains First(Xi)-{ε}.Finally,
-        // if for all i=1,…,n, First(Xi) contains ε, then First (α) contains ε.
+        // if for all i=1,…,n, First(Xi) contains ε, then First(α) contains ε.
         //=======================================================================================================
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public void ComputeNullableAndFirstAndFollow()
@@ -482,31 +498,6 @@ namespace ContextFreeGrammar
             return Productions
                 .Aggregate((i: 0, sb: new StringBuilder()), (t, p) => (t.i + 1, t.sb.AppendLine($"{t.i}: {p}"))).sb
                 .ToString();
-        }
-    }
-
-    public static class UtilityExtensions
-    {
-        public static IEnumerable<T> AsSingletonEnumerable<T>(this T item)
-        {
-            yield return item;
-        }
-
-        public static bool AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> items)
-        {
-            var c = hashSet.Count;
-            hashSet.UnionWith(items);
-            return hashSet.Count > c;
-        }
-
-        public static IEnumerable<Terminal> WithEofMarker(this IEnumerable<Terminal> terminalSymbols)
-        {
-            return terminalSymbols.Concat(Symbol.Eof.AsSingletonEnumerable());
-        }
-
-        public static void Each<T>(this IEnumerable<T> e, Action<T> a)
-        {
-            foreach (var i in e) a(i);
         }
     }
 }
