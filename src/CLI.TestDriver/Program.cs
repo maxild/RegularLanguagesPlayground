@@ -13,8 +13,8 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            //LRParsing();
-            LRParsing2();
+            LRParsing();
+            //LRParsing2();
             //CourseExercise();
             //RegexParser();
             //KeywordAutomata();
@@ -50,6 +50,10 @@ namespace CLI.TestDriver
             var dfa = characteristicStringsNfa.ToDfa();
 
             SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetLr0AutomatonDfa();
+
+            SaveFile("DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
         public static void LRParsing2()
@@ -76,6 +80,10 @@ namespace CLI.TestDriver
             var dfa = characteristicStringsNfa.ToDfa();
 
             SaveFile("DCG2.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetLr0AutomatonDfa();
+
+            SaveFile("DCG2Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
         public static void CourseExercise()

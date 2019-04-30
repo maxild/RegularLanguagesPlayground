@@ -25,7 +25,7 @@ namespace ContextFreeGrammar
     public class Grammar : IEnumerable<Production>
     {
         private readonly List<Production> _productions;
-        private readonly Dictionary<NonTerminal, List<Production>> _productionMap;
+        private readonly Dictionary<NonTerminal, List<(int, Production)>> _productionMap;
 
         private int _version;
 
@@ -41,7 +41,7 @@ namespace ContextFreeGrammar
             Variables = new InsertionOrderedSet<NonTerminal>(variables);    // insertion ordered set
             Terminals = new Set<Terminal>(terminals);                       // unordered set
             StartSymbol = startSymbol;
-            _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<Production>());
+            _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production)>());
         }
 
         // TODO: Dollar should be configurable or else Symbol.Eof should be defined as special terminal
@@ -118,8 +118,9 @@ namespace ContextFreeGrammar
                 throw new ArgumentException($"The production {production} cannot bed added, because some of the RHS symbols has not been defined to be symbols of the grammar.");
             }
 
+            int index = _productions.Count;
             _productions.Add(production);
-            _productionMap[production.Head].Add(production);
+            _productionMap[production.Head].Add((index, production));
             _version += 1;
         }
 
@@ -468,23 +469,6 @@ namespace ContextFreeGrammar
             _fixedPointVersion = _version;
         }
 
-        private IEnumerable<ProductionItem> GetClosureItemsOf(Symbol variable)
-        {
-            if (!(variable is NonTerminal))
-            {
-                yield break;
-            }
-
-            // only variables (non-terminals) have closure items
-            for (int i = 0; i < Productions.Count; i++)
-            {
-                if (Productions[i].Head.Equals(variable))
-                {
-                    yield return new ProductionItem(Productions[i], i, 0);
-                }
-            }
-        }
-
         // LR(0) Automaton is a DFA that we use to recognize the viable prefix/handles in the grammar
         // The machine can be generated in two different ways:
         //      NFA -> DFA in 2 passes (steps)
@@ -496,6 +480,7 @@ namespace ContextFreeGrammar
         //              LR(0) items (ProductionItemSet instances are the DFA states)
         //      DFA in single-pass:
         //          Dragon book algorithm (using GOTO and CLOSURE together)
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
         public Nfa<ProductionItem, Symbol> GetCharacteristicStringsNfa()
         {
             if (Productions.Count == 0)
@@ -535,24 +520,25 @@ namespace ContextFreeGrammar
                     // (a) A → α"."aβ
                     if (item.IsShiftItem)
                     {
-                        Symbol label = item.GetNextSymbol<Terminal>();
+                        Symbol a = item.GetNextSymbol<Terminal>();
                         var shiftToItem = item.GetNextItem();
-                        transitions.Add(Transition.Move(item, label, shiftToItem));
+                        transitions.Add(Transition.Move(item, a, shiftToItem));
                     }
 
                     // (b) A → α"."Bβ
                     if (item.IsGotoItem)
                     {
-                        Symbol nonTerminal = item.GetNextSymbol<NonTerminal>();
+                        NonTerminal B = item.GetNextSymbol<NonTerminal>();
                         var goToItem = item.GetNextItem();
-                        transitions.Add(Transition.Move(item, nonTerminal, goToItem));
+                        transitions.Add(Transition.Move(item, (Symbol)B, goToItem));
 
                         // closure items
-                        foreach (var closureItem in GetClosureItemsOf(nonTerminal))
+                        foreach (var (index, productionOfB) in _productionMap[B])
                         {
-                            // Expecting to see a non terminal 'B' is the same as expecting to see
+                            var closureItem = new ProductionItem(productionOfB, index, 0);
+                            // Expecting to see a nonterminal 'B' is the same as expecting to see
                             // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
-                           transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem>(item, closureItem));
+                            transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem>(item, closureItem));
                         }
                     }
 
@@ -567,6 +553,76 @@ namespace ContextFreeGrammar
             }
 
             return new Nfa<ProductionItem, Symbol>(transitions, startItem, acceptItems);
+        }
+
+        [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        private ProductionItemSet Closure(IEnumerable<ProductionItem> coreItems)
+        {
+            var closure = new HashSet<ProductionItem>(coreItems);
+
+            // work-list implementation
+            var markedAddedItems = new Queue<ProductionItem>(coreItems);
+            while (markedAddedItems.Count != 0)
+            {
+                ProductionItem item = markedAddedItems.Dequeue();
+                var B = item.GetNextSymbolAs<NonTerminal>();
+                if (B == null) continue;
+                // If item is a GOTO item of the form A → α"."Bβ, where B is in T,
+                // the find all its closure items
+                foreach (var (index, production) in _productionMap[B])
+                {
+                    var closureItem = new ProductionItem(production, index, 0);
+                    if (!closure.Contains(closureItem))
+                    {
+                        closure.Add(closureItem);
+                        markedAddedItems.Enqueue(closureItem);
+                    }
+                }
+            }
+
+            return new ProductionItemSet(closure);
+        }
+
+        /// <summary>
+        /// Get DFA in single step
+        /// </summary>
+        /// <returns></returns>
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public Dfa<ProductionItemSet, Symbol> GetLr0AutomatonDfa()
+        {
+            ProductionItemSet startItemSet = Closure(new ProductionItem(Productions[0], 0, 0).AsSingletonEnumerable());
+            var states = new HashSet<ProductionItemSet>(startItemSet.AsSingletonEnumerable());
+            var acceptStates = new HashSet<ProductionItemSet>(startItemSet.AsSingletonEnumerable());
+            var transitions = new List<Transition<Symbol, ProductionItemSet>>();
+
+            // work-list implementation
+            var markedAddedItemSets = new Queue<ProductionItemSet>(startItemSet.AsSingletonEnumerable());
+            while (markedAddedItemSets.Count > 0)
+            {
+                ProductionItemSet sourceState = markedAddedItemSets.Dequeue();
+                // For each pair (X, { A → αX"."β, where A → α"."Xβ is in sourceState})
+                foreach (var coreGotoItems in sourceState.GetTargetItems())
+                {
+                    // For each grammar symbol (label in transition)
+                    var X = coreGotoItems.Key;
+                    // Get the closure of all the target items A → αX"."β we can move/transition to in the graph
+                    ProductionItemSet targetState = Closure(coreGotoItems);
+                    transitions.Add(Transition.Move(sourceState, X, targetState));
+                    if (!states.Contains(targetState))
+                    {
+                        markedAddedItemSets.Enqueue(targetState);
+                        states.Add(targetState);
+                    }
+                }
+
+                if (sourceState.ReduceItems.Any())
+                {
+                    acceptStates.Add(sourceState);
+                }
+            }
+
+            return new Dfa<ProductionItemSet, Symbol>(states, Symbols, transitions, startItemSet, acceptStates);
         }
 
         public IEnumerator<Production> GetEnumerator()

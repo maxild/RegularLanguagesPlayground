@@ -1,23 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using AutomataLib;
 
 namespace ContextFreeGrammar
 {
     /// <summary>
-    /// A set of LR(0) items constructed via the subset construction algorithm. Each set of LR(0) items,
-    /// constructed from the NFA of all possible items, will represent a single state in a DFA. This
-    /// DFA is our so called "LR(0) viable prefix recognition machine".
-    /// The DFA states (and transitions) can also be constructed in a more efficient single pass algorithm.
+    /// A set of LR(0) items that together form a ste in the DFA of the LR(0) automaton.
+    /// This DFA is our so called "LR(0) viable prefix (handle) recognizer" used to construct
+    /// the parser table of any shift/reduce LR parser.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class ProductionItemSet : IEquatable<ProductionItemSet>
     {
-        private string DebuggerDisplay => CoreItems.ToVectorString();
+        private string DebuggerDisplay => ClosureItems.Any()
+            ? string.Concat(CoreItems.ToVectorString(), ":", ClosureItems.ToVectorString())
+            : CoreItems.ToVectorString();
 
-        private readonly HashSet<ProductionItem> _coreItems;
-        private readonly List<ProductionItem> _closureItems;
+        private readonly HashSet<ProductionItem> _coreItems;    // always non-empty (the core items identifies the LR(0) item set)
+        private readonly List<ProductionItem> _closureItems;    // can be empty (can always be generated on the fly, but we calculate anyway)
 
         public ProductionItemSet(IEnumerable<ProductionItem> items)
         {
@@ -32,6 +34,8 @@ namespace ContextFreeGrammar
             }
         }
 
+        public IEnumerable<ProductionItem> Items => _coreItems.Concat(_closureItems);
+
         /// <summary>
         /// The partially parsed rules for a state are called its core LR(0) items.
         /// If we also call S′ −→ .S a core item, we observe that every state in the
@@ -45,6 +49,21 @@ namespace ContextFreeGrammar
         /// the dot at the beginning of the rule, and are therefore not parsed yet.
         /// </summary>
         public IEnumerable<ProductionItem> ClosureItems => _closureItems;
+
+        /// <summary>
+        /// Reduce items
+        /// </summary>
+        public IEnumerable<ProductionItem> ReduceItems => Items.Where(item => item.IsReduceItem);
+
+        /// <summary>
+        /// Goto or shift items (this is the core items of the GOTO function in dragon book)
+        /// </summary>
+        public ILookup<Symbol, ProductionItem> GetTargetItems()
+        {
+            return Items
+                .Where(item => !item.IsReduceItem)
+                .ToLookup(item => item.GetNextSymbol(), item => item.GetNextItem());
+        }
 
         public bool Equals(ProductionItemSet other)
         {
@@ -67,7 +86,9 @@ namespace ContextFreeGrammar
 
         public override string ToString()
         {
-            return string.Concat(CoreItems.ToVectorString(), Environment.NewLine, ClosureItems.ToVectorString());
+            return ClosureItems.Any()
+                ? string.Concat(CoreItems.ToVectorString(), Environment.NewLine, ClosureItems.ToVectorString())
+                : CoreItems.ToVectorString();
         }
     }
 }

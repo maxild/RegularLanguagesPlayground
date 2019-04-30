@@ -47,30 +47,45 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Any item B → α.β where α is not ε (the empty string),
         /// or the start rule S' -> .S item (of the augmented grammar that
-        /// is the first production of index zero by convention).
+        /// is the first production of index zero by convention). That is
+        /// the initial item S' -> .S, and all items where the dot is not at the left end.
         /// </summary>
         public bool IsCoreItem => _dotPosition > 0 || _productionIndex == 0;
 
         /// <summary>
-        /// A → α. (accepting state)
+        /// Any item A → α. where the dot is at the right end (accepting state, where
+        /// we have recognized a viable prefix, and therefore a handle)
         /// </summary>
         public bool IsReduceItem => _dotPosition == _production.Tail.Count;
 
         /// <summary>
-        /// B → α.Xβ (X in V)
+        /// B → α.Xβ (X is a nonterminal symbol)
         /// </summary>
         public bool IsGotoItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsNonTerminal;
 
         /// <summary>
-        /// B → α.aβ (a in T)
+        /// B → α.aβ (a is a terminal symbol)
         /// </summary>
         public bool IsShiftItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsTerminal;
 
+        /// <summary>
+        /// Get the symbol before the dot.
+        /// </summary>
+        public Symbol GetPrevSymbol() => _dotPosition > 0 ? _production.Tail[_dotPosition - 1] : null;
+
+        /// <summary>
+        /// Get the symbol after the dot.
+        /// </summary>
         public Symbol GetNextSymbol() => _dotPosition < _production.Tail.Count ? _production.Tail[_dotPosition] : null;
 
         public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol
         {
             return (TSymbol) GetNextSymbol();
+        }
+
+        public TSymbol GetNextSymbolAs<TSymbol>() where TSymbol : Symbol
+        {
+            return GetNextSymbol() as TSymbol;
         }
 
         public ProductionItem GetNextItem() => new ProductionItem(_production, _productionIndex, _dotPosition + 1);
