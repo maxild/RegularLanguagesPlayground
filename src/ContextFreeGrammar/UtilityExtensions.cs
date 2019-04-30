@@ -28,5 +28,17 @@ namespace ContextFreeGrammar
         {
             foreach (var i in e) a(i);
         }
+
+        public static IEnumerable<T> PopItemsOfLengthResult<T>(this Stack<T> stack, int length)
+        {
+            while (length-- > 0)
+                yield return stack.Pop();
+        }
+
+        public static void PopItemsOfLength<T>(this Stack<T> stack, int length)
+        {
+            while (length-- > 0)
+                stack.Pop();
+        }
     }
 }

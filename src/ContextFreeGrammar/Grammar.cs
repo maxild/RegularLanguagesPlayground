@@ -585,7 +585,7 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Get DFA in single step
+        /// Get DFA for the canonical collection of sets of LR(0) items in single pass (without first generating NFA)
         /// </summary>
         /// <returns></returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]

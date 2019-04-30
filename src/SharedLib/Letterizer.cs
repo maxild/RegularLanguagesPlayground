@@ -27,31 +27,30 @@ namespace AutomataLib
             }
             throw new NotSupportedException($"A letterizer for the type '{t.Name}' is not supported.");
         }
-    }
 
-    public class StringLetterizer : Letterizer<string>
-    {
-        public override IEnumerable<string> GetLetters(string s)
+        class StringLetterizer : Letterizer<string>
         {
-            return s.Select(c => new string(c, 1));
+            public override IEnumerable<string> GetLetters(string s)
+            {
+                return s.Select(c => new string(c, 1));
+            }
+        }
+
+        class CharLetterizer : Letterizer<char>
+        {
+            public override IEnumerable<char> GetLetters(string s)
+            {
+                return s;
+            }
+        }
+
+        // TODO: This is a poor mans Lexer (create lexer and remove this junk...)
+        class TokenLetterizer : Letterizer<Terminal>
+        {
+            public override IEnumerable<Terminal> GetLetters(string s)
+            {
+                return s.Select(Symbol.T);
+            }
         }
     }
-
-    public class CharLetterizer : Letterizer<char>
-    {
-        public override IEnumerable<char> GetLetters(string s)
-        {
-            return s;
-        }
-    }
-
-    // TODO: This is a poor mans Lexer (create lexer and remove this junk...)
-    public class TokenLetterizer : Letterizer<Terminal>
-    {
-        public override IEnumerable<Terminal> GetLetters(string s)
-        {
-            return s.Select(Symbol.T);
-        }
-    }
-
 }
