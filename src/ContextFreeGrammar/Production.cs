@@ -5,9 +5,9 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    public class Production
+    public class Production<TNonterminalSymbol> where TNonterminalSymbol : Symbol
     {
-        public Production(NonTerminal head, IEnumerable<Symbol> tail)
+        public Production(TNonterminalSymbol head, IEnumerable<Symbol> tail)
         {
             Head = head ?? throw new ArgumentNullException(nameof(head));
             var rhs = (tail ?? Enumerable.Empty<Symbol>()).ToList();
@@ -19,7 +19,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// LHS
         /// </summary>
-        public NonTerminal Head { get; }
+        public TNonterminalSymbol Head { get; }
 
         /// <summary>
         /// RHS list of grammar symbols (epsilon, terminal symbols and nonterminal symbols).

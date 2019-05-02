@@ -4,9 +4,9 @@ namespace ContextFreeGrammar
 {
     public static class GrammarExtensions
     {
-        public static Production GoesTo(this NonTerminal head, params Symbol[] tail)
+        public static Production<Nonterminal> GoesTo(this Nonterminal head, params Symbol[] tail)
         {
-            return new Production(head, tail);
+            return new Production<Nonterminal>(head, tail);
         }
     }
 }

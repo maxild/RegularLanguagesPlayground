@@ -13,9 +13,11 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            LRParsing();
-            //LRParsing2();
+            ExprGrammarCh4DragonBook();
+            //ToyExampleGrammarFromGallierNotesOnLrParsing();
+            //ExprGrammarGallierNotesOnLrParsing();
             //CourseExercise();
+
             //RegexParser();
             //KeywordAutomata();
             //EquivalenceOfTwoDfas();
@@ -23,7 +25,11 @@ namespace CLI.TestDriver
             //DecimalAutomata();
         }
 
-        public static void LRParsing()
+        //
+        // Context-Free languages, CFG and LR Parsing
+        //
+
+        public static void ToyExampleGrammarFromGallierNotesOnLrParsing()
         {
             // Augmented Grammar (assumed reduced, i.e. no useless symbols).
             //
@@ -56,7 +62,46 @@ namespace CLI.TestDriver
             SaveFile("DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
-        public static void LRParsing2()
+        public static void ExprGrammarCh4DragonBook()
+        {
+            // 0: S → E
+            // 1: E → E + T
+            // 2: E → T
+            // 3: T → T * F
+            // 4: T → F
+            // 5: T → (E)
+            // 6: T → a        (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            var grammar = new Grammar(
+                variables: Symbol.Vs("S", "E", "T", "F"),
+                terminals: Symbol.Ts('a', '+', '*', '(', ')').WithEofMarker(),
+                startSymbol: Symbol.V("S"))
+            {
+                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.Eof<Terminal>()),
+                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                Symbol.V("E").GoesTo(Symbol.V("T")),
+                Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                Symbol.V("T").GoesTo(Symbol.V("F")),
+                Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                Symbol.V("F").GoesTo(Symbol.T('a'))
+            };
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("DragonNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("DragonDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetLr0AutomatonDfa();
+
+            SaveFile("DragonDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            grammar.ComputeSlrParsingTable().Parse("a*a+a"); // TODO: Lexer should skip whitespace
+        }
+
+        public static void ExprGrammarGallierNotesOnLrParsing()
         {
             // 0: S → E
             // 1: E → E + T
@@ -85,6 +130,11 @@ namespace CLI.TestDriver
 
             SaveFile("DCG2Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
+
+        //
+        // Regular languages, NFA, DFA
+        //
+
 
         public static void CourseExercise()
         {

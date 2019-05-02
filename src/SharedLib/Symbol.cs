@@ -24,16 +24,24 @@ namespace AutomataLib
     {
         public static readonly Symbol Epsilon = new Eps();
 
-        public static readonly Terminal Eof = new EndOfFileMarker();
-
-        public static NonTerminal V(string name)
+        public static TTerminalSymbol Eof<TTerminalSymbol>()
         {
-            return new NonTerminal(name);
+            Type t = typeof(TTerminalSymbol);
+            if (t == typeof(Terminal))
+            {
+                return (TTerminalSymbol)(object)new EndOfFileMarker();
+            }
+            throw new NotSupportedException($"A letterizer for the type '{t.Name}' is not supported.");
         }
 
-        public static IEnumerable<NonTerminal> Vs(params string[] names)
+        public static Nonterminal V(string name)
         {
-            return names.Select(name => new NonTerminal(name));
+            return new Nonterminal(name);
+        }
+
+        public static IEnumerable<Nonterminal> Vs(params string[] names)
+        {
+            return names.Select(name => new Nonterminal(name));
         }
 
         public static Terminal T(char name)
@@ -151,11 +159,11 @@ namespace AutomataLib
     /// A variable in V.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class NonTerminal : Symbol, IEquatable<NonTerminal>
+    public class Nonterminal : Symbol, IEquatable<Nonterminal>
     {
         private string DebuggerDisplay => Name;
 
-        internal NonTerminal(string name)
+        internal Nonterminal(string name)
             : base(name)
         {
         }
@@ -168,7 +176,7 @@ namespace AutomataLib
 
         public override bool IsEof => false;
 
-        public bool Equals(NonTerminal other)
+        public bool Equals(Nonterminal other)
         {
             return base.Equals(other);
         }

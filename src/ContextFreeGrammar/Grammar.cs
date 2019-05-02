@@ -8,6 +8,17 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
+    /// <summary>
+    /// Simple textbook grammar, where tokens are single character letters
+    /// </summary>
+    public class Grammar : Grammar<Nonterminal, Terminal>
+    {
+        public Grammar(IEnumerable<Nonterminal> variables, IEnumerable<Terminal> terminals, Nonterminal startSymbol)
+            : base(variables, terminals, startSymbol)
+        {
+        }
+    }
+
     // First and Follow functions associated with a grammar G is important when conducting LL and
     // LR (SLR(1), LR(1), LALR(1)) parser, because the setting up of parsing table is aided by them
 
@@ -22,10 +33,12 @@ namespace ContextFreeGrammar
     /// <summary>
     /// Context-free grammar (CFG)
     /// </summary>
-    public class Grammar : IEnumerable<Production>
+    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IEnumerable<Production<TNonterminalSymbol>>
+        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
-        private readonly List<Production> _productions;
-        private readonly Dictionary<NonTerminal, List<(int, Production)>> _productionMap;
+        private readonly List<Production<TNonterminalSymbol>> _productions;
+        private readonly Dictionary<TNonterminalSymbol, List<(int, Production<TNonterminalSymbol>)>> _productionMap;
 
         private int _version;
 
@@ -35,13 +48,13 @@ namespace ContextFreeGrammar
 
         //private int _firstVersion; // TODO: FIRST requires NULLABLE => single version/initialization
 
-        public Grammar(IEnumerable<NonTerminal> variables, IEnumerable<Terminal> terminals, NonTerminal startSymbol)
+        public Grammar(IEnumerable<TNonterminalSymbol> variables, IEnumerable<TTerminalSymbol> terminals, TNonterminalSymbol startSymbol)
         {
-            _productions = new List<Production>();                          // insertion ordered list
-            Variables = new InsertionOrderedSet<NonTerminal>(variables);    // insertion ordered set
-            Terminals = new Set<Terminal>(terminals);                       // unordered set
+            _productions = new List<Production<TNonterminalSymbol>>();              // insertion ordered list
+            Variables = new InsertionOrderedSet<TNonterminalSymbol>(variables);     // insertion ordered set
+            Terminals = new Set<TTerminalSymbol>(terminals);                        // unordered set
             StartSymbol = startSymbol;
-            _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production)>());
+            _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
         }
 
         // TODO: Dollar should be configurable or else Symbol.Eof should be defined as special terminal
@@ -64,14 +77,14 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Nonterminal grammar symbols (aka grammar variables).
         /// </summary>
-        public IReadOnlyOrderedSet<NonTerminal> Variables { get; }
+        public IReadOnlyOrderedSet<TNonterminalSymbol> Variables { get; }
 
         public IEnumerable<Symbol> NonTerminalSymbols => Variables;
 
         /// <summary>
         /// Terminal grammar symbols, not including ε (the empty string)
         /// </summary>
-        public IReadOnlySet<Terminal> Terminals { get; }
+        public IReadOnlySet<TTerminalSymbol> Terminals { get; }
 
         public IEnumerable<Symbol> TerminalSymbols => Terminals;
 
@@ -88,20 +101,20 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Productions are numbered by index 0,1,2,...
         /// </summary>
-        public IReadOnlyList<Production> Productions => _productions;
+        public IReadOnlyList<Production<TNonterminalSymbol>> Productions => _productions;
 
         ///// <summary>
         ///// Production rules for any given variable (nonterminal symbol).
         ///// </summary>
-        //public IReadOnlyDictionary<NonTerminal, IReadOnlyList<Production>> ProductionsFor =>
-        //    (IReadOnlyDictionary<NonTerminal, IReadOnlyList<Production>>) _productionMap;
+        //public IReadOnlyDictionary<Nonterminal, IReadOnlyList<Production>> ProductionsFor =>
+        //    (IReadOnlyDictionary<Nonterminal, IReadOnlyList<Production>>) _productionMap;
 
         /// <summary>
         /// The start symbol.
         /// </summary>
-        public NonTerminal StartSymbol { get; }
+        public TNonterminalSymbol StartSymbol { get; }
 
-        public void Add(Production production)
+        public void Add(Production<TNonterminalSymbol> production)
         {
             if (production == null)
             {
@@ -153,12 +166,12 @@ namespace ContextFreeGrammar
         // where u is a sequence of terminals and non-terminals.
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<Terminal> FIRST(int productionIndex)
+        public IReadOnlySet<TTerminalSymbol> FIRST(int productionIndex)
         {
             // cannot use Variable on LHS, because it relates to many rules
             //return First[Productions[productionIndex].Head];
 
-            var first = new Set<Terminal>();
+            var first = new Set<TTerminalSymbol>();
             var production = Productions[productionIndex];
 
             // For each RHS symbol in production X → Y1 Y2...Yn
@@ -179,13 +192,13 @@ namespace ContextFreeGrammar
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<Terminal> FIRST(Symbol symbol)
+        public IReadOnlySet<TTerminalSymbol> FIRST(Symbol symbol)
         {
             return First[symbol];
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<Terminal> FOLLOW(NonTerminal symbol)
+        public IReadOnlySet<TTerminalSymbol> FOLLOW(TNonterminalSymbol symbol)
         {
             return Follow[symbol];
         }
@@ -204,8 +217,8 @@ namespace ContextFreeGrammar
         }
 
         // first extended to all grammar symbols, including epsilon
-        private Dictionary<Symbol, Set<Terminal>> _first;
-        protected Dictionary<Symbol, Set<Terminal>> First
+        private Dictionary<Symbol, Set<TTerminalSymbol>> _first;
+        protected Dictionary<Symbol, Set<TTerminalSymbol>> First
         {
             get
             {
@@ -216,8 +229,8 @@ namespace ContextFreeGrammar
             }
         }
 
-        private Dictionary<NonTerminal, Set<Terminal>> _follow;
-        protected Dictionary<NonTerminal, Set<Terminal>> Follow
+        private Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _follow;
+        protected Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> Follow
         {
             get
             {
@@ -276,15 +289,15 @@ namespace ContextFreeGrammar
         // if for all i=1,…,n, First(Xi) contains ε, then First(α) contains ε.
         //=======================================================================================================
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<Terminal>>) ComputeFirst()
+        private (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<TTerminalSymbol>>) ComputeFirst()
         {
             // We extend Nullable and First to the entire vocabulary of grammar symbols, including epsilon
             var nullableMap = ComputeNullable();
-            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
+            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
             // Base case: First(a) = {a} for all terminal symbols a in T.
-            foreach (var symbol in Terminals)
-                firstMap[symbol].Add(symbol);
+            foreach (var terminal in Terminals)
+                firstMap[terminal].Add(terminal);
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -316,18 +329,18 @@ namespace ContextFreeGrammar
         // based on set-valued functions over digraph containing relations/edges for all set constraints
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public (Dictionary<Symbol, bool>,
-                Dictionary<Symbol, Set<Terminal>>,
-                Dictionary<NonTerminal, Set<Terminal>>) ComputeFollow()
+                Dictionary<Symbol, Set<TTerminalSymbol>>,
+                Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>>) ComputeFollow()
         {
             var (nullableMap, firstMap) = ComputeFirst();
 
             // Why extend Follow to all symbols??? shouldn't it be defined only for terminal symbols???
-            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
+            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' -> S$ in P.
             if (!IsAugmentedWithEofMarker)
-                followMap[StartSymbol].Add(Symbol.Eof);
+                followMap[StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -340,7 +353,7 @@ namespace ContextFreeGrammar
                     for (int i = 0; i < production.Length; i++)
                     {
                         // for each Yi that is a nonterminal symbol
-                        var Yi = production.TailAs<NonTerminal>(i);
+                        var Yi = production.TailAs<TNonterminalSymbol>(i);
                         if (Yi == null) continue;
                         // Let m = First(Y(i+1)...Yn)
                         var m = First(production.Tail.Skip(i + 1));
@@ -356,9 +369,9 @@ namespace ContextFreeGrammar
             return (nullableMap, firstMap, followMap);
 
             // extend First to words of symbols
-            Set<Terminal> First(IEnumerable<Symbol> symbols)
+            Set<TTerminalSymbol> First(IEnumerable<Symbol> symbols)
             {
-                var m = new Set<Terminal>();
+                var m = new Set<TTerminalSymbol>();
                 foreach (var symbol in symbols)
                 {
                     m.AddRange(firstMap[symbol]);
@@ -389,8 +402,8 @@ namespace ContextFreeGrammar
         {
             // we keep a separate nullable map, instead of adding epsilon to First sets
             var nullableMap = AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
-            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
-            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal>());
+            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
+            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
             // Base case: First(a) = {a} for all terminal symbols a in T.
             foreach (var symbol in Terminals)
@@ -399,7 +412,7 @@ namespace ContextFreeGrammar
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' -> S$ in P.
             if (!IsAugmentedWithEofMarker)
-                followMap[StartSymbol].Add(Symbol.Eof);
+                followMap[StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
 
             bool changed = true;
             while (changed)
@@ -433,7 +446,7 @@ namespace ContextFreeGrammar
                         }
 
                         // for each Yi that is a nonterminal symbol
-                        NonTerminal Yi = yi as NonTerminal; // FOLLOW is only defined w.r.t. nonterminal symbols.
+                        var Yi = yi as TNonterminalSymbol; // FOLLOW is only defined w.r.t. nonterminal symbols.
                         if (Yi == null) continue;
 
                         // If all symbols Y(i+1)...Yn succeeding Yi are nullable,
@@ -481,7 +494,7 @@ namespace ContextFreeGrammar
         //      DFA in single-pass:
         //          Dragon book algorithm (using GOTO and CLOSURE together)
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Nfa<ProductionItem, Symbol> GetCharacteristicStringsNfa()
+        public Nfa<ProductionItem<TNonterminalSymbol>, Symbol> GetCharacteristicStringsNfa()
         {
             if (Productions.Count == 0)
             {
@@ -498,9 +511,9 @@ namespace ContextFreeGrammar
                 throw new InvalidOperationException("The grammar contains useless symbols.");
             }
 
-            var startItem = new ProductionItem(Productions[0], 0, 0);
-            var transitions = new List<Transition<Symbol, ProductionItem>>();
-            var acceptItems = new List<ProductionItem>();
+            var startItem = new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0);
+            var transitions = new List<Transition<Symbol, ProductionItem<TNonterminalSymbol>>>();
+            var acceptItems = new List<ProductionItem<TNonterminalSymbol>>();
 
             // (a) For every terminal a in T, if A → α"."aβ is a marked production, then
             //     there is a transition on input a from state A → α"."aβ to state A → αa"."β
@@ -515,7 +528,7 @@ namespace ContextFreeGrammar
                 for (int dotPosition = 0; dotPosition <= production.Tail.Count; dotPosition += 1)
                 {
                     // (productionIndex, dotPosition) is identifier
-                    var item = new ProductionItem(production, productionIndex, dotPosition);
+                    var item = new ProductionItem<TNonterminalSymbol>(production, productionIndex, dotPosition);
 
                     // (a) A → α"."aβ
                     if (item.IsShiftItem)
@@ -528,17 +541,17 @@ namespace ContextFreeGrammar
                     // (b) A → α"."Bβ
                     if (item.IsGotoItem)
                     {
-                        NonTerminal B = item.GetNextSymbol<NonTerminal>();
+                        var B = item.GetNextSymbol<TNonterminalSymbol>();
                         var goToItem = item.GetNextItem();
                         transitions.Add(Transition.Move(item, (Symbol)B, goToItem));
 
                         // closure items
                         foreach (var (index, productionOfB) in _productionMap[B])
                         {
-                            var closureItem = new ProductionItem(productionOfB, index, 0);
+                            var closureItem = new ProductionItem<TNonterminalSymbol>(productionOfB, index, 0);
                             // Expecting to see a nonterminal 'B' is the same as expecting to see
                             // RHS grammar symbols 'γ(i)', where B → γ(i) is a production in P
-                            transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem>(item, closureItem));
+                            transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem<TNonterminalSymbol>>(item, closureItem));
                         }
                     }
 
@@ -552,27 +565,27 @@ namespace ContextFreeGrammar
                 productionIndex += 1;
             }
 
-            return new Nfa<ProductionItem, Symbol>(transitions, startItem, acceptItems);
+            return new Nfa<ProductionItem<TNonterminalSymbol>, Symbol>(transitions, startItem, acceptItems);
         }
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private ProductionItemSet Closure(IEnumerable<ProductionItem> coreItems)
+        private ProductionItemSet<TNonterminalSymbol> Closure(IEnumerable<ProductionItem<TNonterminalSymbol>> coreItems)
         {
-            var closure = new HashSet<ProductionItem>(coreItems);
+            var closure = new HashSet<ProductionItem<TNonterminalSymbol>>(coreItems);
 
             // work-list implementation
-            var markedAddedItems = new Queue<ProductionItem>(coreItems);
+            var markedAddedItems = new Queue<ProductionItem<TNonterminalSymbol>>(coreItems);
             while (markedAddedItems.Count != 0)
             {
-                ProductionItem item = markedAddedItems.Dequeue();
-                var B = item.GetNextSymbolAs<NonTerminal>();
+                ProductionItem<TNonterminalSymbol> item = markedAddedItems.Dequeue();
+                var B = item.GetNextSymbolAs<TNonterminalSymbol>();
                 if (B == null) continue;
                 // If item is a GOTO item of the form A → α"."Bβ, where B is in T,
                 // the find all its closure items
                 foreach (var (index, production) in _productionMap[B])
                 {
-                    var closureItem = new ProductionItem(production, index, 0);
+                    var closureItem = new ProductionItem<TNonterminalSymbol>(production, index, 0);
                     if (!closure.Contains(closureItem))
                     {
                         closure.Add(closureItem);
@@ -581,7 +594,7 @@ namespace ContextFreeGrammar
                 }
             }
 
-            return new ProductionItemSet(closure);
+            return new ProductionItemSet<TNonterminalSymbol>(closure);
         }
 
         /// <summary>
@@ -589,25 +602,26 @@ namespace ContextFreeGrammar
         /// </summary>
         /// <returns></returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Dfa<ProductionItemSet, Symbol> GetLr0AutomatonDfa()
+        public Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol> GetLr0AutomatonDfa()
         {
-            ProductionItemSet startItemSet = Closure(new ProductionItem(Productions[0], 0, 0).AsSingletonEnumerable());
-            var states = new HashSet<ProductionItemSet>(startItemSet.AsSingletonEnumerable());
-            var acceptStates = new HashSet<ProductionItemSet>(startItemSet.AsSingletonEnumerable());
-            var transitions = new List<Transition<Symbol, ProductionItemSet>>();
+            ProductionItemSet<TNonterminalSymbol> startItemSet =
+                Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
+            var states = new HashSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            var acceptStates = new HashSet<ProductionItemSet<TNonterminalSymbol>>();
+            var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
 
             // work-list implementation
-            var markedAddedItemSets = new Queue<ProductionItemSet>(startItemSet.AsSingletonEnumerable());
+            var markedAddedItemSets = new Queue<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
             while (markedAddedItemSets.Count > 0)
             {
-                ProductionItemSet sourceState = markedAddedItemSets.Dequeue();
+                ProductionItemSet<TNonterminalSymbol> sourceState = markedAddedItemSets.Dequeue();
                 // For each pair (X, { A → αX"."β, where A → α"."Xβ is in sourceState})
                 foreach (var coreGotoItems in sourceState.GetTargetItems())
                 {
                     // For each grammar symbol (label in transition)
                     var X = coreGotoItems.Key;
                     // Get the closure of all the target items A → αX"."β we can move/transition to in the graph
-                    ProductionItemSet targetState = Closure(coreGotoItems);
+                    ProductionItemSet<TNonterminalSymbol> targetState = Closure(coreGotoItems);
                     transitions.Add(Transition.Move(sourceState, X, targetState));
                     if (!states.Contains(targetState))
                     {
@@ -622,10 +636,57 @@ namespace ContextFreeGrammar
                 }
             }
 
-            return new Dfa<ProductionItemSet, Symbol>(states, Symbols, transitions, startItemSet, acceptStates);
+            return new Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol>(states, Symbols, transitions, startItemSet, acceptStates);
         }
 
-        public IEnumerator<Production> GetEnumerator()
+        /// <summary>
+        /// Simple LR
+        /// See p 253, algorithm 4.46, in the dragon book 2nd ed.
+        /// </summary>
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
+        {
+            // SLR table
+            // SLR parser := LR parser using SLR table
+
+            // TODO: Adjust the algorithm in a DRY way, such that both Dfa and ParseTable can be generated
+
+            ProductionItemSet<TNonterminalSymbol> startItemSet =
+                Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
+            var states = new HashSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            var acceptStates = new HashSet<ProductionItemSet<TNonterminalSymbol>>();
+            var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
+
+            // work-list implementation
+            var markedAddedItemSets = new Queue<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            while (markedAddedItemSets.Count > 0)
+            {
+                ProductionItemSet<TNonterminalSymbol> sourceState = markedAddedItemSets.Dequeue();
+                // For each pair (X, { A → αX"."β, where A → α"."Xβ is in sourceState})
+                foreach (var coreGotoItems in sourceState.GetTargetItems())
+                {
+                    // For each grammar symbol (label in transition)
+                    var X = coreGotoItems.Key;
+                    // Get the closure of all the target items A → αX"."β we can move/transition to in the graph
+                    ProductionItemSet<TNonterminalSymbol> targetState = Closure(coreGotoItems);
+                    transitions.Add(Transition.Move(sourceState, X, targetState));
+                    if (!states.Contains(targetState))
+                    {
+                        markedAddedItemSets.Enqueue(targetState);
+                        states.Add(targetState);
+                    }
+                }
+
+                if (sourceState.ReduceItems.Any())
+                {
+                    acceptStates.Add(sourceState);
+                }
+            }
+
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals, transitions, startItemSet, acceptStates);
+        }
+
+        public IEnumerator<Production<TNonterminalSymbol>> GetEnumerator()
         {
             return Productions.GetEnumerator();
         }

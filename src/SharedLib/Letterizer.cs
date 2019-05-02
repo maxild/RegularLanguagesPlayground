@@ -21,7 +21,7 @@ namespace AutomataLib
             {
                 return (Letterizer<TAlphabet>)(object)(new StringLetterizer());
             }
-            if (t == typeof(Symbol))
+            if (t == typeof(Terminal))
             {
                 return (Letterizer<TAlphabet>)(object)(new TokenLetterizer());
             }

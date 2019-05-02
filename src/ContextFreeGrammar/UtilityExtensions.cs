@@ -21,7 +21,7 @@ namespace ContextFreeGrammar
 
         public static IEnumerable<Terminal> WithEofMarker(this IEnumerable<Terminal> terminalSymbols)
         {
-            return terminalSymbols.Concat(Symbol.Eof.AsSingletonEnumerable());
+            return terminalSymbols.Concat(Symbol.Eof<Terminal>().AsSingletonEnumerable());
         }
 
         public static void Each<T>(this IEnumerable<T> e, Action<T> a)
@@ -39,6 +39,21 @@ namespace ContextFreeGrammar
         {
             while (length-- > 0)
                 stack.Pop();
+        }
+
+        // use the null-conditional operator as a reaaly bad Option<T> C# Monad that is not polymorphic between reference and value types
+        public static T TryGetNext<T>(this IEnumerator<T> iter) where T : class
+        {
+            return iter.MoveNext()
+                ? iter.Current
+                : default;
+        }
+
+        public static T? TryGetNextValue<T>(this IEnumerator<T> iter) where T : struct
+        {
+            return iter.MoveNext()
+                ? iter.Current
+                : default;
         }
     }
 }

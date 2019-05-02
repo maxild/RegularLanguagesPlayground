@@ -23,26 +23,29 @@ namespace ContextFreeGrammar
     /// "dot" (and hence is expecting to see the symbols after the dot next).
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct ProductionItem : IEquatable<ProductionItem>, IFiniteAutomatonState
+    public struct ProductionItem<TNonterminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol>>, IFiniteAutomatonState
+        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
     {
         private string DebuggerDisplay => ToString();
         private const char DOT = '•'; // Bullet
 
-        private readonly Production _production;
-        private readonly int _productionIndex;
         private readonly int _dotPosition;
 
-        public ProductionItem(Production production, int productionIndex, int dotPosition)
+        public ProductionItem(Production<TNonterminalSymbol> production, int productionIndex, int dotPosition)
         {
             if (dotPosition > production.Tail.Count)
             {
                 throw new ArgumentException();
             }
 
-            _production = production;
-            _productionIndex = productionIndex;
+            Production = production;
+            ProductionIndex = productionIndex;
             _dotPosition = dotPosition;
         }
+
+        public Production<TNonterminalSymbol> Production { get; }
+
+        public int ProductionIndex { get; }
 
         /// <summary>
         /// Any item B → α.β where α is not ε (the empty string),
@@ -50,33 +53,33 @@ namespace ContextFreeGrammar
         /// is the first production of index zero by convention). That is
         /// the initial item S' -> .S, and all items where the dot is not at the left end.
         /// </summary>
-        public bool IsCoreItem => _dotPosition > 0 || _productionIndex == 0;
+        public bool IsCoreItem => _dotPosition > 0 || ProductionIndex == 0;
 
         /// <summary>
         /// Any item A → α. where the dot is at the right end (accepting state, where
         /// we have recognized a viable prefix, and therefore a handle)
         /// </summary>
-        public bool IsReduceItem => _dotPosition == _production.Tail.Count;
+        public bool IsReduceItem => _dotPosition == Production.Tail.Count;
 
         /// <summary>
         /// B → α.Xβ (X is a nonterminal symbol)
         /// </summary>
-        public bool IsGotoItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsNonTerminal;
+        public bool IsGotoItem => _dotPosition < Production.Tail.Count && Production.Tail[_dotPosition].IsNonTerminal;
 
         /// <summary>
         /// B → α.aβ (a is a terminal symbol)
         /// </summary>
-        public bool IsShiftItem => _dotPosition < _production.Tail.Count && _production.Tail[_dotPosition].IsTerminal;
+        public bool IsShiftItem => _dotPosition < Production.Tail.Count && Production.Tail[_dotPosition].IsTerminal;
 
         /// <summary>
         /// Get the symbol before the dot.
         /// </summary>
-        public Symbol GetPrevSymbol() => _dotPosition > 0 ? _production.Tail[_dotPosition - 1] : null;
+        public Symbol GetPrevSymbol() => _dotPosition > 0 ? Production.Tail[_dotPosition - 1] : null;
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public Symbol GetNextSymbol() => _dotPosition < _production.Tail.Count ? _production.Tail[_dotPosition] : null;
+        public Symbol GetNextSymbol() => _dotPosition < Production.Tail.Count ? Production.Tail[_dotPosition] : null;
 
         public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol
         {
@@ -88,35 +91,36 @@ namespace ContextFreeGrammar
             return GetNextSymbol() as TSymbol;
         }
 
-        public ProductionItem GetNextItem() => new ProductionItem(_production, _productionIndex, _dotPosition + 1);
+        public ProductionItem<TNonterminalSymbol> GetNextItem() =>
+            new ProductionItem<TNonterminalSymbol>(Production, ProductionIndex, _dotPosition + 1);
 
-        public bool Equals(ProductionItem other)
+        public bool Equals(ProductionItem<TNonterminalSymbol> other)
         {
-            return _productionIndex == other._productionIndex && _dotPosition == other._dotPosition;
+            return ProductionIndex == other.ProductionIndex && _dotPosition == other._dotPosition;
         }
 
         public override bool Equals(object obj)
         {
-            if (!(obj is ProductionItem)) return false;
-            return Equals((ProductionItem) obj);
+            if (!(obj is ProductionItem<TNonterminalSymbol>)) return false;
+            return Equals((ProductionItem<TNonterminalSymbol>) obj);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return (_productionIndex * 397) ^ _dotPosition;
+                return (ProductionIndex * 397) ^ _dotPosition;
             }
         }
 
-        string IFiniteAutomatonState.Id => $"{_productionIndex}_{_dotPosition}";
+        string IFiniteAutomatonState.Id => $"{ProductionIndex}_{_dotPosition}";
 
         string IFiniteAutomatonState.Label => ToString();
 
         public override string ToString()
         {
-            ProductionItem self = this;
-            StringBuilder dottedTail = self._production.Tail
+            ProductionItem<TNonterminalSymbol> self = this;
+            StringBuilder dottedTail = self.Production.Tail
                 .Aggregate((i: 0, sb: new StringBuilder()),
                     (t, symbol) =>
                     {
@@ -127,12 +131,12 @@ namespace ContextFreeGrammar
                         return (i: t.i + 1, sb: t.sb.Append(symbol.Name));
                     }).sb;
 
-            if (_dotPosition == _production.Tail.Count)
+            if (_dotPosition == Production.Tail.Count)
             {
                 dottedTail.Append(DOT);
             }
 
-            return $"{_production.Head} → {dottedTail}";
+            return $"{Production.Head} → {dottedTail}";
         }
     }
 }

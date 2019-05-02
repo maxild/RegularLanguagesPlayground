@@ -140,12 +140,21 @@ namespace ContextFreeGrammar
         public string GetStateLabel(int state, string sep)
         {
             int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
-            // HACK: we special case subsets of LR(0) items to make graphviz images prettier
-            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem> productionItems)
+
+            // HACK: we special case two type of canonical LR(0) item sets to make graphviz images prettier
+            if (_originalStates[originalIndex] is ProductionItemSet<Nonterminal> itemSet)
+            {
+                // LR(0) items separated by '\l', and core and closure items are separated by a newline
+                return itemSet.ClosureItems.Any()
+                ? string.Join(sep, itemSet.CoreItems) + "\\n" + sep + string.Join(sep, itemSet.ClosureItems) + sep
+                : string.Join(sep, itemSet.CoreItems) + sep;
+            }
+            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem<Nonterminal>> itemSet2)
             {
                 // LR(0) items separated by '\l' ('\l' in dot language makes the preceding text left aligned in Graphviz tool)
-                return string.Join(sep, productionItems) + sep;
+                return string.Join(sep, itemSet2) + sep;
             }
+
             return _originalStates[originalIndex].ToString();
         }
     }
