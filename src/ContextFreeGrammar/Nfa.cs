@@ -145,7 +145,7 @@ namespace ContextFreeGrammar
                     // subset T
                     var subsetTargetState = new Set<TState>();
 
-                    // Core Items: For all s in S, add all non-epsilon transitions (s, label) -> t to T
+                    // Core Items: For all s in S, add all non-epsilon transitions (s, label) → t to T
                     foreach (TState s in subsetSourceState)
                     {
                         subsetTargetState.AddRange(Delta(Transition.FromPair(s, label)));
@@ -154,7 +154,7 @@ namespace ContextFreeGrammar
                     // Ignore empty subset (implicit transition to dead state in this case)
                     if (subsetTargetState.Count == 0) continue;
 
-                    // Closure Items: Epsilon-close all T such that (S, label) -> T
+                    // Closure Items: Epsilon-close all T such that (S, label) → T
                     subsetTargetState = EpsilonClose(subsetTargetState);
 
                     if (!newStates.Contains(subsetTargetState))
@@ -163,7 +163,7 @@ namespace ContextFreeGrammar
                         markedVisitedStates.Enqueue(subsetTargetState);
                     }
 
-                    // Add (S, label) -> T transition
+                    // Add (S, label) → T transition
                     newTransitions.Add(Transition.Move(subsetSourceState, label, subsetTargetState));
                 }
             }

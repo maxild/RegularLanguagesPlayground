@@ -7,7 +7,7 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    // TODO: Maybe rename to ParseTable (SLR-ParsingTable, LALR-ParsingTable ect.)
+    // TODO: Maybe rename to ParseTable (SLR-ParsingTable, LALR-ParsingTable etc.)
     /// <summary>
     /// A specialization of a Deterministic Pushdown Automaton (DPDA)
     /// </summary>
@@ -38,8 +38,7 @@ namespace ContextFreeGrammar
             IEnumerable<TNonterminalSymbol> nonterminalSymbols,
             IEnumerable<TTerminalSymbol> terminalSymbols,
             IEnumerable<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>> transitions,
-            ProductionItemSet<TNonterminalSymbol> startState,
-            IEnumerable<ProductionItemSet<TNonterminalSymbol>> acceptStates
+            ProductionItemSet<TNonterminalSymbol> startState
             )
         {
             _grammar = grammar;
@@ -77,15 +76,29 @@ namespace ContextFreeGrammar
             _actionTable = new LrAction[_maxState + 1, _terminalToIndex.Count];
 
             // Reduce actions differ between different LR methods (SLR strategy uses FOLLOW(A) below)
-            foreach (ProductionItemSet<TNonterminalSymbol> state in acceptStates)
+            foreach (ProductionItemSet<TNonterminalSymbol> itemSet in _originalStates)
             {
-                // If A → α"." is in LR(0) item set, then set action[s, A] to 'reduce A → α"."'
-                // for all a in FOLLOW(A) (BUG: here A may not be S', and this rule is not part of ReduceItems)
-                ProductionItem<TNonterminalSymbol> reduceItem = state.ReduceItems.Single(); // Fail on reduce-reduce conflicts
-                foreach (var terminal in grammar.FOLLOW(reduceItem.Production.Head))
+                // If A → α"." is in LR(0) item set, then set action[s, a] to 'reduce A → α"."'
+                // for all a in T               (LR(0) table)
+                // for all a in FOLLOW(A)       (SLR(1) table)
+                if (itemSet.IsReduceAction)
                 {
-                    var symbolIndex = _terminalToIndex[terminal];
-                    _actionTable[indexMap[state], symbolIndex] = LrAction.Reduce(reduceItem.ProductionIndex);
+                    ProductionItem<TNonterminalSymbol> reduceItem = itemSet.ReduceItems.Single(); // Fail on reduce-reduce conflicts
+                    foreach (var terminal in grammar.Terminals)
+                    //foreach (var terminal in grammar.FOLLOW(reduceItem.Production.Head))
+                    {
+                        var symbolIndex = _terminalToIndex[terminal];
+                        _actionTable[indexMap[itemSet], symbolIndex] = LrAction.Reduce(reduceItem.ProductionIndex);
+                    }
+                }
+
+                // TODO: Grammar must be configured with S' → S$ rule
+                // If S' → S"." is in LR(0) item set, then set action[s, a] to accept
+                if (itemSet.IsAcceptAction)
+                {
+                    var a = (TTerminalSymbol) itemSet.SpellingSymbol;
+                    Debug.Assert(a.Equals(Symbol.Eof<TTerminalSymbol>()));
+                    _actionTable[indexMap[itemSet], _terminalToIndex[a]] = LrAction.Accept;
                 }
             }
 
@@ -93,20 +106,19 @@ namespace ContextFreeGrammar
 
             // TODO: kan det goeres smartere uden foerst at danne transition triple array
 
-            // Shift and Goto actions (directly from LR(0) automaton)
+            // Shift and Goto actions (directly from the transitions of the LR(0) automaton)
             foreach (var move in transitions)
             {
                 int source = indexMap[move.SourceState];
                 int target = indexMap[move.TargetState];
 
-                // TODO: Grammar must be configured with S' -> S$ rule
-                if (move.TargetState.IsAcceptAction)
-                {
-                    var a = (TTerminalSymbol) move.Label;
-                    Debug.Assert(a.Equals(Symbol.Eof<TTerminalSymbol>()));
-                    _actionTable[source, _terminalToIndex[a]] = LrAction.Accept;
-                }
-                else if (move.Label.IsTerminal)
+                //if (move.TargetState.IsAcceptAction)
+                //{
+                //    var a = (TTerminalSymbol) move.Label;
+                //    Debug.Assert(a.Equals(Symbol.Eof<TTerminalSymbol>()));
+                //    _actionTable[source, _terminalToIndex[a]] = LrAction.Accept;
+                //}
+                if (move.Label.IsTerminal)
                 {
                     // If A → α"."aβ is in LR(0) item set, where a is a terminal symbol
                     var a = (TTerminalSymbol) move.Label;
@@ -221,16 +233,17 @@ namespace ContextFreeGrammar
                     int s = stack.Peek();
                     var action = Action(s, a);
                     // Action(s, a) = shift t
-                    if (action.IsShift)
+                    if (action.IsShift) // consume input token here
                     {
                         // push t onto the stack
                         int t = action.ShiftTo;
                         stack.Push(t);
                         Console.WriteLine("shift");
+                        // call yylex to get the next token
                         a = GetNextToken(tokenizer);
                     }
                     // Action(s, a) = reduce A → β (DFA recognized a handle)
-                    else if (action.IsReduce)
+                    else if (action.IsReduce) // remaining input remains unchanged
                     {
                         Production<TNonterminalSymbol> p = action.ReduceTo(_grammar);
                         // pop |β| symbols off the stack
@@ -244,7 +257,7 @@ namespace ContextFreeGrammar
                         Console.WriteLine($"reduce by {p}"); // TODO: Create a new AST node for the (semantic) rule A → β, and build AST
                     }
                     // DFA recognized a the accept handle of the initial item set
-                    else if (action.IsAccept)
+                    else if (action.IsAccept) // TODO: Blank table cell, maybe use sparse matrices, or adjacency lists
                     {
                         Console.WriteLine("accept");
                         break;

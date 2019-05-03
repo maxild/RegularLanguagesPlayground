@@ -142,7 +142,7 @@ namespace FiniteAutomata
         //      for every non-epsilon label label the set T of states reachable by
         //      that label from some state s in S.  Compute the epsilon-closure
         //      Tclose of every such state T and put it on the worklist.  Then add
-        //      the transition S -label-> Tclose to the DFA transition relation, for
+        //      the transition S -label→ Tclose to the DFA transition relation, for
         //      every label.
 
         static IDictionary<Set<int>, Dictionary<TAlphabet, Set<int>>> CompositeDfaTrans(
@@ -164,14 +164,14 @@ namespace FiniteAutomata
                 Set<int> subset = markedVisitedStates.Dequeue();
                 if (!result.ContainsKey(subset))
                 {
-                    // The (S, label) -> T transition relation being constructed for a given S
+                    // The (S, label) → T transition relation being constructed for a given S
                     IDictionary<TAlphabet, Set<int>> subsetTrans =
                         new Dictionary<TAlphabet, Set<int>>();
 
-                    // For all s in S, consider all transitions (s, label) -> t
+                    // For all s in S, consider all transitions (s, label) → t
                     foreach (int s in subset)
                     {
-                        // For all non-epsilon transitions s -label-> t, add t to T
+                        // For all non-epsilon transitions s -label→ t, add t to T
                         foreach (var tr in trans[s])
                         {
                             if (tr.Label != null) // not epsilon
@@ -194,7 +194,7 @@ namespace FiniteAutomata
                         }
                     }
 
-                    // Epsilon-close all T such that (S, label) -> T, and put on worklist
+                    // Epsilon-close all T such that (S, label) → T, and put on worklist
                     Dictionary<TAlphabet, Set<int>> subsetTransClosed =
                         new Dictionary<TAlphabet, Set<int>>();
                     foreach (KeyValuePair<TAlphabet, Set<int>> entry in subsetTrans)

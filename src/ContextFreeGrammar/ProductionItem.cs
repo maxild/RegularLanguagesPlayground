@@ -7,20 +7,14 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     /// <summary>
-    /// Dotted production used in Donald Knuth's LR(0) Characteristic Strings Automata.
-    /// DFA for the regular language containing the set of prefixes (of grammar symbols)
-    /// of right-most sentential forms, where the prefix ends in a handle that can be reduced
-    /// by some production rule.
-    ///
-    /// LR(0) (dotted) core item: every state is completely determined by its subset of core items
-    ///
-    /// The "core" of an LR item. This includes a production and the position
-    /// of a marker (the "dot") within the production. Typically item cores
-    /// are written using a production with an embedded "dot" to indicate their
-    /// position: B → α"."β
-    /// This represents a point in a parse where the parser is trying to match
-    /// the given production, and has succeeded in matching everything before the
-    /// "dot" (and hence is expecting to see the symbols after the dot next).
+    /// The LR(0) item used as a building block in Donald Knuth's LR(0) Automaton. An LR(0) item is a dotted production rule,
+    /// where everything to the left of the dot has been shifted onto the parsing stack and the next input token is in the
+    /// FIRST set of the symbol following the dot (or in the FOLLOW set, if the next symbol is nullable). A dot at the right
+    /// end indicates that we have shifted all RHS symbols onto the stack (i.e. we have recognized a handle), and that we can
+    /// reduce that handle. A dot in the middle of the LR(0) item indicates that to continue further we need to shift a token
+    /// that could start the symbol following the dot onto the stack. For example if the symbol following the dot is a nonterminal A
+    /// then we want to shift something in FIRST(A) onto the stack. The action of adding equivalent LR(0) items to create a set
+    /// of LR(0) items (a state of the DFA for the LR(0) automaton, aka configurating set of the LR parser) is called CLOSURE.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct ProductionItem<TNonterminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol>>, IFiniteAutomatonState
@@ -49,9 +43,9 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// Any item B → α.β where α is not ε (the empty string),
-        /// or the start rule S' -> .S item (of the augmented grammar that
+        /// or the start rule S' → .S item (of the augmented grammar that
         /// is the first production of index zero by convention). That is
-        /// the initial item S' -> .S, and all items where the dot is not at the left end.
+        /// the initial item S' → .S, and all items where the dot is not at the left end.
         /// </summary>
         public bool IsCoreItem => _dotPosition > 0 || ProductionIndex == 0;
 

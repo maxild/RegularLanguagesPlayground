@@ -65,7 +65,7 @@ namespace FiniteAutomata
     /// </summary>
     public class Eps : Regex
     {
-        // The resulting nfa0 has form s0s -eps-> s0e
+        // The resulting nfa0 has form s0s -eps→ s0e
 
         public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
@@ -92,7 +92,7 @@ namespace FiniteAutomata
             _sym = sym;
         }
 
-        // The resulting nfa0 has form s0s -sym-> s0e
+        // The resulting nfa0 has form s0s -sym→ s0e
         public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
             int startState = nameFunc();
@@ -117,9 +117,9 @@ namespace FiniteAutomata
             _r2 = r2;
         }
 
-        // If   nfa1 has form s1s ----> s1e
-        // and  nfa2 has form s2s ----> s2e
-        // then nfa0 has form s1s ----> s1e -eps-> s2s ----> s2e
+        // If   nfa1 has form s1s ---→ s1e
+        // and  nfa2 has form s2s ---→ s2e
+        // then nfa0 has form s1s ---→ s1e -eps→ s2s ---→ s2e
         public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
             var nfa1 = _r1.MkNfa(nameFunc);
@@ -148,10 +148,10 @@ namespace FiniteAutomata
             _r2 = r2;
         }
 
-        // If   nfa1 has form s1s ----> s1e
-        // and  nfa2 has form s2s ----> s2e
-        // then nfa0 has form s0s -eps-> s1s ----> s1e -eps-> s0e
-        //                    s0s -eps-> s2s ----> s2e -eps-> s0e
+        // If   nfa1 has form s1s ---→ s1e
+        // and  nfa2 has form s2s ---→ s2e
+        // then nfa0 has form s0s -eps→ s1s ---→ s1e -eps→ s0e
+        //                    s0s -eps→ s2s ---→ s2e -eps→ s0e
 
         public override Nfa<string> MkNfa(Func<int> nameFunc)
         {
@@ -184,10 +184,10 @@ namespace FiniteAutomata
             _r = r;
         }
 
-        // If   nfa1 has form s1s ----> s1e
-        // then nfa0 has form s0s ----> s0s
-        //                    s0s -eps-> s1s
-        //                    s1e -eps-> s0s
+        // If   nfa1 has form s1s ---→ s1e
+        // then nfa0 has form s0s ---→ s0s
+        //                    s0s -eps→ s1s
+        //                    s1e -eps→ s0s
 
         public override Nfa<string> MkNfa(Func<int> nameFunc)
         {

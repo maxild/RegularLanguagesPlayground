@@ -38,11 +38,11 @@ namespace UnitTests
             // 0: S → E$
             // 1: E → E+T
             // 2: E → T
-            // 3: T -> T*F
-            // 4: T -> F
-            // 5: F -> (E)
-            // 6: F -> -T
-            // 7: F -> a
+            // 3: T → T*F
+            // 4: T → F
+            // 5: F → (E)
+            // 6: F → -T
+            // 7: F → a
             var grammar = new Grammar(Symbol.Vs("S", "E", "T", "F"),
                                       Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker(),
                                       Symbol.V("S"))
@@ -85,11 +85,11 @@ namespace UnitTests
             // 0: S → E$
             // 1: E → E+T
             // 2: E → T
-            // 3: T -> T*F
-            // 4: T -> F
-            // 5: F -> (E)
-            // 6: F -> -T
-            // 7: F -> a
+            // 3: T → T*F
+            // 4: T → F
+            // 5: F → (E)
+            // 6: F → -T
+            // 7: F → a
             var grammar = new Grammar(Symbol.Vs("S", "E", "T", "F"),
                 Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker(),
                 Symbol.V("S"))

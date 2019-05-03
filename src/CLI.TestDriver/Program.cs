@@ -13,6 +13,7 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
+            //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             ExprGrammarCh4DragonBook();
             //ToyExampleGrammarFromGallierNotesOnLrParsing();
             //ExprGrammarGallierNotesOnLrParsing();
@@ -57,7 +58,7 @@ namespace CLI.TestDriver
 
             SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetLr0AutomatonDfa();
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
 
             SaveFile("DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -94,7 +95,7 @@ namespace CLI.TestDriver
 
             SaveFile("DragonDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetLr0AutomatonDfa();
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
 
             SaveFile("DragonDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
 
@@ -126,15 +127,45 @@ namespace CLI.TestDriver
 
             SaveFile("DCG2.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetLr0AutomatonDfa();
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
 
             SaveFile("DCG2Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
+        public static void DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8()
+        {
+            // 0: S' → S$
+            // 1: S → i E t S
+            // 2: S → i E t S e S
+            // 3: E → 0
+            // 4: E → 1
+            // where tokens i (if), t (then), e (else)
+            var grammar = new Grammar(Symbol.Vs("S'", "S", "E"), Symbol.Ts('i', 't', 'e', '0', '1').WithEofMarker(), Symbol.V("S'"))
+            {
+                Symbol.V("S'").GoesTo(Symbol.V("S"), Symbol.Eof<Terminal>()),
+                Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S")),
+                Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S"), Symbol.T('e'), Symbol.V("S")),
+                Symbol.V("E").GoesTo(Symbol.T('0')),
+                Symbol.V("E").GoesTo(Symbol.T('0'))
+            };
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("DanglingNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("DanglingDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
+
+            SaveFile("DanglingDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
         //
         // Regular languages, NFA, DFA
         //
-
 
         public static void CourseExercise()
         {

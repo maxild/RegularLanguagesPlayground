@@ -61,7 +61,7 @@ namespace ContextFreeGrammar
         //public Terminal Eof { get; }
 
         /// <summary>
-        /// First production is a unit production (S -> E), where the head variable (S) has only this single production,
+        /// First production is a unit production (S → E), where the head variable (S) has only this single production,
         /// and the head variable (S) is found no where else in any productions.
         /// </summary>
         public bool IsAugmented =>
@@ -338,7 +338,7 @@ namespace ContextFreeGrammar
             var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
-            // already been extended with a new nonterminal start symbol S' and a production S' -> S$ in P.
+            // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!IsAugmentedWithEofMarker)
                 followMap[StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
 
@@ -410,7 +410,7 @@ namespace ContextFreeGrammar
                 firstMap[symbol].Add(symbol);
 
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
-            // already been extended with a new nonterminal start symbol S' and a production S' -> S$ in P.
+            // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!IsAugmentedWithEofMarker)
                 followMap[StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
 
@@ -482,19 +482,17 @@ namespace ContextFreeGrammar
             _fixedPointVersion = _version;
         }
 
-        // LR(0) Automaton is a DFA that we use to recognize the viable prefix/handles in the grammar
-        // The machine can be generated in two different ways:
-        //      NFA -> DFA in 2 passes (steps)
-        //          Step 1 (NFA GOTO):
-        //              NFA, where each state is an item in the canonical collection
-        //              of LR(0) items (ProductionItem instances are the NFA states)
-        //          Step 2 (DFA CLOSURE)
-        //              Subset construction creates the canonical collection of *sets of*
-        //              LR(0) items (ProductionItemSet instances are the DFA states)
-        //      DFA in single-pass:
-        //          Dragon book algorithm (using GOTO and CLOSURE together)
+        /// <summary>
+        /// Get NFA representation of the set of characteristic strings (aka viable prefixes) that are defined by
+        /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
+        /// and ⇒ is the right-most derivation relation. CG is the set of viable prefixes containing all prefixes (αβ)
+        /// of right sentential forms (αβv) that can appear on the stack of a shift/reduce parser,
+        /// i.e. prefixes of right sentential forms that do not extend past the end of the right-most handle
+        /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
+        /// right sentential form where the substring β can be found).
+        /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Nfa<ProductionItem<TNonterminalSymbol>, Symbol> GetCharacteristicStringsNfa()
+        public Nfa<ProductionItem<TNonterminalSymbol>, Symbol> GetCharacteristicStringsNfa() // TODO: rename to ViablePrefixesNfa
         {
             if (Productions.Count == 0)
             {
@@ -503,7 +501,7 @@ namespace ContextFreeGrammar
 
             if (!IsAugmented)
             {
-                throw new InvalidOperationException("The grammar should be augmented with canonical S' -> S production.");
+                throw new InvalidOperationException("The grammar should be augmented with canonical S' → S production.");
             }
 
             if (!IsReduced)
@@ -598,63 +596,60 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Get DFA for the canonical collection of sets of LR(0) items in single pass (without first generating NFA)
+        /// Get DFA representation of the set of characteristic strings (aka viable prefixes) that are defined by
+        /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
+        /// and ⇒ is the right-most derivation relation. CG is the set of viable prefixes containing all prefixes (αβ)
+        /// of right sentential forms (αβv) that can appear on the stack of a shift/reduce parser,
+        /// i.e. prefixes of right sentential forms that do not extend past the end of the right-most handle
+        /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
+        /// right sentential form where the substring β can be found).
         /// </summary>
-        /// <returns></returns>
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol> GetLr0AutomatonDfa()
+        public Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol> GetCharacteristicStringsDfa()
         {
-            ProductionItemSet<TNonterminalSymbol> startItemSet =
-                Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
-            var states = new HashSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            var acceptStates = new HashSet<ProductionItemSet<TNonterminalSymbol>>();
-            var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
+            // TODO: GetCharacteristicStringsDfa and ComputeSlrParsingTable have the same routine for building the
+            //          canonical LR(0) collection (states)
+            //          transitions
+            var (states, startItemSet, transitions) = ComputeCharacteristicStringsData();
 
-            // work-list implementation
-            var markedAddedItemSets = new Queue<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            while (markedAddedItemSets.Count > 0)
-            {
-                ProductionItemSet<TNonterminalSymbol> sourceState = markedAddedItemSets.Dequeue();
-                // For each pair (X, { A → αX"."β, where A → α"."Xβ is in sourceState})
-                foreach (var coreGotoItems in sourceState.GetTargetItems())
-                {
-                    // For each grammar symbol (label in transition)
-                    var X = coreGotoItems.Key;
-                    // Get the closure of all the target items A → αX"."β we can move/transition to in the graph
-                    ProductionItemSet<TNonterminalSymbol> targetState = Closure(coreGotoItems);
-                    transitions.Add(Transition.Move(sourceState, X, targetState));
-                    if (!states.Contains(targetState))
-                    {
-                        markedAddedItemSets.Enqueue(targetState);
-                        states.Add(targetState);
-                    }
-                }
-
-                if (sourceState.ReduceItems.Any())
-                {
-                    acceptStates.Add(sourceState);
-                }
-            }
+            var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
             return new Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol>(states, Symbols, transitions, startItemSet, acceptStates);
         }
 
+        // TODO: We need to be able to compute if grammar is LR(0), SLR(1), LALR(1) and/or LR(1)
+        // TODO: We need representation of parsing table, that can print it to screen and determine any conflicts
+
         /// <summary>
-        /// Simple LR
-        /// See p 253, algorithm 4.46, in the dragon book 2nd ed.
+        /// Get ParsingTable representation of the set of characteristic strings (aka viable prefixes) that are defined by
+        /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
+        /// and ⇒ is the right-most derivation relation. CG is the set of viable prefixes containing all prefixes (αβ)
+        /// of right sentential forms (αβv) that can appear on the stack of a shift/reduce parser,
+        /// i.e. prefixes of right sentential forms that do not extend past the end of the right-most handle
+        /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
+        /// right sentential form where the substring β can be found).
         /// </summary>
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
         {
-            // SLR table
-            // SLR parser := LR parser using SLR table
+            // TODO: We need all of these...right now we only have implemented SLR(1)
+            // LR(0) table: Each item set must only shift or reduce, we cannot have both shift and reduce items, and each item set has at most one reduce item (this is rather limiting).
+            // LR(1) table
+            // SLR(1) table (SLR parser := LR parser using SLR table)
+            // LALR(1) table
+            var (states, startItemSet, transitions) = ComputeCharacteristicStringsData();
 
-            // TODO: Adjust the algorithm in a DRY way, such that both Dfa and ParseTable can be generated
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals, transitions, startItemSet);
+        }
 
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        private (HashSet<ProductionItemSet<TNonterminalSymbol>> states,
+                 ProductionItemSet<TNonterminalSymbol> startState,
+                 //HashSet<ProductionItemSet<TNonterminalSymbol>> acceptStates,
+                 List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>> transitions) ComputeCharacteristicStringsData()
+        {
             ProductionItemSet<TNonterminalSymbol> startItemSet =
                 Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
             var states = new HashSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            var acceptStates = new HashSet<ProductionItemSet<TNonterminalSymbol>>();
+            //var acceptStates = new HashSet<ProductionItemSet<TNonterminalSymbol>>();
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
 
             // work-list implementation
@@ -677,13 +672,13 @@ namespace ContextFreeGrammar
                     }
                 }
 
-                if (sourceState.ReduceItems.Any())
-                {
-                    acceptStates.Add(sourceState);
-                }
+                //if (sourceState.ReduceItems.Any())
+                //{
+                //    acceptStates.Add(sourceState);
+                //}
             }
 
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals, transitions, startItemSet, acceptStates);
+            return (states, startItemSet, transitions);
         }
 
         public IEnumerator<Production<TNonterminalSymbol>> GetEnumerator()

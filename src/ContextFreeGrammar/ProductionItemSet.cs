@@ -7,7 +7,7 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     /// <summary>
-    /// A set of LR(0) items that together form a single state in the DFA of the so-called LR(0) automaton.
+    /// A set of LR(0) items that together form a single state in the DFA of LR(0) automaton.
     /// This DFA is our so called "LR(0) viable prefix (handle) recognizer" used to construct
     /// the parser table of any shift/reduce LR parser. Note that all states of the DFA except the initial state
     /// satisfies the so-called spelling property that only a single label/symbol will move/transition into that state.
@@ -50,7 +50,7 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// The partially parsed rules for a state are called its core LR(0) items.
-        /// If we also call S′ −→ .S a core item, we observe that every state in the
+        /// If we also call S′ → .S a core item, we observe that every state in the
         /// DFA is completely determined by its subset of core items.
         /// </summary>
         public IEnumerable<ProductionItem<TNonterminalSymbol>> CoreItems => _coreItems;
@@ -63,22 +63,19 @@ namespace ContextFreeGrammar
         public IEnumerable<ProductionItem<TNonterminalSymbol>> ClosureItems => _closureItems;
 
         /// <summary>
-        /// Reduce items (not including the first production S' -> S of the augmented grammar)
+        /// Reduce items (not including the first production S' → S of the augmented grammar)
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol>> ReduceItems => Items.Where(item => item.IsReduceItem);
+        public IEnumerable<ProductionItem<TNonterminalSymbol>> ReduceItems => CoreItems.Where(item => item.IsReduceItem);
 
-        public bool IsAcceptAction
-        {
-            get
-            {
-                var coreItem = CoreItems.First();
-                return coreItem.ProductionIndex == 0 && coreItem.IsReduceItem;
-            }
-        }
+        /// <summary>
+        /// Is this the item set containing the augmented reduce item (S' → S•).
+        /// </summary>
+        public bool IsAcceptAction => ReduceItems.Any(item => item.ProductionIndex == 0);
 
-        public bool IsShiftAction { get; }
-
-        public bool IsReduceAction { get; }
+        /// <summary>
+        /// Does this itemj set contain any reduce items (not including the augmented reduce item (S' → S•).
+        /// </summary>
+        public bool IsReduceAction => ReduceItems.Any(item => item.ProductionIndex > 0);
 
         /// <summary>
         /// Goto or shift items (this is the core items of the GOTO function in dragon book)

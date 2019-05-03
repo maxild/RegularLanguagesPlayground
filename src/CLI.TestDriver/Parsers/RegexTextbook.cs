@@ -11,13 +11,13 @@ namespace CLI.TestDriver.Parsers
     // Concrete syntax given with the following grammar that is based on the recursive definition of
     // regular expression
     //
-    //      S -> S+S | SS | S* | (S)
-    //      S -> c | 'ep' | 'empty'
+    //      S → S+S | SS | S* | (S)
+    //      S → c | 'ep' | 'empty'
     //
     // where 'c' is any character in the alphabet. {0,1} or {a,b} implies the following productions
     //
-    //      S -> 0 | 1
-    //      S -> a | b
+    //      S → 0 | 1
+    //      S → a | b
     //
     // The above grammar is ambiguous, because the operators doesn't follow the precedence and
     // left-associative rules of the regular expression language.
@@ -31,21 +31,21 @@ namespace CLI.TestDriver.Parsers
     //
     // The following grammar capture the precedence and left associative rules
     //
-    //    E -> E + T | T        (every union expression E is-a concat expression T)
-    //    T -> TF | F           (every concat expression T is-a base expression F)
-    //    F -> F* | P           (every base-expression F can be starred or wrap any other regular expression in parens)
-    //    P -> (E) | 'c' | 'ep' | 'empty'
+    //    E → E + T | T        (every union expression E is-a concat expression T)
+    //    T → TF | F           (every concat expression T is-a base expression F)
+    //    F → F* | P           (every base-expression F can be starred or wrap any other regular expression in parens)
+    //    P → (E) | 'c' | 'ep' | 'empty'
     //
     // The problem with this grammar is that it is left-recursive and therefore is not LL(1).
     // We can however convert it into an LL(1) grammar
     //
-    //    E  -> TE'
-    //    E' -> +TE' | epsilon
-    //    T  -> FT'
-    //    T' -> FT' | epsilon
-    //    F  -> PF'
-    //    F' -> *F' | epsilon
-    //    P -> (E) | 'c' | 'eps' | 'empty'
+    //    E  → TE'
+    //    E' → +TE' | epsilon
+    //    T  → FT'
+    //    T' → FT' | epsilon
+    //    F  → PF'
+    //    F' → *F' | epsilon
+    //    P → (E) | 'c' | 'eps' | 'empty'
     //
     // Terminals = {+, *, (, ), 'c', 'ep', 'empty'}
     //
@@ -113,7 +113,7 @@ namespace CLI.TestDriver.Parsers
         //
 
         // epsilon transition (removal of variable on the stack)
-        private static readonly char [] NULLABLE = Array.Empty<char>(); // A -> epsilon
+        private static readonly char [] NULLABLE = Array.Empty<char>(); // A → epsilon
 
         ///// <summary>
         ///// Is this a non-terminal symbol?
@@ -187,7 +187,7 @@ namespace CLI.TestDriver.Parsers
         // M[variable][terminal] is the production-RHS (body) to use for the given production-LHS (head)
         private static readonly IDictionary<char, char[]>[] M =
         {
-            // E ->
+            // E →
             new Dictionary<char, char[]>
             {
                 {OP, Prod(VAR_T, VAR_EP)},
@@ -195,14 +195,14 @@ namespace CLI.TestDriver.Parsers
                 {LETTER_b, Prod(VAR_T, VAR_EP)},
                 {EPS, Prod(VAR_T, VAR_EP)}
             },
-            // E' ->
+            // E' →
             new Dictionary<char, char[]>
             {
                 {CP, NULLABLE},
                 {SUM, Prod(SUM, VAR_T, VAR_EP)},
                 {DOLLAR, NULLABLE}
             },
-            // T ->
+            // T →
             new Dictionary<char, char[]>
             {
                 {OP, Prod(VAR_F, VAR_TP)},
@@ -210,7 +210,7 @@ namespace CLI.TestDriver.Parsers
                 {LETTER_b, Prod(VAR_F, VAR_TP)},
                 {EPS, Prod(VAR_F, VAR_TP)}
             },
-            // T' ->
+            // T' →
             new Dictionary<char, char[]>
             {
                 {OP, Prod(VAR_F, VAR_TP)},
@@ -221,7 +221,7 @@ namespace CLI.TestDriver.Parsers
                 {SUM, NULLABLE},
                 {DOLLAR, NULLABLE}
             },
-            // F ->
+            // F →
             new Dictionary<char, char[]>
             {
                 {OP, Prod(VAR_P, VAR_FP)},
@@ -229,7 +229,7 @@ namespace CLI.TestDriver.Parsers
                 {LETTER_b, Prod(VAR_P, VAR_FP)},
                 {EPS, Prod(VAR_P, VAR_FP)}
             },
-            // F' ->
+            // F' →
             new Dictionary<char, char[]>
             {
                 {OP, NULLABLE},
@@ -241,7 +241,7 @@ namespace CLI.TestDriver.Parsers
                 {STAR, Prod(STAR, VAR_FP)},
                 {DOLLAR, NULLABLE}
             },
-            // P ->
+            // P →
             new Dictionary<char, char[]>
             {
                 {OP, Prod(OP, VAR_E, CP)},
@@ -311,7 +311,7 @@ namespace CLI.TestDriver.Parsers
                             }
 
                             // ACTION: Output the production
-                            Debug.Write($"    {Text(grammarSymbol)} -> ");
+                            Debug.Write($"    {Text(grammarSymbol)} → ");
                             for (int i = 0; i < body.Length; i += 1)
                             {
                                 Debug.Write(Text(body[i]));
@@ -322,7 +322,7 @@ namespace CLI.TestDriver.Parsers
                         {
                             // ACTION: Output the epsilon derivation, that signals that
                             // no new grammar symbols was pushed onto the stack
-                            Debug.WriteLine($"    {Text(grammarSymbol)} -> {Text(EPS)}");
+                            Debug.WriteLine($"    {Text(grammarSymbol)} → {Text(EPS)}");
                         }
                     }
                     else
@@ -350,7 +350,7 @@ namespace CLI.TestDriver.Parsers
 
             return ParseS();
 
-            // S -> E$ (clever start symbol that enforces $-end-of-string convention)
+            // S → E$ (clever start symbol that enforces $-end-of-string convention)
             Regex ParseS()
             {
                 var regex = ParseE();
@@ -358,7 +358,7 @@ namespace CLI.TestDriver.Parsers
                 return regex;
             }
 
-            // E -> TE'
+            // E → TE'
             Regex ParseE()
             {
                 // Is input in FIRST(E)
@@ -375,7 +375,7 @@ namespace CLI.TestDriver.Parsers
             }
 
             // optional part of E (union expression, if any SUM terminal is found)
-            // E' -> +TE' | epsilon
+            // E' → +TE' | epsilon
             Regex ParseEP(Regex lhs)
             {
                 // Is input in FIRST(E')
@@ -398,7 +398,7 @@ namespace CLI.TestDriver.Parsers
                 }
             }
 
-            // T -> FT'
+            // T → FT'
             Regex ParseT()
             {
                 // Is input in FIRST(T)
@@ -415,7 +415,7 @@ namespace CLI.TestDriver.Parsers
             }
 
             // optional part of T (product expression, if any terminal to be concatenated is found)
-            // T' -> FT' | epsilon
+            // T' → FT' | epsilon
             Regex ParseTP(Regex lhs)
             {
                 // Is input in FIRST(TP)
@@ -439,7 +439,7 @@ namespace CLI.TestDriver.Parsers
                 }
             }
 
-            // F -> PF'
+            // F → PF'
             Regex ParseF()
             {
                 // Is input in FIRST(F)
@@ -458,7 +458,7 @@ namespace CLI.TestDriver.Parsers
             }
 
             // optional part of Factor
-            // F' -> *F' | epsilon
+            // F' → *F' | epsilon
             Regex ParseFP(Regex lhs)
             {
                 if (input == STAR)
@@ -481,7 +481,7 @@ namespace CLI.TestDriver.Parsers
                 }
             }
 
-            // P -> (E) | a | b | 'ep'
+            // P → (E) | a | b | 'ep'
             Regex ParseP()
             {
                 if (input == OP)
