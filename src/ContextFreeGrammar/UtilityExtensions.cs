@@ -55,5 +55,15 @@ namespace ContextFreeGrammar
                 ? iter.Current
                 : default;
         }
+
+        public static string Center(this string str, int totalWidth)
+        {
+            return str.PadLeft((totalWidth - str.Length) / 2 + str.Length).PadRight(totalWidth);
+        }
+
+        public static string FormatBoolean(this bool value)
+        {
+            return value ? "true" : "false";
+        }
     }
 }

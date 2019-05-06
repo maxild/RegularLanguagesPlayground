@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text;
 using AutomataLib;
 
 namespace ContextFreeGrammar
@@ -16,6 +17,12 @@ namespace ContextFreeGrammar
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private readonly Grammar<TNonterminalSymbol, TTerminalSymbol> _grammar;
+
+        // NOTE: This a sort of an adjacency matrix implementation of the two tables (action and goto)
+        //       where symbols (terminals and nonterminals) are translated to indices via hash tables
+        //       (dictionaries), and we explicit values for error transitions, that are given by
+        //              GOTO table errors = 0 value of type 'int'
+        //              ACTION table errors = LrAction.Error value of type 'LrAction'
 
         private readonly ProductionItemSet<TNonterminalSymbol>[] _originalStates; // TODO: behoever vi den? Den beskriver spelling property of each state
 
@@ -57,7 +64,7 @@ namespace ContextFreeGrammar
 
             _start = indexMap[startState];
 
-            // Grammar variables
+            // Grammar variables (nonterminals)
             _indexToNonterminal = nonterminalSymbols.ToArray();
             _nonterminalToIndex= new Dictionary<TNonterminalSymbol, int>();
             for (int i = 0; i < _indexToNonterminal.Length; i++)
@@ -129,65 +136,6 @@ namespace ContextFreeGrammar
                     // If A → α"."Xβ is in LR(0) item set, where X is a nonterminal symbol
                     var X = (TNonterminalSymbol) move.Label;
                     _gotoTable[source, _nonterminalToIndex[X]]= target;
-                }
-            }
-        }
-
-        enum LrActionKind
-        {
-            Error = 0,
-            Shift,          // Si, where i is a state
-            Reduce,         // Rj, where j is production index
-            Accept
-        }
-
-        [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-        struct LrAction
-        {
-            private string DebuggerDisplay => ToString();
-
-            private readonly LrActionKind _kind;
-            private readonly int _value;
-
-            public static readonly LrAction Error = new LrAction(LrActionKind.Error, 0);
-
-            public static readonly LrAction Accept = new LrAction(LrActionKind.Accept, 0);
-
-            public static LrAction Reduce(int productionIndex)
-            {
-                return new LrAction(LrActionKind.Reduce, productionIndex);
-            }
-
-            public static LrAction Shift(int stateIndex)
-            {
-                return new LrAction(LrActionKind.Shift, stateIndex);
-            }
-
-            private LrAction(LrActionKind kind, int value)
-            {
-                _kind = kind;
-                _value = value;
-            }
-
-            public bool IsShift => _kind == LrActionKind.Shift;
-            public bool IsReduce => _kind == LrActionKind.Reduce;
-            public bool IsAccept => _kind == LrActionKind.Accept;
-            public bool IsError => _kind == LrActionKind.Error;
-
-            public int ShiftTo => _value;
-
-            public Production<TNonterminalSymbol> ReduceTo(Grammar<TNonterminalSymbol, TTerminalSymbol> g) => g.Productions[_value];
-
-            public override string ToString()
-            {
-                switch (_kind)
-                {
-                    case LrActionKind.Shift:
-                        return $"s{_value}";
-                    case LrActionKind.Reduce:
-                        return $"r{_value}";
-                    default:
-                        return _kind.ToString().ToLower();
                 }
             }
         }
@@ -271,10 +219,74 @@ namespace ContextFreeGrammar
             }
         }
 
+        // TODO:
+        // TableWriter
+        // Table type
         public override string ToString()
         {
-            // TODO
+            // TODO: markdown, html
             return null;
         }
+
+        enum LrActionKind
+        {
+            Error = 0,
+            Shift,          // Si, where i is a state
+            Reduce,         // Rj, where j is production index
+            Accept
+        }
+
+        [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
+        struct LrAction
+        {
+            private string DebuggerDisplay => ToString();
+
+            private readonly LrActionKind _kind;
+            private readonly int _value;
+
+            public static readonly LrAction Error = new LrAction(LrActionKind.Error, 0);
+
+            public static readonly LrAction Accept = new LrAction(LrActionKind.Accept, 0);
+
+            public static LrAction Reduce(int productionIndex)
+            {
+                return new LrAction(LrActionKind.Reduce, productionIndex);
+            }
+
+            public static LrAction Shift(int stateIndex)
+            {
+                return new LrAction(LrActionKind.Shift, stateIndex);
+            }
+
+            private LrAction(LrActionKind kind, int value)
+            {
+                _kind = kind;
+                _value = value;
+            }
+
+            public bool IsShift => _kind == LrActionKind.Shift;
+            public bool IsReduce => _kind == LrActionKind.Reduce;
+            public bool IsAccept => _kind == LrActionKind.Accept;
+            public bool IsError => _kind == LrActionKind.Error;
+
+            public int ShiftTo => _value;
+
+            public Production<TNonterminalSymbol> ReduceTo(Grammar<TNonterminalSymbol, TTerminalSymbol> g) => g.Productions[_value];
+
+            public override string ToString()
+            {
+                switch (_kind)
+                {
+                    case LrActionKind.Shift:
+                        return $"s{_value}";
+                    case LrActionKind.Reduce:
+                        return $"r{_value}";
+                    default:
+                        return _kind.ToString().ToLower(); // TODO: In print of table 'error' should be a blank value
+                }
+            }
+        }
+
     }
+
 }
