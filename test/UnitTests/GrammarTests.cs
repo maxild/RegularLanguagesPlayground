@@ -47,7 +47,7 @@ namespace UnitTests
                                       Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker(),
                                       Symbol.V("S"))
             {
-                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.Eof<Terminal>()),
+                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
                 Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
                 Symbol.V("E").GoesTo(Symbol.V("T")),
                 Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
@@ -94,7 +94,7 @@ namespace UnitTests
                 Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker(),
                 Symbol.V("S"))
             {
-                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.Eof<Terminal>()),
+                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
                 Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
                 Symbol.V("E").GoesTo(Symbol.V("T")),
                 Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),

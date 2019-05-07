@@ -1,93 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
-namespace ContextFreeGrammar
+namespace AutomataLib.Tables
 {
-    public class TableBuilder
-    {
-        private string _title;
-        private readonly List<Column> _columns = new List<Column>();
-
-        public TableBuilder SetTitle(string title)
-        {
-            _title = title;
-            return this;
-        }
-
-        public TableBuilder SetColumns(params Column[] columns)
-        {
-            _columns.AddRange(columns);
-            return this;
-        }
-
-        public Table Build()
-        {
-            return new Table(_title, _columns);
-        }
-    }
-
-    // Columns are indexed 0,1,2,...,n
-
-    // Rows are inserted via IEnumerable<string[]>, i.e. sequence of rows indexed by columns
-
-    /// <summary>
-    /// Immutable table containing metadata (columns, aligning etc) but no data-rows
-    /// </summary>
-    public class Table
-    {
-        public Table(string title, List<Column> columns)
-        {
-            Title = title;
-            Columns = columns;
-        }
-
-        public string Title { get; }
-
-        public IReadOnlyList<Column> Columns { get; }
-    }
-
-    public class Column
-    {
-        public Column(string name, int width, Align align = Align.Center)
-        {
-            Name = name;
-            Width = width;
-            Align = align;
-        }
-
-        public string Name { get; }
-
-        public int Width { get; }
-
-        public Align Align { get; }
-    }
-
-    // TODO: make abstract
-    //      latex,        https://www.overleaf.com/project/5cd00f077680ad36299002cf
-    //      markdown,     https://dillinger.io/
-    //      html,         https://codepen.io/
-    //      text          Console.Write/Console.WriteLine API
-
-    // NOTE: Console.WriteLine API used directly here (including colors)...forget about color support!!!!
-    // TODO: System.IO.TextWriter (StringWriter, StreamWriter, HttpWriter, Console.Out Property)
-
-    public abstract class TableWriter
-    {
-        public abstract void WriteHead();
-        public abstract void WriteRow(params string[] values);
-        public abstract void WriteFooter();
-
-        protected TableWriter(TextWriter @out)
-        {
-            Out = @out;
-        }
-
-        protected TextWriter Out { get; }
-    }
-
     public class TextTableWriter : TableWriter
     {
         public TextTableWriter(Table table, TextWriter writer)
@@ -119,7 +34,7 @@ namespace ContextFreeGrammar
                 Out.WriteLine('╗');
 
                 string title = Table.Title.Length <= TableWidth - 2
-                    ? Table.Title.Center(TableWidth - 2)
+                    ? Center(Table.Title, TableWidth - 2)
                     : Table.Title.Substring(0, TableWidth - 2);
 
                 // ║                      MyTitle                      ║
@@ -150,7 +65,7 @@ namespace ContextFreeGrammar
             for (int i = 0; i < Table.Columns.Count; i++)
             {
                 string name = Table.Columns[i].Name.Length <= Table.Columns[i].Width
-                    ? Table.Columns[i].Name.Center(Table.Columns[i].Width)
+                    ? Center(Table.Columns[i].Name, Table.Columns[i].Width)
                     : Table.Columns[i].Name.Substring(0, Table.Columns[i].Width);
                 Out.Write(name);
                 Out.Write(i < Table.Columns.Count - 1 ? '│' : '║');
@@ -193,7 +108,7 @@ namespace ContextFreeGrammar
                                 break;
                             case Align.Center:
                             default:
-                                s = values[i].Center(Table.Columns[i].Width);
+                                s = Center(values[i], Table.Columns[i].Width);
                                 break;
                         }
                     }
@@ -222,5 +137,11 @@ namespace ContextFreeGrammar
                 Out.Write(i < Table.Columns.Count - 1 ? '╧' : '╝');
             }
         }
+
+        private static string Center(string str, int totalWidth)
+        {
+            return str.PadLeft((totalWidth - str.Length) / 2 + str.Length).PadRight(totalWidth);
+        }
+
     }
 }

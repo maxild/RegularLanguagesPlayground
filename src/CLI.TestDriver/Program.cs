@@ -13,6 +13,7 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
+            //ExprGrammarStanfordNotesOnBottomUpParsing();
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             ExprGrammarCh4DragonBook();
             //ToyExampleGrammarFromGallierNotesOnLrParsing();
@@ -65,6 +66,7 @@ namespace CLI.TestDriver
 
         public static void ExprGrammarCh4DragonBook()
         {
+            // NOTE: Augmented, but without explicit EOF symbol (the EOF marker is optional, but changes the number of states)
             // 0: S → E
             // 1: E → E + T
             // 2: E → T
@@ -74,10 +76,10 @@ namespace CLI.TestDriver
             // 6: T → a        (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
             var grammar = new Grammar(
                 variables: Symbol.Vs("S", "E", "T", "F"),
-                terminals: Symbol.Ts('a', '+', '*', '(', ')').WithEofMarker(),
+                terminals: Symbol.Ts('a', '+', '*', '(', ')'), //.WithEofMarker(),
                 startSymbol: Symbol.V("S"))
             {
-                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.Eof<Terminal>()),
+                Symbol.V("S").GoesTo(Symbol.V("E")), //, Symbol.EofMarker),
                 Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
                 Symbol.V("E").GoesTo(Symbol.V("T")),
                 Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
@@ -99,7 +101,7 @@ namespace CLI.TestDriver
 
             SaveFile("DragonDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            grammar.ComputeSlrParsingTable().Parse("a*a+a"); // TODO: Lexer should skip whitespace
+            grammar.ComputeSlrParsingTable().Parse("a*a+a", Console.Out); // TODO: Lexer should skip whitespace
         }
 
         public static void ExprGrammarGallierNotesOnLrParsing()
@@ -132,6 +134,36 @@ namespace CLI.TestDriver
             SaveFile("DCG2Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
+        public static void ExprGrammarStanfordNotesOnBottomUpParsing()
+        {
+            // 0: S → E
+            // 1: E → E + T
+            // 2: E → T
+            // 3: T → (E)
+            // 4: T → a
+            var grammar = new Grammar(Symbol.Vs("S", "E", "T"), Symbol.Ts('a', '+', '(', ')'), Symbol.V("S"))
+            {
+                Symbol.V("S").GoesTo(Symbol.V("E")),
+                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                Symbol.V("E").GoesTo(Symbol.V("T")),
+                Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                Symbol.V("T").GoesTo(Symbol.T('a'))
+            };
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("StanNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("StanDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
+
+            SaveFile("StanDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
         public static void DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8()
         {
             // 0: S' → S$
@@ -140,9 +172,9 @@ namespace CLI.TestDriver
             // 3: E → 0
             // 4: E → 1
             // where tokens i (if), t (then), e (else)
-            var grammar = new Grammar(Symbol.Vs("S'", "S", "E"), Symbol.Ts('i', 't', 'e', '0', '1').WithEofMarker(), Symbol.V("S'"))
+            var grammar = new Grammar(Symbol.Vs("S'", "S", "E"), Symbol.Ts('i', 't', 'e', '0', '1'), Symbol.V("S'"))
             {
-                Symbol.V("S'").GoesTo(Symbol.V("S"), Symbol.Eof<Terminal>()),
+                Symbol.V("S'").GoesTo(Symbol.V("S")),
                 Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S")),
                 Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S"), Symbol.T('e'), Symbol.V("S")),
                 Symbol.V("E").GoesTo(Symbol.T('0')),

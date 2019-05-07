@@ -1,4 +1,4 @@
-namespace ContextFreeGrammar
+namespace AutomataLib.Tables
 {
     public enum Align
     {

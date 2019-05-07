@@ -24,12 +24,14 @@ namespace AutomataLib
     {
         public static readonly Symbol Epsilon = new Eps();
 
+        public static readonly Terminal EofMarker = new EndOfFileMarker();
+
         public static TTerminalSymbol Eof<TTerminalSymbol>()
         {
             Type t = typeof(TTerminalSymbol);
             if (t == typeof(Terminal))
             {
-                return (TTerminalSymbol)(object)new EndOfFileMarker();
+                return (TTerminalSymbol)(object)EofMarker;
             }
             throw new NotSupportedException($"A letterizer for the type '{t.Name}' is not supported.");
         }

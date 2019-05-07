@@ -41,12 +41,7 @@ namespace ContextFreeGrammar
         private readonly Dictionary<TNonterminalSymbol, List<(int, Production<TNonterminalSymbol>)>> _productionMap;
 
         private int _version;
-
         private int _fixedPointVersion;
-        //private bool[] _nullableProduction; // by production
-        //private bool[] _nullableVariable;   // by nonterminal
-
-        //private int _firstVersion; // TODO: FIRST requires NULLABLE => single version/initialization
 
         public Grammar(IEnumerable<TNonterminalSymbol> variables, IEnumerable<TTerminalSymbol> terminals, TNonterminalSymbol startSymbol)
         {
@@ -56,9 +51,6 @@ namespace ContextFreeGrammar
             StartSymbol = startSymbol;
             _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
         }
-
-        // TODO: Dollar should be configurable or else Symbol.Eof should be defined as special terminal
-        //public Terminal Eof { get; }
 
         /// <summary>
         /// First production is a unit production (S → E), where the head variable (S) has only this single production,
@@ -136,8 +128,6 @@ namespace ContextFreeGrammar
             _productionMap[production.Head].Add((index, production));
             _version += 1;
         }
-
-
 
         /// <summary>
         /// Does the production P(i) derive the empty string such that the nonterminal (LHS) can be erased.
@@ -492,7 +482,7 @@ namespace ContextFreeGrammar
         /// right sentential form where the substring β can be found).
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Nfa<ProductionItem<TNonterminalSymbol>, Symbol> GetCharacteristicStringsNfa() // TODO: rename to ViablePrefixesNfa
+        public Nfa<ProductionItem<TNonterminalSymbol>, Symbol> GetCharacteristicStringsNfa() // TODO: maybe rename to ViablePrefixesNfa
         {
             if (Productions.Count == 0)
             {
@@ -613,12 +603,12 @@ namespace ContextFreeGrammar
 
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
+            // NOTE: This DFA representation always need to have a so called dead state (0),
+            // and {1,2,...,N} are therefore the integer values of the actual states.
             return new Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol>(states, Symbols, transitions, startItemSet, acceptStates);
         }
 
         // TODO: We need to be able to compute if grammar is LR(0), SLR(1), LALR(1) and/or LR(1)
-        // TODO: We need representation of parsing table, that can print it to screen and determine any conflicts
-
         /// <summary>
         /// Get ParsingTable representation of the set of characteristic strings (aka viable prefixes) that are defined by
         /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
@@ -630,13 +620,15 @@ namespace ContextFreeGrammar
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
         {
-            // TODO: We need all of these...right now we only have implemented SLR(1)
+            // TODO: We need all of these...right now we only have implemented LR(0) and SLR(1) (by commenting in and out!!!)
             // LR(0) table: Each item set must only shift or reduce, we cannot have both shift and reduce items, and each item set has at most one reduce item (this is rather limiting).
             // LR(1) table
             // SLR(1) table (SLR parser := LR parser using SLR table)
             // LALR(1) table
             var (states, startItemSet, transitions) = ComputeCharacteristicStringsData();
 
+            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
+            // are given by {0,1,...,N-1}.
             return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals, transitions, startItemSet);
         }
 
@@ -649,7 +641,6 @@ namespace ContextFreeGrammar
             ProductionItemSet<TNonterminalSymbol> startItemSet =
                 Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
             var states = new HashSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            //var acceptStates = new HashSet<ProductionItemSet<TNonterminalSymbol>>();
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
 
             // work-list implementation
@@ -671,11 +662,6 @@ namespace ContextFreeGrammar
                         states.Add(targetState);
                     }
                 }
-
-                //if (sourceState.ReduceItems.Any())
-                //{
-                //    acceptStates.Add(sourceState);
-                //}
             }
 
             return (states, startItemSet, transitions);

@@ -12,6 +12,27 @@ namespace ContextFreeGrammar
             yield return item;
         }
 
+        public static bool Many<TSource>(this IEnumerable<TSource> source) {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            int c = 0;
+            using (IEnumerator<TSource> e = source.GetEnumerator()) {
+                if (e.MoveNext()) c += 1;
+                if (c > 1) return true;
+            }
+            return false;
+        }
+
+        public static bool Many<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate) {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (predicate == null) throw new ArgumentNullException(nameof(predicate));
+            int c = 0;
+            foreach (TSource element in source) {
+                if (predicate(element)) c += 1;
+                if (c > 1) return true;
+            }
+            return false;
+        }
+
         //public static bool AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> items)
         //{
         //    var c = hashSet.Count;
@@ -21,7 +42,7 @@ namespace ContextFreeGrammar
 
         public static IEnumerable<Terminal> WithEofMarker(this IEnumerable<Terminal> terminalSymbols)
         {
-            return terminalSymbols.Concat(Symbol.Eof<Terminal>().AsSingletonEnumerable());
+            return terminalSymbols.Concat(Symbol.EofMarker.AsSingletonEnumerable());
         }
 
         public static void Each<T>(this IEnumerable<T> e, Action<T> a)
@@ -56,14 +77,14 @@ namespace ContextFreeGrammar
                 : default;
         }
 
-        public static string Center(this string str, int totalWidth)
-        {
-            return str.PadLeft((totalWidth - str.Length) / 2 + str.Length).PadRight(totalWidth);
-        }
-
         public static string FormatBoolean(this bool value)
         {
             return value ? "true" : "false";
+        }
+
+        public static string ToGotoTableString(this int value)
+        {
+            return value != 0 ? value.ToString() : string.Empty;
         }
     }
 }
