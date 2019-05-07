@@ -103,96 +103,124 @@ namespace ContextFreeGrammar
 
         public override void WriteHead()
         {
-            var str = new List<StringBuilder>(5);
-            for (int i = 0; i < str.Capacity; i++)
-                str.Add(new StringBuilder(TableWidth));
+            // ╔═══════════════════════════════════════════════════╗
+            // ║                      MyTitle                      ║
+            // ╠════════════╤════════════╤════════════╤════════════╣
+            // ║  Variable  │  Nullable  │   First    │   Follow   ║
+            // ╠════════════╪════════════╪════════════╪════════════╣
 
-            //str[0] Øvre grænse                                           "╔═════════════════════════════╗"
-            //str[1] Tabeloverskrift                                       "║       Tabeloverskrift       ║"
-            //str[2] Border mellem tabeloverskrift og kolonne navne        "╠═════╤═══════════╤═══════════╣"
-            //str[3] Kolonne navne                                         "║ Nr. │  Fornavn  │ Efternavn ║"
-            //str[4] Border mellem kolonne navne og indhold                "╠═════╪═══════════╪═══════════╣"
+            char topLeftCorner, topRightCorner;
 
             if (!string.IsNullOrEmpty(Table.Title))
             {
-                str[0].Append('╔');
-                str[0].Append('═', TableWidth - 2);
-                str[0].Append('╗');
+                // ╔═══════════════════════════════════════════════════╗
+                Out.Write('╔');
+                Out.Write(new string('═', TableWidth - 2));
+                Out.WriteLine('╗');
 
-                str[1].Append('║');
-                str[1].Append(Table.Title.Length <= TableWidth - 2
+                string title = Table.Title.Length <= TableWidth - 2
                     ? Table.Title.Center(TableWidth - 2)
-                    : Table.Title.Substring(0, TableWidth - 2));
-                str[1].Append("║");
-            }
+                    : Table.Title.Substring(0, TableWidth - 2);
 
-            str[2].Append(!string.IsNullOrEmpty(Table.Title) ? '╠' : '╔');
-            str[3].Append('║');
-            str[4].Append('╠');
-            foreach (Column c in Table.Columns)
+                // ║                      MyTitle                      ║
+                Out.Write('║');
+                Out.Write(title);
+                Out.WriteLine("║");
+
+                topLeftCorner = '╠';
+                topRightCorner = '╣';
+            }
+            else
             {
-                str[2].Append('═', c.Width);
-                str[2].Append('╤');
-                str[3].Append(c.Name.Length <= c.Width
-                    ? c.Name.Center(c.Width)
-                    : c.Name.Substring(0, c.Width));
-                str[3].Append('│');
-                str[4].Append('═', c.Width);
-                str[4].Append('╪');
+                topLeftCorner = '╔';
+                topRightCorner = '╗';
             }
-            str[2].Replace('╤', !string.IsNullOrEmpty(Table.Title) ? '╣' : '╗', str[2].Length - 1, 1);
-            str[3].Replace('│', '║', str[3].Length - 1, 1);
-            str[4].Replace('╪', '╣', str[4].Length - 1, 1);
 
-            foreach (StringBuilder s in str)
-                if (s.ToString() != "")
-                    Out.WriteLine(s);
+            // ╠════════════╤════════════╤════════════╤════════════╣
+            Out.Write(topLeftCorner);
+            for (int i = 0; i < Table.Columns.Count; i++)
+            {
+                Out.Write(new string('═', Table.Columns[i].Width));
+                Out.Write(i < Table.Columns.Count - 1 ? '╤' : topRightCorner);
+            }
+            Out.WriteLine();
+
+            // ║  Variable  │  Nullable  │   First    │   Follow   ║
+            Out.Write('║');
+            for (int i = 0; i < Table.Columns.Count; i++)
+            {
+                string name = Table.Columns[i].Name.Length <= Table.Columns[i].Width
+                    ? Table.Columns[i].Name.Center(Table.Columns[i].Width)
+                    : Table.Columns[i].Name.Substring(0, Table.Columns[i].Width);
+                Out.Write(name);
+                Out.Write(i < Table.Columns.Count - 1 ? '│' : '║');
+            }
+            Out.WriteLine();
+
+            // ╠════════════╪════════════╪════════════╪════════════╣
+            Out.Write('╠');
+            for (int i = 0; i < Table.Columns.Count; i++)
+            {
+                Out.Write(new string('═', Table.Columns[i].Width));
+                Out.Write(i < Table.Columns.Count - 1 ? '╪' : '╣');
+            }
+            Out.WriteLine();
         }
 
         public override void WriteRow(params string[] values)
         {
-            StringBuilder str = new StringBuilder(TableWidth);
-
+            // ║E           │   false    │ {(, -, a}  │ {$, +, )}  ║
             Out.Write('║');
+
             for (int i = 0; i < Table.Columns.Count; i++)
             {
-                if (values.GetUpperBound(0) >= i)
+                if (i < values.Length)
+                {
+                    string s;
                     if (values[i].Length >= Table.Columns[i].Width)
                     {
-                        Out.Write(values[i].Substring(0, Table.Columns[i].Width));
+                        s = values[i].Substring(0, Table.Columns[i].Width);
                     }
                     else
+                    {
                         switch (Table.Columns[i].Align)
                         {
                             case Align.Left:
-                                Out.Write(values[i].PadRight(Table.Columns[i].Width));
-                                break;
-                            case Align.Center:
-                                Out.Write(values[i].Center(Table.Columns[i].Width));
+                                s = values[i].PadRight(Table.Columns[i].Width);
                                 break;
                             case Align.Right:
-                                Out.Write(values[i].PadLeft(Table.Columns[i].Width));
+                                s = values[i].PadLeft(Table.Columns[i].Width);
+                                break;
+                            case Align.Center:
+                            default:
+                                s = values[i].Center(Table.Columns[i].Width);
                                 break;
                         }
+                    }
+
+                    Out.Write(s);
+                }
                 else
+                {
                     Out.Write(new string(' ', Table.Columns[i].Width));
-                Out.Write(i != Table.Columns.Count - 1 ? '│' : '║');
+                }
+
+                if (i < Table.Columns.Count - 1)
+                    Out.Write('│');
             }
 
-            Out.WriteLine(str);
+            Out.WriteLine('║');
         }
 
         public override void WriteFooter()
         {
-            StringBuilder str = new StringBuilder(TableWidth + 1);
-            str.Append('╚');
-            foreach (Column c in Table.Columns)
+            // ╚════════════╧════════════╧════════════╧════════════╝
+            Out.Write('╚');
+            for (int i = 0; i < Table.Columns.Count; i++)
             {
-                str.Append('═', c.Width);
-                str.Append('╧');
+                Out.Write(new string('═', Table.Columns[i].Width));
+                Out.Write(i < Table.Columns.Count - 1 ? '╧' : '╝');
             }
-            str.Replace('╧', '╝', str.Length - 1, 1);
-            Out.WriteLine(str);
         }
     }
 }

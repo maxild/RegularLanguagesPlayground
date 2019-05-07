@@ -1,12 +1,16 @@
-using System;
 using AutomataLib;
 using ContextFreeGrammar;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace UnitTests
 {
-    public class TableTests
+    public class TableTests : XunitLoggingBase
     {
+        public TableTests(ITestOutputHelper output) : base(output)
+        {
+        }
+
         [Fact]
         public void CreateFollowResult()
         {
@@ -33,13 +37,14 @@ namespace UnitTests
             };
 
             var table = new TableBuilder()
-                .SetTitle("MyTitle")
-                .SetColumns(new Column("Variable", 12), new Column("Nullable", 12), new Column("First", 12),
-                    new Column("Follow", 12))
+                .SetTitle("First and Follow sets")
+                .SetColumns(new Column("Variable", 12),
+                            new Column("Nullable", 12),
+                            new Column("First", 16),
+                            new Column("Follow", 16))
                 .Build();
 
-            // TODO: Hvor ryger den hen vha xunit???
-            var tableWriter = new TextTableWriter(table, Console.Out);
+            var tableWriter = new TextTableWriter(table, new TestWriter());
             tableWriter.WriteHead();
             foreach (Nonterminal variable in grammar.Variables)
             {

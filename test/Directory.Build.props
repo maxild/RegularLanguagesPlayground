@@ -15,6 +15,7 @@
         <PackageReference Include="xunit" Version="$(XUnitPackageVersion)" />
         <PackageReference Include="xunit.runner.visualstudio" Version="$(XUnitPackageVersion)" />
         <PackageReference Include="Shouldly" Version="$(ShouldlyPackageVersion)" />
+        <PackageReference Include="XunitLogger" Version="$(XunitLoggerPackageVersion)" />
     </ItemGroup>
 
 </Project>
