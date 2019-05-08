@@ -1,9 +1,11 @@
+using System;
 using System.Diagnostics;
+using JetBrains.Annotations;
 
 namespace AutomataLib
 {
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct LrAction
+    public struct LrAction : IEquatable<LrAction>
     {
         enum LrActionKind
         {
@@ -74,6 +76,25 @@ namespace AutomataLib
                     return string.Empty;
                 default:
                     return _kind.ToString().ToLower();
+            }
+        }
+
+        [Pure]
+        public bool Equals(LrAction other)
+        {
+            return _kind == other._kind && _value == other._value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is LrAction other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return ((int) _kind * 397) ^ _value;
             }
         }
     }

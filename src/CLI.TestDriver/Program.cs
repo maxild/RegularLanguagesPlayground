@@ -13,9 +13,12 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
+            DragonBookEx4_48();
+            //StanfordShiftReduceConflictGrammar();
+            //StanfordReduceReduceConflictGrammar();
             //ExprGrammarStanfordNotesOnBottomUpParsing();
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
-            ExprGrammarCh4DragonBook();
+            //ExprGrammarCh4DragonBook();
             //ToyExampleGrammarFromGallierNotesOnLrParsing();
             //ExprGrammarGallierNotesOnLrParsing();
             //CourseExercise();
@@ -104,6 +107,46 @@ namespace CLI.TestDriver
             grammar.ComputeSlrParsingTable().Parse("a*a+a", Console.Out); // TODO: Lexer should skip whitespace
         }
 
+        /// <summary>
+        /// Example 4.48 in Dragon book p. 255, 2nd ed
+        /// </summary>
+        public static void DragonBookEx4_48()
+        {
+            // NOTE: L =l-value, R = r-value (as known from C lang)
+            // 0: S' → S
+            // 1: S → L = R
+            // 2: S → R
+            // 3: L → *R
+            // 4: L → a        (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            // 5: R → L
+            var grammar = new Grammar(
+                variables: Symbol.Vs("S'", "S", "L", "R"),
+                terminals: Symbol.Ts('a', '=', '*'),
+                startSymbol: Symbol.V("S'"))
+            {
+                Symbol.V("S'").GoesTo(Symbol.V("S")),
+                Symbol.V("S").GoesTo(Symbol.V("L"), Symbol.T('=') , Symbol.V("R")),
+                Symbol.V("S").GoesTo(Symbol.V("R")),
+                Symbol.V("L").GoesTo(Symbol.T('*'), Symbol.V("R")),
+                Symbol.V("L").GoesTo(Symbol.T('a')),
+                Symbol.V("R").GoesTo(Symbol.V("L"))
+            };
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("DragonBookEx4_48_NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("DragonBookEx4_48_DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
+
+            SaveFile("DragonBookEx4_48_DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
+
         public static void ExprGrammarGallierNotesOnLrParsing()
         {
             // 0: S → E
@@ -162,6 +205,76 @@ namespace CLI.TestDriver
             var dfa2 = grammar.GetCharacteristicStringsDfa();
 
             SaveFile("StanDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
+        public static void StanfordShiftReduceConflictGrammar()
+        {
+            // 0: S → E
+            // 1: E → E + T
+            // 2: E → T
+            // 3: T → (E)
+            // 4: T → a          (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            // 5: T → a[E]       (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            var grammar = new Grammar(Symbol.Vs("S", "E", "T"), Symbol.Ts('a', '+', '(', ')', '[', ']'), Symbol.V("S"))
+            {
+                Symbol.V("S").GoesTo(Symbol.V("E")),
+                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                Symbol.V("E").GoesTo(Symbol.V("T")),
+                Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                Symbol.V("T").GoesTo(Symbol.T('a')),
+                // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
+                // because state 4 contains the following core items {T → a•, T → a•[E]}
+                Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
+                //
+
+            };
+
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("StanShiftReduceConflictNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("StanShiftReduceConflictDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
+
+            SaveFile("StanShiftReduceConflictDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
+        public static void StanfordReduceReduceConflictGrammar()
+        {
+            // 0: S → E
+            // 1: E → E + T
+            // 2: E → T
+            // 3: E → V = E
+            // 4: T → (E)
+            // 5: T → a          (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            // 6: V → a          (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            var grammar = new Grammar(Symbol.Vs("S", "E", "T", "V"), Symbol.Ts('a', '+', '(', ')', '='), Symbol.V("S"))
+            {
+                Symbol.V("S").GoesTo(Symbol.V("E")),
+                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                Symbol.V("E").GoesTo(Symbol.V("T")),
+                // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
+                // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
+                Symbol.V("E").GoesTo(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
+                Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                Symbol.V("T").GoesTo(Symbol.T('a')),
+                Symbol.V("V").GoesTo(Symbol.T('a'))
+            };
+
+            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+
+            SaveFile("StanReduceReduceConflictNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("StanReduceReduceConflictDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfa2 = grammar.GetCharacteristicStringsDfa();
+
+            SaveFile("StanReduceReduceConflictDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
         public static void DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8()

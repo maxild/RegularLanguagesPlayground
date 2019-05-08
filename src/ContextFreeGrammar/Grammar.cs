@@ -33,7 +33,7 @@ namespace ContextFreeGrammar
     /// <summary>
     /// Context-free grammar (CFG)
     /// </summary>
-    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IEnumerable<Production<TNonterminalSymbol>>
+    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>, IEnumerable<Production<TNonterminalSymbol>>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
@@ -90,9 +90,7 @@ namespace ContextFreeGrammar
         /// </summary>
         public IEnumerable<Symbol> AllSymbols => Symbols.Concat(Symbol.Epsilon.AsSingletonEnumerable());
 
-        /// <summary>
-        /// Productions are numbered by index 0,1,2,...
-        /// </summary>
+        /// <inheritdoc />
         public IReadOnlyList<Production<TNonterminalSymbol>> Productions => _productions;
 
         ///// <summary>
@@ -503,13 +501,13 @@ namespace ContextFreeGrammar
             var transitions = new List<Transition<Symbol, ProductionItem<TNonterminalSymbol>>>();
             var acceptItems = new List<ProductionItem<TNonterminalSymbol>>();
 
-            // (a) For every terminal a in T, if A → α"."aβ is a marked production, then
-            //     there is a transition on input a from state A → α"."aβ to state A → αa"."β
+            // (a) For every terminal a in T, if A → α•aβ is a marked production, then
+            //     there is a transition on input a from state A → α•aβ to state A → αa•β
             //     obtained by "shifting the dot"
-            // (b) For every variable B in V, if A → α"."Bβ is a marked production, then
-            //     there is a transition on input B from state A → α"."Bβ to state A → αB"."β
+            // (b) For every variable B in V, if A → α•Bβ is a marked production, then
+            //     there is a transition on input B from state A → α•Bβ to state A → αB•β
             //     obtained by "shifting the dot", and transitions on input ε (the empty string)
-            //     to all states B → "."γ(i), for all productions B → γ(i) in P with left-hand side B.
+            //     to all states B → •γ(i), for all productions B → γ(i) in P with left-hand side B.
             int productionIndex = 0;
             foreach (var production in Productions)
             {
@@ -518,7 +516,7 @@ namespace ContextFreeGrammar
                     // (productionIndex, dotPosition) is identifier
                     var item = new ProductionItem<TNonterminalSymbol>(production, productionIndex, dotPosition);
 
-                    // (a) A → α"."aβ
+                    // (a) A → α•aβ
                     if (item.IsShiftItem)
                     {
                         Symbol a = item.GetNextSymbol<Terminal>();
@@ -526,7 +524,7 @@ namespace ContextFreeGrammar
                         transitions.Add(Transition.Move(item, a, shiftToItem));
                     }
 
-                    // (b) A → α"."Bβ
+                    // (b) A → α•Bβ
                     if (item.IsGotoItem)
                     {
                         var B = item.GetNextSymbol<TNonterminalSymbol>();
@@ -543,7 +541,7 @@ namespace ContextFreeGrammar
                         }
                     }
 
-                    // (c) A → β"." (Accepting states has dot shifted all the way to the end)
+                    // (c) A → β• (Accepting states has dot shifted all the way to the end)
                     if (item.IsReduceItem)
                     {
                         acceptItems.Add(item);
@@ -569,7 +567,7 @@ namespace ContextFreeGrammar
                 ProductionItem<TNonterminalSymbol> item = markedAddedItems.Dequeue();
                 var B = item.GetNextSymbolAs<TNonterminalSymbol>();
                 if (B == null) continue;
-                // If item is a GOTO item of the form A → α"."Bβ, where B is in T,
+                // If item is a GOTO item of the form A → α•Bβ, where B is in T,
                 // the find all its closure items
                 foreach (var (index, production) in _productionMap[B])
                 {
@@ -597,20 +595,140 @@ namespace ContextFreeGrammar
         public Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol> GetCharacteristicStringsDfa()
         {
             // TODO: GetCharacteristicStringsDfa and ComputeSlrParsingTable have the same routine for building the
-            //          canonical LR(0) collection (states)
+            //          canonical LR(0) collection of LR(0) item sets (states)
             //          transitions
-            var (states, startItemSet, transitions) = ComputeCharacteristicStringsData();
+            var (states, startState, transitions) = ComputeCharacteristicStringsData();
 
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
             // NOTE: This DFA representation always need to have a so called dead state (0),
             // and {1,2,...,N} are therefore the integer values of the actual states.
-            return new Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol>(states, Symbols, transitions, startItemSet, acceptStates);
+            return new Dfa<ProductionItemSet<TNonterminalSymbol>, Symbol>(states, Symbols, transitions, startState, acceptStates);
         }
 
-        // TODO: We need to be able to compute if grammar is LR(0), SLR(1), LALR(1) and/or LR(1)
         /// <summary>
-        /// Get ParsingTable representation of the set of characteristic strings (aka viable prefixes) that are defined by
+        /// Compute LR(0) parsing table.
+        /// </summary>
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLr0ParsingTable()
+        {
+            var (states, startState, transitions) = ComputeCharacteristicStringsData();
+
+            // TODO: better data
+            // TODO: How to vary between LR(0) and SLR(1)? right now it is still calculating SLR(1) table
+            var (actionTableEntries, gotoTableEntries) = ComputeParsingTable(states, startState, transitions);
+
+            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
+            // are given by {0,1,...,N-1}.
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
+                actionTableEntries, gotoTableEntries);
+        }
+
+        /// <summary>
+        /// Compute SLR(1) parsing table.
+        /// </summary>
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
+        {
+            var (states, startState, transitions) = ComputeCharacteristicStringsData();
+
+            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
+            // are given by {0,1,...,N-1}.
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals, transitions, startState);
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        private (IEnumerable<LrActionEntry<TTerminalSymbol>>, IEnumerable<LrGotoEntry<TNonterminalSymbol>>) ComputeParsingTable(
+            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol>> states,
+            ProductionItemSet<TNonterminalSymbol> startState,
+            List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>> transitions
+            )
+        {
+            var actionTableEntries = new List<LrActionEntry<TTerminalSymbol>>();
+            var gotoTableEntries = new List<LrGotoEntry<TNonterminalSymbol>>();
+
+            // renaming all LR(0) item sets to integer states
+            var indexMap = new Dictionary<ProductionItemSet<TNonterminalSymbol>, int>(capacity: states.Count);
+            int stateIndex = 0;
+            foreach (ProductionItemSet<TNonterminalSymbol> state in states)
+            {
+                indexMap.Add(state, stateIndex);
+                stateIndex += 1;
+            }
+
+            // TODO: Start state is really not needed (it is an invariant that start is zero)
+            int start = indexMap[startState];
+            if (start != 0)
+                throw new InvalidOperationException("UNEXPECTED: The initial start state should be the first item set in the sequence");
+
+            // NOTE: Important that shift/goto actions are inserted (configured) before
+            //       reduce actions in the action table (conflict resolution).
+
+            // Shift and Goto actions (directly from the transitions of the LR(0) automaton).
+            // TODO: My guess is these are the same across all LR methods????!!!!????
+            foreach (var move in transitions)
+            {
+                int source = indexMap[move.SourceState];
+                int target = indexMap[move.TargetState];
+
+                if (move.Label.IsTerminal)
+                {
+                    // If A → α•aβ is in LR(0) item set, where a is a terminal symbol
+                    var a = (TTerminalSymbol) move.Label;
+                    //var symbolIndex = _terminalToIndex[a];
+                    //_actionTable[source, symbolIndex] = LrAction.Shift(target);
+                    actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(source, a, LrAction.Shift(target)));
+                }
+                else
+                {
+                    // If A → α•Xβ is in LR(0) item set, where X is a nonterminal symbol
+                    var X = (TNonterminalSymbol) move.Label;
+                    //int symbolIndex = _nonterminalToIndex[X];
+                    //_gotoTable[source, symbolIndex - 1] = target;
+                    gotoTableEntries.Add(new LrGotoEntry<TNonterminalSymbol>(source, X, target));
+                }
+            }
+
+            // Reduce actions differ between different LR methods (SLR strategy uses FOLLOW(A) below)
+            // TODO: My guess is these differ between different LR methods????!!!!????
+            foreach (ProductionItemSet<TNonterminalSymbol> itemSet in states)
+            {
+                // If A → α• is in LR(0) item set, then set action[s, a] to 'reduce A → α•' (where A is not S')
+                // for all a in T               (LR(0) table)
+                // for all a in FOLLOW(A)       (SLR(1) table)
+                if (itemSet.IsReduceAction)
+                {
+                    // choose reductions with lowest index in reduce/reduce conflict resolution
+                    foreach (ProductionItem<TNonterminalSymbol> reduceItem in
+                        itemSet.ReduceItems.OrderBy(item => item.ProductionIndex))
+                    {
+                        var state = indexMap[itemSet];
+                        // LR(0) grammar rule
+                        //foreach (var terminal in grammar.Terminals)
+                        // SLR(1) grammar rule
+                        foreach (var terminal in FOLLOW(reduceItem.Production.Head))
+                        {
+                            var reduceAction = LrAction.Reduce(reduceItem.ProductionIndex);
+                            actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(state, terminal, reduceAction));
+                        }
+                    }
+                }
+
+                // If S' → S• is in LR(0) item set, then set action[s, $] to accept
+                if (itemSet.IsAcceptAction)
+                {
+                    // NOTE: Only if the grammar is augmented with S' → S$ (i.e. EOF marker added
+                    // to augmented rule) then we can be sure that the accept action item set has
+                    // the EOF marked symbol ($) as the spelling property.
+                    //      Debug.Assert(itemSet.SpellingSymbol.Equals(Symbol.Eof<TTerminalSymbol>()));
+                    actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(indexMap[itemSet],
+                        Symbol.Eof<TTerminalSymbol>(), LrAction.Accept));
+                }
+            }
+
+            return (actionTableEntries, gotoTableEntries);
+        }
+
+        /// <summary>
+        /// Get data representation of the set of characteristic strings (aka viable prefixes) that are defined by
         /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
         /// and ⇒ is the right-most derivation relation. CG is the set of viable prefixes containing all prefixes (αβ)
         /// of right sentential forms (αβv) that can appear on the stack of a shift/reduce parser,
@@ -618,29 +736,15 @@ namespace ContextFreeGrammar
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
-        {
-            // TODO: We need all of these...right now we only have implemented LR(0) and SLR(1) (by commenting in and out!!!)
-            // LR(0) table: Each item set must only shift or reduce, we cannot have both shift and reduce items, and each item set has at most one reduce item (this is rather limiting).
-            // LR(1) table
-            // SLR(1) table (SLR parser := LR parser using SLR table)
-            // LALR(1) table
-            var (states, startItemSet, transitions) = ComputeCharacteristicStringsData();
-
-            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
-            // are given by {0,1,...,N-1}.
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals, transitions, startItemSet);
-        }
-
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (HashSet<ProductionItemSet<TNonterminalSymbol>> states,
+        private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol>> states,
                  ProductionItemSet<TNonterminalSymbol> startState,
-                 //HashSet<ProductionItemSet<TNonterminalSymbol>> acceptStates,
                  List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>> transitions) ComputeCharacteristicStringsData()
         {
             ProductionItemSet<TNonterminalSymbol> startItemSet =
                 Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
-            var states = new HashSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            // states/items er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
+            var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
 
             // work-list implementation
@@ -648,12 +752,12 @@ namespace ContextFreeGrammar
             while (markedAddedItemSets.Count > 0)
             {
                 ProductionItemSet<TNonterminalSymbol> sourceState = markedAddedItemSets.Dequeue();
-                // For each pair (X, { A → αX"."β, where A → α"."Xβ is in sourceState})
+                // For each pair (X, { A → αX•β, where A → α•Xβ is in sourceState})
                 foreach (var coreGotoItems in sourceState.GetTargetItems())
                 {
                     // For each grammar symbol (label in transition)
                     var X = coreGotoItems.Key;
-                    // Get the closure of all the target items A → αX"."β we can move/transition to in the graph
+                    // Get the closure of all the target items A → αX•β we can move/transition to in the graph
                     ProductionItemSet<TNonterminalSymbol> targetState = Closure(coreGotoItems);
                     transitions.Add(Transition.Move(sourceState, X, targetState));
                     if (!states.Contains(targetState))

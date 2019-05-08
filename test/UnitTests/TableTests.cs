@@ -38,24 +38,7 @@ namespace UnitTests
                 Symbol.V("F").GoesTo(Symbol.T('a'))
             };
 
-            var table = new TableBuilder()
-                .SetTitle("First and Follow sets")
-                .SetColumns(new Column("Variable", 12),
-                            new Column("Nullable", 12),
-                            new Column("First", 16),
-                            new Column("Follow", 16))
-                .Build();
-
-            var tableWriter = new TextTableWriter(table, new TestWriter());
-            tableWriter.WriteHead();
-            foreach (Nonterminal variable in grammar.Variables)
-            {
-                tableWriter.WriteRow(variable.Name,
-                    grammar.NULLABLE(variable).FormatBoolean(),
-                    grammar.FIRST(variable).ToVectorString(),
-                    grammar.FOLLOW(variable).ToVectorString());
-            }
-            tableWriter.WriteFooter();
+            grammar.PrintFirstAndFollowSets(new TestWriter());
         }
 
         [Fact]
@@ -85,12 +68,12 @@ namespace UnitTests
 
             var writer = new TestWriter();
 
-            grammar.ComputeSlrParsingTable().PrintParsingTable(writer);
+            grammar.ComputeLr0ParsingTable().PrintParsingTable(writer);
             writer.WriteLine();
             writer.WriteLine();
 
             // TODO: Only works for SLR(1)...not for LR(0) table
-            //grammar.ComputeSlrParsingTable().Parse("a*a+a", writer);
+            grammar.ComputeSlrParsingTable().Parse("a*a+a", writer);
         }
 
         [Fact]
@@ -112,7 +95,8 @@ namespace UnitTests
 
             var parser = grammar.ComputeSlrParsingTable();
 
-            parser.IsAmbiguous.ShouldBeFalse();
+            // TODO: Grammar is SLR(1), but not LR(0)
+            parser.AnyConflicts.ShouldBeFalse();
 
             parser.PrintParsingTable(new TestWriter());
         }
@@ -145,10 +129,14 @@ namespace UnitTests
             writer.WriteLine(grammar.ToString());
             writer.WriteLine();
 
+            grammar.PrintFirstAndFollowSets(new TestWriter());
+            writer.WriteLine();
+            writer.WriteLine();
+
             var parser = grammar.ComputeSlrParsingTable();
 
             // TODO: The grammar is SLR(1), not LR(0)...we should compute parse tables for both in a DRY fashion
-            parser.IsAmbiguous.ShouldBeTrue();
+            //parser.AnyConflicts.ShouldBeTrue();
 
             parser.PrintParsingTable(writer);
             writer.WriteLine();
@@ -190,10 +178,14 @@ namespace UnitTests
             writer.WriteLine(grammar.ToString());
             writer.WriteLine();
 
+            grammar.PrintFirstAndFollowSets(new TestWriter());
+            writer.WriteLine();
+            writer.WriteLine();
+
             var parser = grammar.ComputeSlrParsingTable();
 
             // TODO: The grammar is SLR(1), not LR(0)...we should compute parse tables for both in a DRY fashion
-            parser.IsAmbiguous.ShouldBeTrue();
+            parser.AnyConflicts.ShouldBeTrue();
 
             parser.PrintParsingTable(writer);
             writer.WriteLine();

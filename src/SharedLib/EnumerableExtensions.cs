@@ -7,7 +7,12 @@ namespace AutomataLib
 {
     public static class EnumerableExtensions
     {
-        public static string ToVectorString<T>(this IEnumerable<T> values, int maxElems = 5)
+        public static string ToJoinString<T>(this IEnumerable<T> values)
+        {
+            return string.Join(" ", values);
+        }
+
+        public static string ToVectorString<T>(this IEnumerable<T> values, int maxElems = 5, int spaces = 0)
         {
             if (values == null)
             {
@@ -25,11 +30,14 @@ namespace AutomataLib
                 firstElems += 1; // first elements are (a little) more important to show
             }
 
+            string strOfSpaces = new string(' ', spaces);
+
             var sb = new StringBuilder();
 
             var array = values.ToArray();
 
             sb.Append("{");
+            sb.Append(strOfSpaces);
 
             if (array.Length > maxElems)
             {
@@ -40,7 +48,7 @@ namespace AutomataLib
                     sb.Append(", ");
                     sb.Append(array[i]);
                 }
-                // show elipsis indicating that not all elements have been shown
+                // show ellipsis indicating that not all elements have been shown
                 sb.Append(",...");
                 // show last elements
                 for (int i = array.Length - lastElems; i < array.Length; i += 1)
@@ -62,6 +70,7 @@ namespace AutomataLib
                 }
             }
 
+            sb.Append(strOfSpaces);
             sb.Append("}");
 
             return sb.ToString();
