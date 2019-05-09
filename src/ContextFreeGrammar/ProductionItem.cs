@@ -6,6 +6,24 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
+    // TODO: Add IReadonlySet<TNonterminalSymbol> Lookaheads { get; } to item class => Both LR(0) and LR(1) items can be represented
+    // TODO: Maybe better define Lr1Item := (Lr0Item, Lookaheads), because Lr(0) item can be reused betwenn LR(1) items
+    // TODO: Kernel items (rename IsCore to IsKernel) are the only mandatory items. Closure items should be lazy.
+    // NOTE: It is common for LR(1) item sets to have identical first components (i.e. identical LR(0) items),
+    //       and only differ w.r.t different lookahead symbols (the second component). In construction LALR(1) we
+    //       will look for different LR(1) items having the same (core) LR(0) items, and merge these into new union
+    //       states (i.e. new one set of items). Since the GOTO (successor) function on;ly depends on the core LR(0) items
+    //       of any LR91) items, it is easy to merge the transitions of the LR(1) automaton into a new simpler LALR automaton.
+    //       On the other hand the ACTION table will change, and it is possible to introduce conflicts when merging.
+    // TODO: Could be renamed to LRItem
+    // TODO: Grammar should be read-only, make GrammarBuilder API
+    // Different collections (set of items)
+    //  - LR(0) collection (also used by SLR(1) parser)
+    //  - LR(1) collection
+    //  - LALR(1) collection (constructed in 2 different ways: Merging of LR(1) items, or, Efficient Construction)
+
+    // TODO: 1) Build Lr1AutomataDFA, 2) Build paring table using modified SLR(1) algorithm where FOLLOW(A) is substituted by the Lookahead set
+    // TODO: Again we have 2 ways to build LR(1) automaton: NFA -> DFA or directly
     /// <summary>
     /// The LR(0) item used as a building block in Donald Knuth's LR(0) Automaton. An LR(0) item is a dotted production rule,
     /// where everything to the left of the dot has been shifted onto the parsing stack and the next input token is in the

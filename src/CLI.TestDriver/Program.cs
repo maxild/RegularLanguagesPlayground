@@ -112,7 +112,7 @@ namespace CLI.TestDriver
         /// </summary>
         public static void DragonBookEx4_48()
         {
-            // NOTE: L =l-value, R = r-value (as known from C lang)
+            // NOTE: L =l-value, R = r-value, and * is the prefix operator for pointers (as known from C lang)
             // 0: S' → S
             // 1: S → L = R
             // 2: S → R

@@ -1,3 +1,4 @@
+using System.Linq;
 using AutomataLib;
 using ContextFreeGrammar;
 using Shouldly;
@@ -222,6 +223,65 @@ namespace UnitTests
             }
             writer.WriteLine();
             writer.WriteLine();
+        }
+
+        // TODO: make grammar repository/factory
+
+        [Fact]
+        public void DragonBookEx4_48()
+        {
+            // NOTE: L =l-value, R = r-value, and * is the prefix operator for pointers (as known from C lang)
+            // 0: S' → S
+            // 1: S → L = R
+            // 2: S → R
+            // 3: L → *R
+            // 4: L → a        (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
+            // 5: R → L
+            var grammar = new Grammar(
+                variables: Symbol.Vs("S'", "S", "L", "R"),
+                terminals: Symbol.Ts('a', '=', '*'),
+                startSymbol: Symbol.V("S'"))
+            {
+                Symbol.V("S'").GoesTo(Symbol.V("S")),
+                Symbol.V("S").GoesTo(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
+                Symbol.V("S").GoesTo(Symbol.V("R")),
+                Symbol.V("L").GoesTo(Symbol.T('*'), Symbol.V("R")),
+                Symbol.V("L").GoesTo(Symbol.T('a')),
+                Symbol.V("R").GoesTo(Symbol.V("L"))
+            };
+
+            var writer = new TestWriter();
+
+            grammar.PrintFirstAndFollowSets(writer);
+
+            var slrParser = grammar.ComputeSlrParsingTable();
+
+            slrParser.PrintParsingTable(writer);
+
+            slrParser.AnyConflicts.ShouldBeTrue();
+            slrParser.Conflicts.Count().ShouldBe(1);
+
+            // This will print
+            //      State 2: {shift 6, reduce 5} on '='
+            //      State 2: {S → L•=R, R → L•} (core items)
+            // The correct choice of the parser is to shift, because no right sentential form begins with
+            // Therefore
+            var conflict = slrParser.Conflicts.Single();
+            writer.WriteLine(conflict);
+            writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+            //  ╔════════╤══════════════╤══════════════╤══════════╤════════════════════════╗
+            //  ║ SeqNo  │    Stack     │   Symbols    │  Input   │         Action         ║
+            //  ╠════════╪══════════════╪══════════════╪══════════╪════════════════════════╣
+            //  ║  (1)   │ 0            │              │     a=a$ │ shift 5                ║
+            //  ║  (2)   │ 0 5          │  a           │      =a$ │ reduce by L → a        ║
+            //  ║  (3)   │ 0 2          │  L           │      =a$ │ shift 6                ║ <----- shift/reduce conflict here (shift wins)
+            //  ║  (4)   │ 0 2 6        │  L =         │       a$ │ shift 5                ║
+            //  ║  (5)   │ 0 2 6 5      │  L = a       │        $ │ reduce by L → a        ║
+            //  ║  (6)   │ 0 2 6 8      │  L = L       │        $ │ reduce by R → L        ║
+            //  ║  (7)   │ 0 2 6 9      │  L = R       │        $ │ reduce by S → L=R      ║
+            //  ║  (8)   │ 0 1          │  S           │        $ │ accept                 ║
+            //  ╚════════╧══════════════╧══════════════╧══════════╧════════════════════════╝
+            slrParser.Parse("a=a", writer);
         }
     }
 }

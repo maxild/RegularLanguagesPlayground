@@ -166,6 +166,9 @@ namespace ContextFreeGrammar
                     // choose the shift action (for any shift/reduce conflicts), or choose the reduce action
                     // with the lowest index (for any reduce/reduce conflicts), by ignoring to put the reduce action in
                     // the table (Yacc, Happy etc. all choose this strategy for resolving conflicts)
+
+                    // TODO: remove this line that will make reduce items win over shift items
+                    //_actionTable[entry.State, symbolIndex] = entry.Action; // BUG line must be out commented
                 }
                 else
                 {
@@ -177,166 +180,6 @@ namespace ContextFreeGrammar
             {
                 int symbolIndex = _nonterminalToIndex[entry.NonterminalSymbol];
                 _gotoTable[entry.SourceState, symbolIndex - 1] = entry.TargetState;
-            }
-        }
-
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public LrParser(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol>> states,
-            IEnumerable<TNonterminalSymbol> nonterminalSymbols,
-            IEnumerable<TTerminalSymbol> terminalSymbols,
-            IEnumerable<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>> transitions,
-            ProductionItemSet<TNonterminalSymbol> startState
-            )
-        {
-            _grammar = grammar;
-
-            _originalStates = states;
-
-            // no dead state, because we have explicit error action in ACTION table
-            // and state 0 is the canonical S' → S production LR(0) item set that can
-            // never be reached
-            _maxState = _originalStates.Count - 1;
-
-            // renaming all LR(0) item sets to integer states
-            var indexMap = new Dictionary<ProductionItemSet<TNonterminalSymbol>, int>(capacity: _maxState);
-            int stateIndex = 0;
-            foreach (ProductionItemSet<TNonterminalSymbol> state in _originalStates)
-            {
-                indexMap.Add(state, stateIndex);
-                stateIndex += 1;
-            }
-
-            // TODO: startState is really not needed
-            StartState = indexMap[startState];
-            if (StartState != 0)
-                throw new InvalidOperationException("The initial start state should be the first item set in the sequence");
-
-            // Grammar variables (nonterminals)
-            var indexToNonterminal = nonterminalSymbols.ToArray();
-            _nonterminalToIndex= new Dictionary<TNonterminalSymbol, int>();
-            for (int i = 0; i < indexToNonterminal.Length; i++)
-            {
-                _nonterminalToIndex[indexToNonterminal[i]] = i;
-            }
-
-            // Grammar tokens (terminals)
-            var indexToTerminal = terminalSymbols.ToArray();
-            _terminalToIndex= new Dictionary<TTerminalSymbol, int>();
-            for (int i = 0; i < indexToTerminal.Length; i++)
-            {
-                _terminalToIndex[indexToTerminal[i]] = i;
-            }
-
-            // If EOF ($) is not defined as a valid token then we define it
-            if (!_terminalToIndex.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-            {
-                _terminalToIndex[Symbol.Eof<TTerminalSymbol>()] = indexToTerminal.Length;
-            }
-
-            _actionTable = new LrAction[_maxState + 1, _terminalToIndex.Count];
-
-            // The augmented start variable S' can be excluded from the GOTO table,
-            // and we therefore add one less nonterminal symbols to the GOTO table
-            _gotoTable = new int[_maxState + 1, _nonterminalToIndex.Count - 1];
-
-            //
-            //
-            // TODO: ComputeParsingTable method should be factored out of parsing table type
-            // TODO: kan det goeres smartere uden foerst at danne transition triple array
-            //
-            //
-
-            // NOTE: Important that shift actions are configured before reduce actions (conflict resolution)
-
-            // Shift and Goto actions (directly from the transitions of the LR(0) automaton).
-            // TODO: My guess is these are the same across all LR methods????!!!!????
-            foreach (var move in transitions)
-            {
-                int source = indexMap[move.SourceState];
-                int target = indexMap[move.TargetState];
-
-                if (move.Label.IsTerminal)
-                {
-                    // If A → α•aβ is in LR(0) item set, where a is a terminal symbol
-                    var a = (TTerminalSymbol) move.Label;
-                    var symbolIndex = _terminalToIndex[a];
-                    _actionTable[source, symbolIndex] = LrAction.Shift(target);
-                }
-                else
-                {
-                    // If A → α•Xβ is in LR(0) item set, where X is a nonterminal symbol
-                    var X = (TNonterminalSymbol) move.Label;
-                    int symbolIndex = _nonterminalToIndex[X];
-                    _gotoTable[source, symbolIndex - 1] = target;
-                }
-            }
-
-            // Reduce actions differ between different LR methods (SLR strategy uses FOLLOW(A) below)
-            // TODO: My guess is these differ between different LR methods????!!!!????
-            foreach (ProductionItemSet<TNonterminalSymbol> itemSet in _originalStates)
-            {
-                // If A → α• is in LR(0) item set, then set action[s, a] to 'reduce A → α•' (where A is not S')
-                // for all a in T               (LR(0) table)
-                // for all a in FOLLOW(A)       (SLR(1) table)
-                if (itemSet.IsReduceAction)
-                {
-                    foreach (ProductionItem<TNonterminalSymbol> reduceItem in
-                             itemSet.ReduceItems.OrderBy(item => item.ProductionIndex)) // choose reductions with lowest index
-                    {
-                        var state = indexMap[itemSet];
-
-                        // LR(0) grammar rule
-                        //foreach (var terminal in grammar.Terminals)
-                        // SLR(1) grammar rule
-                        foreach (var terminal in grammar.FOLLOW(reduceItem.Production.Head))
-                        {
-                            var symbolIndex = _terminalToIndex[terminal];
-                            var reduceAction = LrAction.Reduce(reduceItem.ProductionIndex);
-                            // error is the default action, and not an error will indicate a conflict
-                            if (!_actionTable[state, symbolIndex].IsError)
-                            {
-                                // report diagnostic for the found shift/reduce or reduce/reduce conflict
-                                if (_conflictTable.ContainsKey((state, terminal)))
-                                {
-                                    _conflictTable[(state, terminal)] = _conflictTable[(state, terminal)]
-                                        .WithAction(reduceAction);
-                                }
-                                else
-                                {
-                                    _conflictTable.Add((state, terminal), new LrConflict<TTerminalSymbol>(
-                                        state,
-                                        terminal,
-                                        new[]
-                                        {
-                                            _actionTable[state, symbolIndex],   // existing (shift or reduce) action
-                                            reduceAction                        // reduce action
-                                        }));
-                                }
-
-                                // choose the shift action (for any shift/reduce conflicts), or choose the reduce action
-                                // with the lowest index (for any reduce/reduce conflicts), by ignoring to put the reduce action in
-                                // the table (Yacc, Happy etc. all choose this strategy for resolving conflicts)
-                            }
-                            else
-                            {
-                                _actionTable[state, symbolIndex] = reduceAction;
-                            }
-                        }
-                    }
-                }
-
-                // If S' → S• is in LR(0) item set, then set action[s, $] to accept
-                if (itemSet.IsAcceptAction)
-                {
-                    // NOTE: Only if the grammar is augmented with S' → S$ (i.e. EOF marker added
-                    // to augmented rule) then we can be sure that the accept action item set has
-                    // the EOF marked symbol ($) as the spelling property.
-                    //      Debug.Assert(itemSet.SpellingSymbol.Equals(Symbol.Eof<TTerminalSymbol>()));
-                    int eofIndex = _terminalToIndex[Symbol.Eof<TTerminalSymbol>()];
-                    _actionTable[indexMap[itemSet], eofIndex] = LrAction.Accept; // we cannot have a conflict here
-                }
             }
         }
 
@@ -390,6 +233,7 @@ namespace ContextFreeGrammar
         public IEnumerable<LrConflict<TTerminalSymbol>> Conflicts => _conflictTable.Values;
     }
 
+    // TODO: Use this on the ParsingTable/Parser class
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public enum LrParserKind
     {

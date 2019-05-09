@@ -484,8 +484,8 @@ namespace ContextFreeGrammar
         {
             // NOTE: These are all synonyms for what machine we are building here
             //          - 'characteristic strings' recognizer
-            //          - 'viable prefix' recognizer
-            //          - 'handle' recognizer
+            //          - 'viable prefix' recognizer  (αβ is the viable prefix on top of the the stack)
+            //          - 'handle' recognizer         (β is the handle on top of the stack)
             //          - LR(0) automaton
 
             if (Productions.Count == 0)
@@ -722,7 +722,7 @@ namespace ContextFreeGrammar
         {
             ProductionItemSet<TNonterminalSymbol> startItemSet =
                 Closure(new ProductionItem<TNonterminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
-            // states/items er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
+            // states (aka LR(0) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
             var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol>>(startItemSet.AsSingletonEnumerable());
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol>>>();
 

@@ -32,7 +32,7 @@ namespace ContextFreeGrammar
 
         public override string ToString()
         {
-            return $"In state {State}: {Actions.ToVectorString()} on '{Symbol}'";
+            return $"State {State}: {Actions.ToVectorString()} on '{Symbol}'";
         }
     }
 }

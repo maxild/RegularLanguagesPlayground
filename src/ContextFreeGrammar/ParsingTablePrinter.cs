@@ -36,6 +36,8 @@ namespace ContextFreeGrammar
                     grammar.FOLLOW(variable).ToVectorString());
             }
             tableWriter.WriteFooter();
+
+            writer.WriteLine();
         }
 
         public static void PrintParsingTable<TNonterminalSymbol, TTerminalSymbol>(
