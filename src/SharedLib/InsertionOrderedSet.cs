@@ -43,6 +43,13 @@ namespace AutomataLib
 
         public int Count => _list.Count;
 
+        public T this[int index] => _list[index];
+
+        public int IndexOf(T item)
+        {
+            return _dictionary.TryGetValue(item, out var index) ? index : -1;
+        }
+
         public bool Add(T item)
         {
             if (_dictionary.ContainsKey(item)) return false;
@@ -120,11 +127,6 @@ namespace AutomataLib
         }
 
         // Compute hash code based on set contents, and cache it
-        public int IndexOf(T item)
-        {
-            return _dictionary.TryGetValue(item, out var index) ? index : -1;
-        }
-
         [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
         public override int GetHashCode()
         {
@@ -150,7 +152,5 @@ namespace AutomataLib
         {
             return this.ToVectorString();
         }
-
-        public T this[int index] => _list[index];
     }
 }

@@ -78,7 +78,8 @@ namespace ContextFreeGrammar
         public bool IsReduceAction => ReduceItems.Any(item => item.ProductionIndex > 0);
 
         /// <summary>
-        /// Goto or shift items (this is the core items of the GOTO function in dragon book)
+        /// Compute the successor goto items (for non-terminal label/symbol) and/or shift items
+        /// (for terminal label/symbol). This is the core items of the GOTO function in the dragon book.
         /// </summary>
         public ILookup<Symbol, ProductionItem<TNonterminalSymbol>> GetTargetItems()
         {

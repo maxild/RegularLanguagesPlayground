@@ -54,7 +54,7 @@ namespace CLI.TestDriver
             };
 
             // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -62,7 +62,7 @@ namespace CLI.TestDriver
 
             SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -92,7 +92,7 @@ namespace CLI.TestDriver
             };
 
             // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("DragonNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -100,7 +100,7 @@ namespace CLI.TestDriver
 
             SaveFile("DragonDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("DragonDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
 
@@ -133,7 +133,7 @@ namespace CLI.TestDriver
             };
 
             // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("DragonBookEx4_48_NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -141,7 +141,7 @@ namespace CLI.TestDriver
 
             SaveFile("DragonBookEx4_48_DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("DragonBookEx4_48_DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -164,7 +164,7 @@ namespace CLI.TestDriver
             };
 
             // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("NCG2.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -172,7 +172,7 @@ namespace CLI.TestDriver
 
             SaveFile("DCG2.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("DCG2Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -194,7 +194,7 @@ namespace CLI.TestDriver
             };
 
             // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("StanNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -202,7 +202,7 @@ namespace CLI.TestDriver
 
             SaveFile("StanDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("StanDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -229,7 +229,7 @@ namespace CLI.TestDriver
 
             };
 
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("StanShiftReduceConflictNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -237,7 +237,7 @@ namespace CLI.TestDriver
 
             SaveFile("StanShiftReduceConflictDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("StanShiftReduceConflictDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -264,7 +264,7 @@ namespace CLI.TestDriver
                 Symbol.V("V").GoesTo(Symbol.T('a'))
             };
 
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("StanReduceReduceConflictNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -272,7 +272,7 @@ namespace CLI.TestDriver
 
             SaveFile("StanReduceReduceConflictDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("StanReduceReduceConflictDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
@@ -295,7 +295,7 @@ namespace CLI.TestDriver
             };
 
             // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             SaveFile("DanglingNCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
@@ -303,7 +303,7 @@ namespace CLI.TestDriver
 
             SaveFile("DanglingDCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            var dfa2 = grammar.GetCharacteristicStringsDfa();
+            var dfa2 = grammar.GetLr0AutomatonDfa();
 
             SaveFile("DanglingDCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }

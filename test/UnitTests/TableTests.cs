@@ -1,5 +1,4 @@
 using AutomataLib;
-using AutomataLib.Tables;
 using ContextFreeGrammar;
 using Shouldly;
 using Xunit;
@@ -66,14 +65,21 @@ namespace UnitTests
                 Symbol.V("F").GoesTo(Symbol.T('a'))
             };
 
+            // Grammar is not LR(0)
+            grammar.ComputeLr0ParsingTable().AnyConflicts.ShouldBeTrue();
+
+            var parser = grammar.ComputeSlrParsingTable();
+
+            // Grammar is not SLR(1)
+            parser.AnyConflicts.ShouldBeFalse();
+
             var writer = new TestWriter();
 
-            grammar.ComputeLr0ParsingTable().PrintParsingTable(writer);
+            parser.PrintParsingTable(writer);
             writer.WriteLine();
             writer.WriteLine();
 
-            // TODO: Only works for SLR(1)...not for LR(0) table
-            grammar.ComputeSlrParsingTable().Parse("a*a+a", writer);
+            parser.Parse("a*a+a", writer);
         }
 
         [Fact]
@@ -93,12 +99,19 @@ namespace UnitTests
                 Symbol.V("T").GoesTo(Symbol.T('a'))
             };
 
-            var parser = grammar.ComputeSlrParsingTable();
+            var writer = new TestWriter();
 
-            // TODO: Grammar is SLR(1), but not LR(0)
-            parser.AnyConflicts.ShouldBeFalse();
+            // Grammar is LR(0)
+            var lr0Parser = grammar.ComputeLr0ParsingTable();
+            lr0Parser.AnyConflicts.ShouldBeFalse();
+            WriteLine("LR(0) table:");
+            lr0Parser.PrintParsingTable(writer);
 
-            parser.PrintParsingTable(new TestWriter());
+            // Grammar is SLR(1)
+            var slrParser = grammar.ComputeSlrParsingTable();
+            slrParser.AnyConflicts.ShouldBeFalse();
+            WriteLine("SLR(1) table:");
+            slrParser.PrintParsingTable(writer);
         }
 
         [Fact]
@@ -133,20 +146,28 @@ namespace UnitTests
             writer.WriteLine();
             writer.WriteLine();
 
-            var parser = grammar.ComputeSlrParsingTable();
+            var lr0Parser = grammar.ComputeLr0ParsingTable();
 
-            // TODO: The grammar is SLR(1), not LR(0)...we should compute parse tables for both in a DRY fashion
-            //parser.AnyConflicts.ShouldBeTrue();
+            // Grammar is not LR(0)
+            lr0Parser.AnyConflicts.ShouldBeTrue();
 
-            parser.PrintParsingTable(writer);
-            writer.WriteLine();
-            writer.WriteLine();
-
-            foreach (var conflict in parser.Conflicts)
+            foreach (var conflict in lr0Parser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {parser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
             }
+            writer.WriteLine();
+            writer.WriteLine();
+
+            var slrParser = grammar.ComputeSlrParsingTable();
+
+            // Grammar is SLR(1)
+            slrParser.AnyConflicts.ShouldBeFalse();
+
+            slrParser.PrintParsingTable(writer);
+            writer.WriteLine();
+            writer.WriteLine();
+
 
         }
 
@@ -182,21 +203,25 @@ namespace UnitTests
             writer.WriteLine();
             writer.WriteLine();
 
-            var parser = grammar.ComputeSlrParsingTable();
+            // Grammar is not LR(0)
+            grammar.ComputeLr0ParsingTable().AnyConflicts.ShouldBeTrue();
 
-            // TODO: The grammar is SLR(1), not LR(0)...we should compute parse tables for both in a DRY fashion
-            parser.AnyConflicts.ShouldBeTrue();
+            var slrParser = grammar.ComputeSlrParsingTable();
 
-            parser.PrintParsingTable(writer);
+            // The grammar is SLR(1)
+            slrParser.AnyConflicts.ShouldBeTrue();
+
+            slrParser.PrintParsingTable(writer);
             writer.WriteLine();
             writer.WriteLine();
 
-            foreach (var conflict in parser.Conflicts)
+            foreach (var conflict in slrParser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {parser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
             }
-
+            writer.WriteLine();
+            writer.WriteLine();
         }
     }
 }

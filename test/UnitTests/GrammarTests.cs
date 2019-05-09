@@ -138,7 +138,7 @@ namespace UnitTests
             grammar.IsReduced.ShouldBeTrue();
             grammar.IsAugmented.ShouldBeTrue();
 
-            //var characteristicStringsNfa = grammar.GetCharacteristicStringsNfa();
+            //var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
             // create states: Create DFA (epsilon-closure)
             //var characteristicStringsDfa = ...

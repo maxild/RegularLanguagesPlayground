@@ -79,6 +79,8 @@ namespace ContextFreeGrammar
             }
 
             gotoTableWriter.WriteFooter();
+
+            writer.WriteLine();
         }
     }
 }
