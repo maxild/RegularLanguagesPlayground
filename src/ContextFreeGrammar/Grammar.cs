@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -8,17 +7,6 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    /// <summary>
-    /// Simple textbook grammar, where tokens are single character letters
-    /// </summary>
-    public class Grammar : Grammar<Nonterminal, Terminal>
-    {
-        public Grammar(IEnumerable<Nonterminal> variables, IEnumerable<Terminal> terminals, Nonterminal startSymbol)
-            : base(variables, terminals, startSymbol)
-        {
-        }
-    }
-
     // First and Follow functions associated with a grammar G is important when conducting LL and
     // LR (SLR(1), LR(1), LALR(1)) parser, because the setting up of parsing table is aided by them
 
@@ -31,25 +19,39 @@ namespace ContextFreeGrammar
     // during the derivation, have been symbols between A and a, but if so, they derived ε and disappeared.
 
     /// <summary>
-    /// Context-free grammar (CFG)
+    /// Immutable context-free grammar (CFG) type.
     /// </summary>
-    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>, IEnumerable<Production<TNonterminalSymbol>>
+    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private readonly List<Production<TNonterminalSymbol>> _productions;
         private readonly Dictionary<TNonterminalSymbol, List<(int, Production<TNonterminalSymbol>)>> _productionMap;
 
-        private int _version;
-        private int _fixedPointVersion;
-
-        public Grammar(IEnumerable<TNonterminalSymbol> variables, IEnumerable<TTerminalSymbol> terminals, TNonterminalSymbol startSymbol)
+        public Grammar(
+            IEnumerable<TNonterminalSymbol> variables,
+            IEnumerable<TTerminalSymbol> terminals,
+            TNonterminalSymbol startSymbol,
+            IEnumerable<Production<TNonterminalSymbol>> productions)
         {
-            _productions = new List<Production<TNonterminalSymbol>>();              // insertion ordered list
-            Variables = new InsertionOrderedSet<TNonterminalSymbol>(variables);     // insertion ordered set
-            Terminals = new Set<TTerminalSymbol>(terminals);                        // unordered set
-            StartSymbol = startSymbol;
+            if (variables == null) throw new ArgumentNullException(nameof(variables));
+            if (terminals == null) throw new ArgumentNullException(nameof(terminals));
+            if (productions == null) throw new ArgumentNullException(nameof(productions));
+
+            Variables = new InsertionOrderedSet<TNonterminalSymbol>(variables);
+            Terminals = new Set<TTerminalSymbol>(terminals);
+            StartSymbol = startSymbol ?? throw new ArgumentNullException(nameof(startSymbol));
+
+            _productions = new List<Production<TNonterminalSymbol>>();
             _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
+
+            int index = 0;
+            foreach (var production in productions)
+            {
+                _productions.Add(production);
+                _productionMap[production.Head].Add((index, production));
+                index += 1;
+            }
         }
 
         /// <summary>
@@ -103,29 +105,6 @@ namespace ContextFreeGrammar
         /// The start symbol.
         /// </summary>
         public TNonterminalSymbol StartSymbol { get; }
-
-        public void Add(Production<TNonterminalSymbol> production)
-        {
-            if (production == null)
-            {
-                throw new ArgumentNullException(nameof(production));
-            }
-
-            if (!_productionMap.ContainsKey(production.Head))
-            {
-                throw new ArgumentException($"The production {production} cannot be added, because the head of the production {production.Head} has not been defined to be variable (nonterminal symbol) of the grammar.");
-            }
-
-            if (production.IsNotEpsilon && !production.Tail.All(symbol => Symbols.Contains(symbol)))
-            {
-                throw new ArgumentException($"The production {production} cannot bed added, because some of the RHS symbols has not been defined to be symbols of the grammar.");
-            }
-
-            int index = _productions.Count;
-            _productions.Add(production);
-            _productionMap[production.Head].Add((index, production));
-            _version += 1;
-        }
 
         /// <summary>
         /// Does the production P(i) derive the empty string such that the nonterminal (LHS) can be erased.
@@ -197,7 +176,7 @@ namespace ContextFreeGrammar
         {
             get
             {
-                if (_nullable == null || _fixedPointVersion != _version)
+                if (_nullable == null)
                     ComputeNullableAndFirstAndFollow();
 
                 return _nullable;
@@ -210,7 +189,7 @@ namespace ContextFreeGrammar
         {
             get
             {
-                if (_first == null || _fixedPointVersion != _version)
+                if (_first == null)
                     ComputeNullableAndFirstAndFollow();
 
                 return _first;
@@ -222,7 +201,7 @@ namespace ContextFreeGrammar
         {
             get
             {
-                if (_follow == null || _fixedPointVersion != _version)
+                if (_follow == null)
                     ComputeNullableAndFirstAndFollow();
 
                 return _follow;
@@ -375,18 +354,17 @@ namespace ContextFreeGrammar
             }
         }
 
-        public void ComputeNullableAndFirstAndFollow()
+        private void ComputeNullableAndFirstAndFollow()
         {
             var (nullableMap, firstMap, followMap) = ComputeFollow();
             _nullable = nullableMap;
             _first = firstMap;
             _follow = followMap;
-            _fixedPointVersion = _version;
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        [SuppressMessage("ReSharper", "UnusedMember.Global")]
-        public void OldComputeNullableAndFirstAndFollow()
+        [SuppressMessage("ReSharper", "UnusedMember.Local")]
+        private void OldComputeNullableAndFirstAndFollow()
         {
             // we keep a separate nullable map, instead of adding epsilon to First sets
             var nullableMap = AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
@@ -467,7 +445,6 @@ namespace ContextFreeGrammar
             _nullable = nullableMap;
             _first = firstMap;
             _follow = followMap;
-            _fixedPointVersion = _version;
         }
 
         /// <summary>
@@ -799,16 +776,6 @@ namespace ContextFreeGrammar
             }
 
             return new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(closure);
-        }
-
-        public IEnumerator<Production<TNonterminalSymbol>> GetEnumerator()
-        {
-            return Productions.GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
 
         public override string ToString()

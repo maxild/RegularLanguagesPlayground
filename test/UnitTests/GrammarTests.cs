@@ -15,13 +15,16 @@ namespace UnitTests
             // 1: T → aTc
             // 2: R → ε
             // 3: R → bR
-            var grammar = new Grammar(Symbol.Vs("T", "R"), Symbol.Ts('a', 'b', 'c'), Symbol.V("T"))
-            {
-                Symbol.V("T").GoesTo(Symbol.V("R")),
-                Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.V("T"), Symbol.T('c')),
-                Symbol.V("R").GoesTo(Symbol.Epsilon),
-                Symbol.V("R").GoesTo(Symbol.T('b'), Symbol.V("R"))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("T", "R"))
+                .SetTerminalSymbols(Symbol.Ts('a', 'b', 'c'))
+                .SetStartSymbol(Symbol.V("T"))
+                .AndProductions(
+                    Symbol.V("T").GoesTo(Symbol.V("R")),
+                    Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.V("T"), Symbol.T('c')),
+                    Symbol.V("R").GoesTo(Symbol.Epsilon),
+                    Symbol.V("R").GoesTo(Symbol.T('b'), Symbol.V("R"))
+                );
 
             grammar.NULLABLE(Symbol.V("T")).ShouldBeTrue();
             grammar.NULLABLE(Symbol.V("R")).ShouldBeTrue();
@@ -43,19 +46,21 @@ namespace UnitTests
             // 5: F → (E)
             // 6: F → -T
             // 7: F → a
-            var grammar = new Grammar(Symbol.Vs("S", "E", "T", "F"),
-                                      Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker(),
-                                      Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                Symbol.V("T").GoesTo(Symbol.V("F")),
-                Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
-                Symbol.V("F").GoesTo(Symbol.T('a'))
-            };
+
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "F"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").GoesTo(Symbol.V("F")),
+                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
+                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                );
 
             // No ε-productions, no nullable symbols
             grammar.Variables.Each(symbol => grammar.NULLABLE(symbol).ShouldBeFalse());
@@ -90,19 +95,20 @@ namespace UnitTests
             // 5: F → (E)
             // 6: F → -T
             // 7: F → a
-            var grammar = new Grammar(Symbol.Vs("S", "E", "T", "F"),
-                Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker(),
-                Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                Symbol.V("T").GoesTo(Symbol.V("F")),
-                Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
-                Symbol.V("F").GoesTo(Symbol.T('a'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "F"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").GoesTo(Symbol.V("F")),
+                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
+                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                );
 
             grammar.FOLLOW(Symbol.V("E")).SetEquals(Symbol.Ts('+', ')').WithEofMarker()).ShouldBeTrue();
             grammar.FOLLOW(Symbol.V("T")).SetEquals(Symbol.Ts('+', '*', ')').WithEofMarker()).ShouldBeTrue();
@@ -122,12 +128,15 @@ namespace UnitTests
             // 0: S → E
             // 1: E → aEb
             // 2: E → ab
-            var grammar = new Grammar(Symbol.Vs("S", "E"), Symbol.Ts('a', 'b'), Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")),
-                Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
-                Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E"))
+                .SetTerminalSymbols(Symbol.Ts('a', 'b'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
+                );
 
             grammar.ToString().ShouldBe(@"0: S → E
 1: E → aEb

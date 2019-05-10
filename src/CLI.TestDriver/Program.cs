@@ -46,12 +46,15 @@ namespace CLI.TestDriver
             // 0: S → E
             // 1: E → aEb
             // 2: E → ab
-            var grammar = new Grammar(Symbol.Vs("S", "E"), Symbol.Ts('a', 'b'), Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")),
-                Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
-                Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E"))
+                .SetTerminalSymbols(Symbol.Ts('a', 'b'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
+                );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -77,19 +80,19 @@ namespace CLI.TestDriver
             // 4: T → F
             // 5: T → (E)
             // 6: T → a        (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
-            var grammar = new Grammar(
-                variables: Symbol.Vs("S", "E", "T", "F"),
-                terminals: Symbol.Ts('a', '+', '*', '(', ')'), //.WithEofMarker(),
-                startSymbol: Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")), //, Symbol.EofMarker),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                Symbol.V("T").GoesTo(Symbol.V("F")),
-                Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                Symbol.V("F").GoesTo(Symbol.T('a'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "F"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '*', '(', ')'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")), //, Symbol.EofMarker),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").GoesTo(Symbol.V("F")),
+                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -119,18 +122,18 @@ namespace CLI.TestDriver
             // 3: L → *R
             // 4: L → a        (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
             // 5: R → L
-            var grammar = new Grammar(
-                variables: Symbol.Vs("S'", "S", "L", "R"),
-                terminals: Symbol.Ts('a', '=', '*'),
-                startSymbol: Symbol.V("S'"))
-            {
-                Symbol.V("S'").GoesTo(Symbol.V("S")),
-                Symbol.V("S").GoesTo(Symbol.V("L"), Symbol.T('=') , Symbol.V("R")),
-                Symbol.V("S").GoesTo(Symbol.V("R")),
-                Symbol.V("L").GoesTo(Symbol.T('*'), Symbol.V("R")),
-                Symbol.V("L").GoesTo(Symbol.T('a')),
-                Symbol.V("R").GoesTo(Symbol.V("L"))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "L", "R"))
+                .SetTerminalSymbols(Symbol.Ts('a', '=', '*'))
+                .SetStartSymbol(Symbol.V("S'"))
+                .AndProductions(
+                    Symbol.V("S'").GoesTo(Symbol.V("S")),
+                    Symbol.V("S").GoesTo(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
+                    Symbol.V("S").GoesTo(Symbol.V("R")),
+                    Symbol.V("L").GoesTo(Symbol.T('*'), Symbol.V("R")),
+                    Symbol.V("L").GoesTo(Symbol.T('a')),
+                    Symbol.V("R").GoesTo(Symbol.V("L"))
+                );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -154,14 +157,17 @@ namespace CLI.TestDriver
             // 2: E → T
             // 3: T → T * a
             // 4: T → a
-            var grammar = new Grammar(Symbol.Vs("S", "E", "T"), Symbol.Ts('a', '+', '*'), Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.T('a')),
-                Symbol.V("T").GoesTo(Symbol.T('a'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '*'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.T('a')),
+                    Symbol.V("T").GoesTo(Symbol.T('a'))
+                );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -184,14 +190,17 @@ namespace CLI.TestDriver
             // 2: E → T
             // 3: T → (E)
             // 4: T → a
-            var grammar = new Grammar(Symbol.Vs("S", "E", "T"), Symbol.Ts('a', '+', '(', ')'), Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                Symbol.V("T").GoesTo(Symbol.T('a'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").GoesTo(Symbol.T('a'))
+                );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -215,19 +224,20 @@ namespace CLI.TestDriver
             // 3: T → (E)
             // 4: T → a          (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
             // 5: T → a[E]       (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
-            var grammar = new Grammar(Symbol.Vs("S", "E", "T"), Symbol.Ts('a', '+', '(', ')', '[', ']'), Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                Symbol.V("T").GoesTo(Symbol.T('a')),
-                // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
-                // because state 4 contains the following core items {T → a•, T → a•[E]}
-                Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
-                //
-
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '[', ']'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").GoesTo(Symbol.T('a')),
+                    // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
+                    // because state 4 contains the following core items {T → a•, T → a•[E]}
+                    Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
+                );
 
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
@@ -251,18 +261,21 @@ namespace CLI.TestDriver
             // 4: T → (E)
             // 5: T → a          (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
             // 6: V → a          (Dragon book has 'id' terminal here, but our model only supports single char tokens at the moment)
-            var grammar = new Grammar(Symbol.Vs("S", "E", "T", "V"), Symbol.Ts('a', '+', '(', ')', '='), Symbol.V("S"))
-            {
-                Symbol.V("S").GoesTo(Symbol.V("E")),
-                Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                Symbol.V("E").GoesTo(Symbol.V("T")),
-                // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
-                // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
-                Symbol.V("E").GoesTo(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
-                Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                Symbol.V("T").GoesTo(Symbol.T('a')),
-                Symbol.V("V").GoesTo(Symbol.T('a'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "V"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '='))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
+                    // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
+                    Symbol.V("E").GoesTo(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
+                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").GoesTo(Symbol.T('a')),
+                    Symbol.V("V").GoesTo(Symbol.T('a'))
+                );
 
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
@@ -285,14 +298,18 @@ namespace CLI.TestDriver
             // 3: E → 0
             // 4: E → 1
             // where tokens i (if), t (then), e (else)
-            var grammar = new Grammar(Symbol.Vs("S'", "S", "E"), Symbol.Ts('i', 't', 'e', '0', '1'), Symbol.V("S'"))
-            {
-                Symbol.V("S'").GoesTo(Symbol.V("S")),
-                Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S")),
-                Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S"), Symbol.T('e'), Symbol.V("S")),
-                Symbol.V("E").GoesTo(Symbol.T('0')),
-                Symbol.V("E").GoesTo(Symbol.T('0'))
-            };
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "E"))
+                .SetTerminalSymbols(Symbol.Ts('i', 't', 'e', '0', '1'))
+                .SetStartSymbol(Symbol.V("S'"))
+                .AndProductions(
+                    Symbol.V("S'").GoesTo(Symbol.V("S")),
+                    Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S")),
+                    Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S"), Symbol.T('e'),
+                        Symbol.V("S")),
+                    Symbol.V("E").GoesTo(Symbol.T('0')),
+                    Symbol.V("E").GoesTo(Symbol.T('0'))
+                );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
