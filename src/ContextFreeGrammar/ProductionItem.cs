@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -35,29 +36,59 @@ namespace ContextFreeGrammar
     /// of LR(0) items (a state of the DFA for the LR(0) automaton, aka configurating set of the LR parser) is called CLOSURE.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct ProductionItem<TNonterminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol>>, IFiniteAutomatonState
+    public struct ProductionItem<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>, IFiniteAutomatonState
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private string DebuggerDisplay => ToString();
         private const char DOT = '•'; // Bullet
 
         private readonly int _dotPosition;
 
-        public ProductionItem(Production<TNonterminalSymbol> production, int productionIndex, int dotPosition)
+        public ProductionItem(
+            Production<TNonterminalSymbol> production,
+            int productionIndex,
+            int dotPosition,
+            params TTerminalSymbol[] lookaheads)
+            : this(production, productionIndex, dotPosition, new InsertionOrderedSet<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
         {
+        }
+
+        public ProductionItem(
+            Production<TNonterminalSymbol> production,
+            int productionIndex,
+            int dotPosition,
+            IEnumerable<TTerminalSymbol> lookaheads = null)
+            : this(production, productionIndex, dotPosition, new InsertionOrderedSet<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
+        {
+        }
+
+        private ProductionItem(
+            Production<TNonterminalSymbol> production,
+            int productionIndex,
+            int dotPosition,
+            IReadOnlySet<TTerminalSymbol> lookaheads)
+        {
+            if (production == null)
+            {
+                throw new ArgumentNullException(nameof(production));
+            }
             if (dotPosition > production.Tail.Count)
             {
-                throw new ArgumentException();
+                throw new ArgumentException("Invalid dot position --- The marker cannot be shifted beyond the end of the production.");
             }
 
             Production = production;
             ProductionIndex = productionIndex;
             _dotPosition = dotPosition;
+            Lookaheads = lookaheads;
         }
 
         public Production<TNonterminalSymbol> Production { get; }
 
         public int ProductionIndex { get; }
+
+        public IReadOnlySet<TTerminalSymbol> Lookaheads { get; }
 
         /// <summary>
         /// Any item B → α.β where α is not ε (the empty string),
@@ -103,25 +134,42 @@ namespace ContextFreeGrammar
             return GetNextSymbol() as TSymbol;
         }
 
-        public ProductionItem<TNonterminalSymbol> GetNextItem() =>
-            new ProductionItem<TNonterminalSymbol>(Production, ProductionIndex, _dotPosition + 1);
+        // NOTE: we make a shallow copy of the read-only lookaheads set
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> GetNextItem() =>
+            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition + 1, Lookaheads);
 
-        public bool Equals(ProductionItem<TNonterminalSymbol> other)
+        public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other)
         {
-            return ProductionIndex == other.ProductionIndex && _dotPosition == other._dotPosition;
+            return Equals(other, ProductionItemComparison.Lr0ItemAndLookaheads);
+        }
+
+        public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other, ProductionItemComparison comparison)
+        {
+            switch (comparison)
+            {
+                case ProductionItemComparison.Lr0ItemOnly:
+                    return ProductionIndex == other.ProductionIndex && _dotPosition == other._dotPosition;
+                case ProductionItemComparison.LookaheadsOnly:
+                    return Lookaheads.SetEquals(other.Lookaheads);
+                case ProductionItemComparison.Lr0ItemAndLookaheads:
+                default:
+                    return ProductionIndex == other.ProductionIndex && _dotPosition == other._dotPosition && Lookaheads.SetEquals(other.Lookaheads);
+            }
         }
 
         public override bool Equals(object obj)
         {
-            if (!(obj is ProductionItem<TNonterminalSymbol>)) return false;
-            return Equals((ProductionItem<TNonterminalSymbol>) obj);
+            return obj is ProductionItem<TNonterminalSymbol, TTerminalSymbol> item && Equals(item);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return (ProductionIndex * 397) ^ _dotPosition;
+                var hashCode = _dotPosition;
+                hashCode = (hashCode * 397) ^ ProductionIndex;
+                hashCode = (hashCode * 397) ^ Lookaheads.GetHashCode();
+                return hashCode;
             }
         }
 
@@ -131,7 +179,8 @@ namespace ContextFreeGrammar
 
         public override string ToString()
         {
-            ProductionItem<TNonterminalSymbol> self = this;
+            ProductionItem<TNonterminalSymbol, TTerminalSymbol> self = this;
+
             StringBuilder dottedTail = self.Production.Tail
                 .Aggregate((i: 0, sb: new StringBuilder()),
                     (t, symbol) =>
@@ -140,6 +189,7 @@ namespace ContextFreeGrammar
                         {
                             t.sb.Append(DOT);
                         }
+
                         return (i: t.i + 1, sb: t.sb.Append(symbol.Name));
                     }).sb;
 
@@ -148,7 +198,16 @@ namespace ContextFreeGrammar
                 dottedTail.Append(DOT);
             }
 
-            return $"{Production.Head} → {dottedTail}";
+            return Lookaheads.Count == 0
+                ? $"{Production.Head} → {dottedTail}"
+                : $"[{Production.Head} → {dottedTail}, {string.Join("/", Lookaheads)}]";
         }
+    }
+
+    public enum ProductionItemComparison
+    {
+        Lr0ItemAndLookaheads = 0,
+        Lr0ItemOnly,
+        LookaheadsOnly
     }
 }

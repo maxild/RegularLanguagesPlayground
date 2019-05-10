@@ -72,7 +72,7 @@ namespace ContextFreeGrammar
         //              GOTO table errors = 0 value of type 'int'
         //              ACTION table errors = LrAction.Error value of type 'LrAction'
 
-        private readonly IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol>> _originalStates;
+        private readonly IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> _originalStates;
 
         private readonly Dictionary<TNonterminalSymbol, int> _nonterminalToIndex;
         //private readonly TNonterminalSymbol[] _indexToNonterminal;
@@ -89,7 +89,7 @@ namespace ContextFreeGrammar
 
         public LrParser(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol>> originalStates,
+            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> originalStates,
             IEnumerable<TNonterminalSymbol> nonterminalSymbols,
             IEnumerable<TTerminalSymbol> terminalSymbols,
             IEnumerable<LrActionEntry<TTerminalSymbol>> actionTableEntries,
@@ -193,7 +193,7 @@ namespace ContextFreeGrammar
         public IReadOnlyList<Production<TNonterminalSymbol>> Productions => _grammar.Productions;
 
         /// <inheritdoc />
-        public ProductionItemSet<TNonterminalSymbol> GetItems(int state)
+        public ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> GetItems(int state)
         {
             return _originalStates[state];
         }

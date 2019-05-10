@@ -47,7 +47,7 @@ namespace ContextFreeGrammar
         /// </summary>
         /// <param name="state">The integer state.</param>
         /// <returns>The LR(0) item set (aka items).</returns>
-        ProductionItemSet<TNonterminalSymbol> GetItems(int state);
+        ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> GetItems(int state);
 
         /// <summary>
         /// If the grammar is ambiguous, then we have found some conflicts in the parsing table.

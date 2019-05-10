@@ -14,22 +14,24 @@ namespace ContextFreeGrammar
     /// Thus each state except the initial state has a unique grammar symbol associated with it.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class ProductionItemSet<TNonterminalSymbol> : IEquatable<ProductionItemSet<TNonterminalSymbol>> //, IReadOnlySet<ProductionItem> TODO: Do we need IReadOnlySet support?
+    public class ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>
+        //, IReadOnlySet<ProductionItem> TODO: Do we need IReadOnlySet support?
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private string DebuggerDisplay => ClosureItems.Any()
             ? string.Concat(CoreItems.ToVectorString(), ":", ClosureItems.ToVectorString())
             : CoreItems.ToVectorString();
 
         // core items are always non-empty (the core items identifies the LR(0) item set)
-        private readonly HashSet<ProductionItem<TNonterminalSymbol>> _coreItems;
+        private readonly HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _coreItems;
         // closure items can be empty (and can BTW always be generated on the fly, but we store them to begin with)
-        private readonly List<ProductionItem<TNonterminalSymbol>> _closureItems;
+        private readonly List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _closureItems;
 
-        public ProductionItemSet(IEnumerable<ProductionItem<TNonterminalSymbol>> items)
+        public ProductionItemSet(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> items)
         {
-            _coreItems = new HashSet<ProductionItem<TNonterminalSymbol>>();
-            _closureItems = new List<ProductionItem<TNonterminalSymbol>>();
+            _coreItems = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
+            _closureItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
             foreach (var item in items)
             {
                 if (item.IsCoreItem)
@@ -46,26 +48,26 @@ namespace ContextFreeGrammar
         /// </summary>
         public Symbol SpellingSymbol => CoreItems.First().GetPrevSymbol(); // all core items have the same grammar symbol to the left of the dot
 
-        public IEnumerable<ProductionItem<TNonterminalSymbol>> Items => _coreItems.Concat(_closureItems);
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> Items => _coreItems.Concat(_closureItems);
 
         /// <summary>
         /// The partially parsed rules for a state are called its core LR(0) items.
         /// If we also call S′ → .S a core item, we observe that every state in the
         /// DFA is completely determined by its subset of core items.
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol>> CoreItems => _coreItems;
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> CoreItems => _coreItems;
 
         /// <summary>
         /// The closure items (obtained via ϵ-closure) do not determine the state of the LR(0) automaton,
         /// because they can all be forgotten about, and regenerated on the fly. All closure items have
         /// the dot at the beginning of the rule, and are therefore not parsed yet.
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol>> ClosureItems => _closureItems;
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ClosureItems => _closureItems;
 
         /// <summary>
         /// Reduce items (not including the first production S' → S of the augmented grammar)
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol>> ReduceItems => CoreItems.Where(item => item.IsReduceItem);
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => CoreItems.Where(item => item.IsReduceItem);
 
         /// <summary>
         /// Is this the item set containing the augmented reduce item (S' → S•).
@@ -81,27 +83,27 @@ namespace ContextFreeGrammar
         /// Compute the successor goto items (for non-terminal label/symbol) and/or shift items
         /// (for terminal label/symbol). This is the core items of the GOTO function in the dragon book.
         /// </summary>
-        public ILookup<Symbol, ProductionItem<TNonterminalSymbol>> GetTargetItems()
+        public ILookup<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetTargetItems()
         {
             return Items
                 .Where(item => !item.IsReduceItem)
                 .ToLookup(item => item.GetNextSymbol(), item => item.GetNextItem());
         }
 
-        public bool Equals(ProductionItemSet<TNonterminalSymbol> other)
+        // TODO
+        public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)
         {
             return other != null && _coreItems.SetEquals(other.CoreItems);
         }
 
-        public IEnumerator<ProductionItem<TNonterminalSymbol>> GetEnumerator()
+        public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()
         {
             return Items.GetEnumerator();
         }
 
         public override bool Equals(object obj)
         {
-            if (!(obj is ProductionItemSet<TNonterminalSymbol>)) return false;
-            return Equals((ProductionItemSet<TNonterminalSymbol>) obj);
+            return obj is ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> set && Equals(set);
         }
 
         public override int GetHashCode()

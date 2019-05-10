@@ -78,6 +78,7 @@ namespace AutomataLib
 
         class EndOfFileMarker : Terminal
         {
+            // TODO: Cannot use 'eof', because of Terminal limitation to single characters
             public EndOfFileMarker() : base('$')
             {
             }

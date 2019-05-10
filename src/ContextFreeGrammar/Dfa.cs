@@ -142,14 +142,14 @@ namespace ContextFreeGrammar
             int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
 
             // HACK: we special case two type of canonical LR(0) item sets to make graphviz images prettier
-            if (_originalStates[originalIndex] is ProductionItemSet<Nonterminal> itemSet)
+            if (_originalStates[originalIndex] is ProductionItemSet<Nonterminal, Terminal> itemSet)
             {
                 // LR(0) items separated by '\l', and core and closure items are separated by a newline
                 return itemSet.ClosureItems.Any()
                 ? string.Join(sep, itemSet.CoreItems) + "\\n" + sep + string.Join(sep, itemSet.ClosureItems) + sep
                 : string.Join(sep, itemSet.CoreItems) + sep;
             }
-            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem<Nonterminal>> itemSet2)
+            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem<Nonterminal, Terminal>> itemSet2)
             {
                 // LR(0) items separated by '\l' ('\l' in dot language makes the preceding text left aligned in Graphviz tool)
                 return string.Join(sep, itemSet2) + sep;
