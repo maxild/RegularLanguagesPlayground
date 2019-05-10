@@ -12,6 +12,11 @@ namespace ContextFreeGrammar
             yield return item;
         }
 
+        public static IEnumerable<T> ConcatItem<T>(this IEnumerable<T> items, T item)
+        {
+            return  items.Concat(item.AsSingletonEnumerable());
+        }
+
         public static bool Many<TSource>(this IEnumerable<TSource> source) {
             if (source == null) throw new ArgumentNullException(nameof(source));
             int c = 0;

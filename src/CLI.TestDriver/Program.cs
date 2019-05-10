@@ -13,13 +13,14 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            DragonBookEx4_48();
+            //DragonBookEx4_48();
             //StanfordShiftReduceConflictGrammar();
             //StanfordReduceReduceConflictGrammar();
             //ExprGrammarStanfordNotesOnBottomUpParsing();
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             //ExprGrammarCh4DragonBook();
-            //ToyExampleGrammarFromGallierNotesOnLrParsing();
+            //ToyExampleGrammarFromGallierNotesOnLr0Parsing();
+            ToyExampleGrammarFromGallierNotesOnLr1Parsing();
             //ExprGrammarGallierNotesOnLrParsing();
             //CourseExercise();
 
@@ -34,7 +35,36 @@ namespace CLI.TestDriver
         // Context-Free languages, CFG and LR Parsing
         //
 
-        public static void ToyExampleGrammarFromGallierNotesOnLrParsing()
+        public static void ToyExampleGrammarFromGallierNotesOnLr1Parsing()
+        {
+            // 0: S → E
+            // 1: E → aEb
+            // 2: E → ε
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E"))
+                .SetTerminalSymbols(Symbol.Ts('a', 'b'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").GoesTo(Symbol.V("E")),
+                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                    Symbol.V("E").GoesTo(Symbol.Epsilon)
+                );
+
+            // Create NFA (digraph of items labeled by symbols)
+            var characteristicStringsNfa = grammar.GetLr1AutomatonNfa();
+
+            SaveFile("NCG1.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+
+            var dfa = characteristicStringsNfa.ToDfa();
+
+            SaveFile("DCG1.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            //var dfa2 = grammar.GetLr1AutomatonDfa();
+
+            //SaveFile("DCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+        }
+
+        public static void ToyExampleGrammarFromGallierNotesOnLr0Parsing()
         {
             // Augmented Grammar (assumed reduced, i.e. no useless symbols).
             //
@@ -59,16 +89,17 @@ namespace CLI.TestDriver
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
-            SaveFile("NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+            SaveFile("NCG0.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
             var dfa = characteristicStringsNfa.ToDfa();
 
-            SaveFile("DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+            SaveFile("DCG0.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling: true));
 
             var dfa2 = grammar.GetLr0AutomatonDfa();
 
-            SaveFile("DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+            SaveFile("DCG0Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling: true));
         }
+
 
         public static void ExprGrammarCh4DragonBook()
         {

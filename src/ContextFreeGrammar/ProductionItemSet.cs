@@ -90,10 +90,25 @@ namespace ContextFreeGrammar
                 .ToLookup(item => item.GetNextSymbol(), item => item.GetNextItem());
         }
 
-        // TODO
         public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)
         {
-            return other != null && _coreItems.SetEquals(other.CoreItems);
+            return Equals(other, ProductionItemComparison.Lr0ItemAndLookaheads);
+        }
+
+        // TODO: all comparison values will compare both fields (dotted production, lookahead) in every core item
+        public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other, ProductionItemComparison comparison)
+        {
+            if (other == null) return false;
+            switch (comparison)
+            {
+                case ProductionItemComparison.Lr0ItemOnly:
+                    return _coreItems.SetEquals(other.CoreItems);
+                case ProductionItemComparison.LookaheadsOnly:
+                    return _coreItems.SetEquals(other.CoreItems);
+                case ProductionItemComparison.Lr0ItemAndLookaheads:
+                default:
+                    return _coreItems.SetEquals(other.CoreItems);
+            }
         }
 
         public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()

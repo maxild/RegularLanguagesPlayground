@@ -25,15 +25,45 @@ namespace ContextFreeGrammar
 
     // TODO: 1) Build Lr1AutomataDFA, 2) Build paring table using modified SLR(1) algorithm where FOLLOW(A) is substituted by the Lookahead set
     // TODO: Again we have 2 ways to build LR(1) automaton: NFA -> DFA or directly
+
+    //--------------------------------------------------------------------------------------------------
+    // Goal: Recognize substrings of grammar symbols that can appear on the stack. The stack contents
+    //       must be a prefix (called a viable prefix) of some right sentential form. If stack holds 𝛿αβ,
+    //       and the remaining input is v, then 𝛿αβ can be reduced to S' in one or more reductions.
+    //
+    // LR(0) item A → α•β is valid for a viable prefix 𝛿α, if there is a rightmost derivation
+    //
+    //      S' *⇒ 𝛿Av ⇒ 𝛿αβv,    where v in Pow(T) (v has only terminal symbols)
+    //
+    // LR(1) item [A → α•β, b] is valid for a viable prefix 𝛿α, if there is a rightmost derivation
+    //
+    //      S' *⇒ 𝛿Av ⇒ 𝛿αβv,    where v in Pow(T) (v has only terminal symbols)
+    // and
+    //      v = bw    or    (v = ε and b = $)       (LR(1)-lookahead definition)
+    //
+    // LR(1)-lookahead definition: b is the first symbol in v, or b is $ (eof), if v is the empty string
+    //
+    // NOTE: Parser will not shift passed the handle (αβ), and therefore we will recognize rightmost handles.
+    //
+    // The set of LR(0)-characteristic strings (completed items == accept states of DFA)
+    //
+    //    CG0 = {𝛿β ∈ Pow(V) | S′ ∗⇒ 𝛿Av ⇒ 𝛿βv, 𝛿β ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols)
+    //
+    // The set of LR(1)-characteristic strings (completed items == accept states of DFA)
+    //
+    //    CG1 = {𝛿β ∈ Pow(V) | S′ ∗⇒ 𝛿Av ⇒ 𝛿βv, 𝛿β ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols)
+    //          where each item is carrying lookahead symbol for follow-condition on reductions
+    //--------------------------------------------------------------------------------------------------
+
     /// <summary>
-    /// The LR(0) item used as a building block in Donald Knuth's LR(0) Automaton. An LR(0) item is a dotted production rule,
+    /// The LR(k) item used as a building block in Donald Knuth's LR(k) Automaton. An LR(k) item is a dotted production rule,
     /// where everything to the left of the dot has been shifted onto the parsing stack and the next input token is in the
     /// FIRST set of the symbol following the dot (or in the FOLLOW set, if the next symbol is nullable). A dot at the right
     /// end indicates that we have shifted all RHS symbols onto the stack (i.e. we have recognized a handle), and that we can
-    /// reduce that handle. A dot in the middle of the LR(0) item indicates that to continue further we need to shift a token
+    /// reduce that handle. A dot in the middle of the LR(k) item indicates that to continue further we need to shift a token
     /// that could start the symbol following the dot onto the stack. For example if the symbol following the dot is a nonterminal A
-    /// then we want to shift something in FIRST(A) onto the stack. The action of adding equivalent LR(0) items to create a set
-    /// of LR(0) items (a state of the DFA for the LR(0) automaton, aka configurating set of the LR parser) is called CLOSURE.
+    /// then we want to shift something in FIRST(A) onto the stack. The action of adding equivalent LR(k) items to create a set
+    /// of LR(k) items (a state of the DFA for the LR(k) automaton) is called CLOSURE.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct ProductionItem<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>, IFiniteAutomatonState
@@ -88,29 +118,37 @@ namespace ContextFreeGrammar
 
         public int ProductionIndex { get; }
 
-        public IReadOnlySet<TTerminalSymbol> Lookaheads { get; }
+        /// <summary>
+        /// The value(s) of the lookahead (b) that can follow the recognized handle (α) of a recognized
+        /// completed item [A → α•, b] on the stack. The parser will only perform the the reduction and pop
+        /// |α| symbols off the stack, and push (GOTO(s, A)) if the lookahead is equal to 'b. The lookahead
+        /// part of the LR item is only used for LR(1) items. LR(0) items do not carry any lookahead, and
+        /// therefore the set is empty for LR(0) items.
+        /// </summary>
+        public IReadOnlySet<TTerminalSymbol> Lookaheads { get; } // TODO: maybe just single item??? empty, singleton, merged
 
         /// <summary>
-        /// Any item B → α.β where α is not ε (the empty string),
-        /// or the start rule S' → .S item (of the augmented grammar that
+        /// Any item B → α•β where α is not ε (the empty string),
+        /// or the start rule S' → •S item (of the augmented grammar that
         /// is the first production of index zero by convention). That is
-        /// the initial item S' → .S, and all items where the dot is not at the left end.
+        /// the initial item S' → •S, and all items where the dot is not at the left end.
         /// </summary>
         public bool IsCoreItem => _dotPosition > 0 || ProductionIndex == 0;
 
         /// <summary>
-        /// Any item A → α. where the dot is at the right end (accepting state, where
-        /// we have recognized a viable prefix, and therefore a handle)
+        /// Is this item a completed item on the form A → α•, where the dot have been shifted
+        /// all the way to the end of the production (a completed item is an accepting state,
+        /// where we have recognized a handle)
         /// </summary>
         public bool IsReduceItem => _dotPosition == Production.Tail.Count;
 
         /// <summary>
-        /// B → α.Xβ (X is a nonterminal symbol)
+        /// B → α•Xβ (where X is a nonterminal symbol)
         /// </summary>
         public bool IsGotoItem => _dotPosition < Production.Tail.Count && Production.Tail[_dotPosition].IsNonTerminal;
 
         /// <summary>
-        /// B → α.aβ (a is a terminal symbol)
+        /// B → α•aβ (where a is a terminal symbol)
         /// </summary>
         public bool IsShiftItem => _dotPosition < Production.Tail.Count && Production.Tail[_dotPosition].IsTerminal;
 
@@ -124,18 +162,38 @@ namespace ContextFreeGrammar
         /// </summary>
         public Symbol GetNextSymbol() => _dotPosition < Production.Tail.Count ? Production.Tail[_dotPosition] : null;
 
+        /// <summary>
+        /// Get the symbol after the dot.
+        /// </summary>
         public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol
         {
             return (TSymbol) GetNextSymbol();
         }
 
+        /// <summary>
+        /// Get the symbol after the dot.
+        /// </summary>
         public TSymbol GetNextSymbolAs<TSymbol>() where TSymbol : Symbol
         {
             return GetNextSymbol() as TSymbol;
         }
 
-        // NOTE: we make a shallow copy of the read-only lookaheads set
+        /// <summary>
+        /// Get the remaining symbols after the dot.
+        /// </summary>
+        public IEnumerable<Symbol> GetRemainingSymbols()
+        {
+            for (int i = _dotPosition; i < Production.Length; i++)
+            {
+                yield return Production.Tail[i];
+            }
+        }
+
+        /// <summary>
+        /// Get the successor item of a shift/goto action created by 'shifting the dot'.
+        /// </summary>
         public ProductionItem<TNonterminalSymbol, TTerminalSymbol> GetNextItem() =>
+            // NOTE: we make a shallow copy of the read-only lookaheads set
             new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition + 1, Lookaheads);
 
         public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other)

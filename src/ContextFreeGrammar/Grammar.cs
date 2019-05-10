@@ -52,6 +52,11 @@ namespace ContextFreeGrammar
                 _productionMap[production.Head].Add((index, production));
                 index += 1;
             }
+
+            if (_productions.Count == 0)
+            {
+                throw new ArgumentException("The productions are empty.", nameof(productions));
+            }
         }
 
         /// <summary>
@@ -135,26 +140,18 @@ namespace ContextFreeGrammar
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FIRST(int productionIndex)
         {
-            // cannot use Variable on LHS, because it relates to many rules
-            //return First[Productions[productionIndex].Head];
+            return FIRST(Productions[productionIndex].Tail);
+        }
 
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public IReadOnlySet<TTerminalSymbol> FIRST(IEnumerable<Symbol> symbols)
+        {
             var first = new Set<TTerminalSymbol>();
-            var production = Productions[productionIndex];
-
-            // For each RHS symbol in production X → Y1 Y2...Yn
-            for (var i = 0; i < production.Length; i++)
+            foreach (var symbol in symbols)
             {
-                // X → Y1 Y2...Yn
-                Symbol Yi = production.Tail[i];
-
-                // If all symbols Y1 Y2...Y(i-1) preceding Yi is nullable,
-                if (i == 0 || production.Tail.Take(i).All(NULLABLE))
-                {
-                    // then add First(Yi) to First(X)
-                    first.AddRange(FIRST(Yi)); // NOTE: not a recursive call
-                }
+                first.AddRange(FIRST(symbol));
+                if (!NULLABLE(symbol)) break;
             }
-
             return first;
         }
 
@@ -465,11 +462,6 @@ namespace ContextFreeGrammar
             //          - 'handle' recognizer         (β is the handle on top of the stack)
             //          - LR(0) automaton
 
-            if (Productions.Count == 0)
-            {
-                throw new InvalidOperationException("The grammar has no productions.");
-            }
-
             if (!IsAugmented)
             {
                 throw new InvalidOperationException("The grammar should be augmented with canonical S' → S production.");
@@ -537,20 +529,87 @@ namespace ContextFreeGrammar
             return new Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol>(transitions, startItem, acceptItems);
         }
 
-        /// <summary>
-        /// Get NFA representation of the set of characteristic strings (aka viable prefixes) that are defined by
-        /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
-        /// and ⇒ is the right-most derivation relation. CG is the set of viable prefixes containing all prefixes (αβ)
-        /// of right sentential forms (αβv) that can appear on the stack of a shift/reduce parser,
-        /// i.e. prefixes of right sentential forms that do not extend past the end of the right-most handle
-        /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
-        /// right sentential form where the substring β can be found).
-        /// </summary>
+        // TODO: Make it DRY between LR(0) and LR(1)...compare with method above
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonNfa()
         {
-            // TODO
-            return null;
+            if (!IsAugmented)
+            {
+                throw new InvalidOperationException("The grammar should be augmented with canonical S' → S production.");
+            }
+
+            if (!IsReduced)
+            {
+                throw new InvalidOperationException("The grammar contains useless symbols.");
+            }
+
+            // The start state is [S' → •S, $]
+            var startItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Productions[0], 0, 0, Symbol.Eof<TTerminalSymbol>());
+            var transitions = new List<Transition<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>>();
+            var acceptItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
+
+            // (a) For every terminal a in T, if [A → α•aβ, b] is a marked production, then
+            //     there is a transition on input a from state [A → α•aβ, b] to state [A → αa•β, b]
+            //     obtained by "shifting the dot" (where a = b is possible)
+            // (b) For every variable B in V, if [A → α•Bβ, b] is a marked production, then
+            //     there is a transition on input B from state [A → α•Bβ, b] to state [A → αB•β, b]
+            //     obtained by "shifting the dot", and transitions on input ε (the empty string)
+            //     to all states [B → •γ, a], for all productions B → γ in P with left-hand side B
+            //     and a in FIRST(βb).
+            int productionIndex = 0;
+            foreach (var production in Productions)
+            {
+                // TODO:
+                // BUG work here...
+                // determine lookahead
+
+
+                for (int dotPosition = 0; dotPosition <= production.Tail.Count; dotPosition += 1)
+                {
+                    // (productionIndex, dotPosition) is identifier
+                    var item = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(production, productionIndex, dotPosition);
+
+                    // (a) [A → α•aβ, b] --a--> [A → αa•β, b]
+                    if (item.IsShiftItem)
+                    {
+                        Symbol a = item.GetNextSymbol<Terminal>();
+                        var shiftToItem = item.GetNextItem();
+                        transitions.Add(Transition.Move(item, a, shiftToItem));
+                    }
+
+                    // (b) [A → α•Bβ, b] (with new CLOSURE function, because of lookahead)
+                    if (item.IsGotoItem)
+                    {
+                        var B = item.GetNextSymbol<TNonterminalSymbol>();
+                        var goToItem = item.GetNextItem();
+                        transitions.Add(Transition.Move(item, (Symbol)B, goToItem));
+
+                        // closure items
+                        foreach (var (index, productionOfB) in _productionMap[B])
+                        {
+                            // Expecting to see nonterminal 'B' followed by lookahead symbol 'b' of [A → α•Bβ, b]
+                            // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
+                            // symbol 'a' of [B → γ, a], where 'a' is in FIRST(βb) and 'B → γ' is a production in P.
+                            Symbol b = item.Lookaheads.Single();
+                            foreach (TTerminalSymbol a in FIRST(item.GetRemainingSymbols().ConcatItem(b)))
+                            {
+                                var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(productionOfB, index, 0, a);
+                                transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(item, closureItem));
+                            }
+                        }
+                    }
+
+                    // (c) [A → β•, b] completed item with dot in rightmost position
+                    if (item.IsReduceItem)
+                    {
+                        acceptItems.Add(item);
+                    }
+                }
+
+                productionIndex += 1;
+            }
+
+            return new Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol>(transitions, startItem, acceptItems);
         }
 
         /// <summary>
@@ -564,9 +623,6 @@ namespace ContextFreeGrammar
         /// </summary>
         public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonDfa()
         {
-            // TODO: GetLr0AutomatonDfa and ComputeSlrParsingTable have the same routine for building the
-            //          canonical LR(0) collection of LR(0) item sets (states)
-            //          transitions
             var (states, transitions) = ComputeLr0AutomatonData();
 
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
