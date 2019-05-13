@@ -117,8 +117,7 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            // TODO: maybe string.empty is better for epsilon
-            return "(" + SourceState + "," + (IsEpsilon ? "ε" : Label + ",") + TargetState + ")"; // tuple format
+            return "(" + SourceState + "," + (IsEpsilon ? "ε," : Label + ",") + TargetState + ")"; // tuple format
         }
     }
 
@@ -161,8 +160,7 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            // TODO: maybe string.empty is better for epsilon
-            return (IsEpsilon ? "(ε" : "(" + Label + ",") + TargetState + ")"; // tuple format
+            return (IsEpsilon ? "(ε," : "(" + Label + ",") + TargetState + ")"; // tuple format
         }
     }
 
@@ -205,7 +203,6 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            // TODO: maybe string.empty is better for epsilon
             return "(" + SourceState + (IsEpsilon ? ",ε)" : "," + Label + ")"); // tuple format
         }
     }

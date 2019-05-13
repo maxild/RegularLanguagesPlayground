@@ -20,10 +20,10 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', 'b', 'c'))
                 .SetStartSymbol(Symbol.V("T"))
                 .AndProductions(
-                    Symbol.V("T").GoesTo(Symbol.V("R")),
-                    Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.V("T"), Symbol.T('c')),
-                    Symbol.V("R").GoesTo(Symbol.Epsilon),
-                    Symbol.V("R").GoesTo(Symbol.T('b'), Symbol.V("R"))
+                    Symbol.V("T").Derives(Symbol.V("R")),
+                    Symbol.V("T").Derives(Symbol.T('a'), Symbol.V("T"), Symbol.T('c')),
+                    Symbol.V("R").Derives(Symbol.Epsilon),
+                    Symbol.V("R").Derives(Symbol.T('b'), Symbol.V("R"))
                 );
 
             grammar.NULLABLE(Symbol.V("T")).ShouldBeTrue();
@@ -52,14 +52,14 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                    Symbol.V("T").GoesTo(Symbol.V("F")),
-                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
-                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E"), Symbol.EofMarker),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").Derives(Symbol.V("F")),
+                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").Derives(Symbol.T('-'), Symbol.V("T")),
+                    Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
             // No ε-productions, no nullable symbols
@@ -100,14 +100,14 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                    Symbol.V("T").GoesTo(Symbol.V("F")),
-                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
-                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E"), Symbol.EofMarker),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").Derives(Symbol.V("F")),
+                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").Derives(Symbol.T('-'), Symbol.V("T")),
+                    Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
             grammar.FOLLOW(Symbol.V("E")).SetEquals(Symbol.Ts('+', ')').WithEofMarker()).ShouldBeTrue();
@@ -133,9 +133,9 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', 'b'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
-                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                    Symbol.V("E").Derives(Symbol.T('a'), Symbol.T('b'))
                 );
 
             grammar.ToString().ShouldBe(@"0: S → E

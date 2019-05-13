@@ -29,14 +29,14 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E"), Symbol.EofMarker),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                    Symbol.V("T").GoesTo(Symbol.V("F")),
-                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("F").GoesTo(Symbol.T('-'), Symbol.V("T")),
-                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E"), Symbol.EofMarker),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").Derives(Symbol.V("F")),
+                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").Derives(Symbol.T('-'), Symbol.V("T")),
+                    Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
             grammar.PrintFirstAndFollowSets(new TestWriter());
@@ -58,13 +58,13 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '*', '(', ')'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")), //, Symbol.EofMarker),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                    Symbol.V("T").GoesTo(Symbol.V("F")),
-                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E")), //, Symbol.EofMarker),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").Derives(Symbol.V("F")),
+                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
             // Grammar is not LR(0)
@@ -97,11 +97,11 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("T").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").Derives(Symbol.T('a'))
                 );
 
             var writer = new TestWriter();
@@ -133,14 +133,14 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '[', ']'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("T").GoesTo(Symbol.T('a')),
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").Derives(Symbol.T('a')),
                     // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
                     // because state 4 contains the following core items {T → a•, T → a•[E]}
-                    Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
+                    Symbol.V("T").Derives(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
                 );
 
             var writer = new TestWriter();
@@ -192,15 +192,15 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '='))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
                     // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
                     // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
-                    Symbol.V("E").GoesTo(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
-                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("T").GoesTo(Symbol.T('a')),
-                    Symbol.V("V").GoesTo(Symbol.T('a'))
+                    Symbol.V("E").Derives(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
+                    Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").Derives(Symbol.T('a')),
+                    Symbol.V("V").Derives(Symbol.T('a'))
                 );
 
             var writer = new TestWriter();
@@ -250,12 +250,12 @@ namespace UnitTests
                 .SetTerminalSymbols(Symbol.Ts('a', '=', '*'))
                 .SetStartSymbol(Symbol.V("S'"))
                 .AndProductions(
-                    Symbol.V("S'").GoesTo(Symbol.V("S")),
-                    Symbol.V("S").GoesTo(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
-                    Symbol.V("S").GoesTo(Symbol.V("R")),
-                    Symbol.V("L").GoesTo(Symbol.T('*'), Symbol.V("R")),
-                    Symbol.V("L").GoesTo(Symbol.T('a')),
-                    Symbol.V("R").GoesTo(Symbol.V("L"))
+                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
+                    Symbol.V("S").Derives(Symbol.V("R")),
+                    Symbol.V("L").Derives(Symbol.T('*'), Symbol.V("R")),
+                    Symbol.V("L").Derives(Symbol.T('a')),
+                    Symbol.V("R").Derives(Symbol.V("L"))
                 );
 
             var writer = new TestWriter();

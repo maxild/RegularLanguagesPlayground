@@ -13,15 +13,16 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
+            //DragonBookEx4_54();
             //DragonBookEx4_48();
             //StanfordShiftReduceConflictGrammar();
             //StanfordReduceReduceConflictGrammar();
             //ExprGrammarStanfordNotesOnBottomUpParsing();
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             //ExprGrammarCh4DragonBook();
-            //ToyExampleGrammarFromGallierNotesOnLr0Parsing();
-            ToyExampleGrammarFromGallierNotesOnLr1Parsing();
-            //ExprGrammarGallierNotesOnLrParsing();
+            //GallierToyExampleLr0();
+            GallierToyExampleLr1();
+            //GallierExprGrammarLr0();
             //CourseExercise();
 
             //RegexParser();
@@ -35,7 +36,32 @@ namespace CLI.TestDriver
         // Context-Free languages, CFG and LR Parsing
         //
 
-        public static void ToyExampleGrammarFromGallierNotesOnLr1Parsing()
+        public static void DragonBookEx4_54()
+        {
+            // 0: S' → S
+            // 1: S → CC
+            // 2: C → cC
+            // 3: C → d
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "C"))
+                .SetTerminalSymbols(Symbol.Ts('c', 'd'))
+                .SetStartSymbol(Symbol.V("S'"))
+                .AndProductions(
+                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.V("C"), Symbol.V("C")),
+                    Symbol.V("C").Derives(Symbol.T('c'), Symbol.V("C")),
+                    Symbol.V("C").Derives(Symbol.T('d'))
+                );
+
+            var dfa2 = grammar.GetLr1AutomatonDfa();
+
+            SaveFile("DragonBookEx4_54_DCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling: true));
+        }
+
+        /// <summary>
+        /// G3 in "A Survey of LR-Parsing Methods", Gallier.
+        /// </summary>
+        public static void GallierToyExampleLr1()
         {
             // 0: S → E
             // 1: E → aEb
@@ -45,26 +71,30 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', 'b'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
-                    Symbol.V("E").GoesTo(Symbol.Epsilon)
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                    Symbol.V("E").Derives(Symbol.Epsilon)
                 );
 
-            // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr1AutomatonNfa();
 
-            SaveFile("NCG1.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+            SaveFile("GallierNCG1.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
             var dfa = characteristicStringsNfa.ToDfa();
 
-            SaveFile("DCG1.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+            SaveFile("GallierDCG1.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling: true));
 
-            //var dfa2 = grammar.GetLr1AutomatonDfa();
+            var dfa2 = grammar.GetLr1AutomatonDfa();
 
-            //SaveFile("DCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+            SaveFile("GallierDCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling: true));
+
+            // TODO: Parsing table in unit test
         }
 
-        public static void ToyExampleGrammarFromGallierNotesOnLr0Parsing()
+        /// <summary>
+        /// G1 in "A Survey of LR-Parsing Methods", Gallier.
+        /// </summary>
+        public static void GallierToyExampleLr0()
         {
             // Augmented Grammar (assumed reduced, i.e. no useless symbols).
             //
@@ -81,25 +111,24 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', 'b'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
-                    Symbol.V("E").GoesTo(Symbol.T('a'), Symbol.T('b'))
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.T('a'), Symbol.V("E"), Symbol.T('b')),
+                    Symbol.V("E").Derives(Symbol.T('a'), Symbol.T('b'))
                 );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
-            SaveFile("NCG0.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+            SaveFile("GallierNCG0.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
             var dfa = characteristicStringsNfa.ToDfa();
 
-            SaveFile("DCG0.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling: true));
+            SaveFile("GallierDCG0.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling: true));
 
             var dfa2 = grammar.GetLr0AutomatonDfa();
 
-            SaveFile("DCG0Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling: true));
+            SaveFile("GallierDCG0Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling: true));
         }
-
 
         public static void ExprGrammarCh4DragonBook()
         {
@@ -116,13 +145,13 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '*', '(', ')'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")), //, Symbol.EofMarker),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                    Symbol.V("T").GoesTo(Symbol.V("F")),
-                    Symbol.V("F").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("F").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E")), //, Symbol.EofMarker),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").Derives(Symbol.V("F")),
+                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
             // Create NFA (digraph of items labeled by symbols)
@@ -158,12 +187,12 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', '=', '*'))
                 .SetStartSymbol(Symbol.V("S'"))
                 .AndProductions(
-                    Symbol.V("S'").GoesTo(Symbol.V("S")),
-                    Symbol.V("S").GoesTo(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
-                    Symbol.V("S").GoesTo(Symbol.V("R")),
-                    Symbol.V("L").GoesTo(Symbol.T('*'), Symbol.V("R")),
-                    Symbol.V("L").GoesTo(Symbol.T('a')),
-                    Symbol.V("R").GoesTo(Symbol.V("L"))
+                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
+                    Symbol.V("S").Derives(Symbol.V("R")),
+                    Symbol.V("L").Derives(Symbol.T('*'), Symbol.V("R")),
+                    Symbol.V("L").Derives(Symbol.T('a')),
+                    Symbol.V("R").Derives(Symbol.V("L"))
                 );
 
             // Create NFA (digraph of items labeled by symbols)
@@ -180,8 +209,10 @@ namespace CLI.TestDriver
             SaveFile("DragonBookEx4_48_DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
-
-        public static void ExprGrammarGallierNotesOnLrParsing()
+        /// <summary>
+        /// G2 in "A Survey of LR-Parsing Methods", Gallier.
+        /// </summary>
+        public static void GallierExprGrammarLr0()
         {
             // 0: S → E
             // 1: E → E + T
@@ -193,25 +224,25 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '*'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.V("T"), Symbol.T('*'), Symbol.T('a')),
-                    Symbol.V("T").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.T('a')),
+                    Symbol.V("T").Derives(Symbol.T('a'))
                 );
 
             // Create NFA (digraph of items labeled by symbols)
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
-            SaveFile("NCG2.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+            SaveFile("GallierExprGrammarNCG0.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
 
             var dfa = characteristicStringsNfa.ToDfa();
 
-            SaveFile("DCG2.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+            SaveFile("GallierExprGrammarDCG0.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
 
             var dfa2 = grammar.GetLr0AutomatonDfa();
 
-            SaveFile("DCG2Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+            SaveFile("GallierExprGrammarDCG0Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
         }
 
         public static void ExprGrammarStanfordNotesOnBottomUpParsing()
@@ -226,11 +257,11 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("T").GoesTo(Symbol.T('a'))
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").Derives(Symbol.T('a'))
                 );
 
             // Create NFA (digraph of items labeled by symbols)
@@ -260,14 +291,14 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '[', ']'))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
-                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("T").GoesTo(Symbol.T('a')),
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").Derives(Symbol.T('a')),
                     // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
                     // because state 4 contains the following core items {T → a•, T → a•[E]}
-                    Symbol.V("T").GoesTo(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
+                    Symbol.V("T").Derives(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
                 );
 
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -297,15 +328,15 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '='))
                 .SetStartSymbol(Symbol.V("S"))
                 .AndProductions(
-                    Symbol.V("S").GoesTo(Symbol.V("E")),
-                    Symbol.V("E").GoesTo(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").GoesTo(Symbol.V("T")),
+                    Symbol.V("S").Derives(Symbol.V("E")),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
                     // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
                     // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
-                    Symbol.V("E").GoesTo(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
-                    Symbol.V("T").GoesTo(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("T").GoesTo(Symbol.T('a')),
-                    Symbol.V("V").GoesTo(Symbol.T('a'))
+                    Symbol.V("E").Derives(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
+                    Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("T").Derives(Symbol.T('a')),
+                    Symbol.V("V").Derives(Symbol.T('a'))
                 );
 
             var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
@@ -334,12 +365,12 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('i', 't', 'e', '0', '1'))
                 .SetStartSymbol(Symbol.V("S'"))
                 .AndProductions(
-                    Symbol.V("S'").GoesTo(Symbol.V("S")),
-                    Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S")),
-                    Symbol.V("S").GoesTo(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S"), Symbol.T('e'),
+                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.T('i'), Symbol.V("E"), Symbol.T('t'), Symbol.V("S"), Symbol.T('e'),
                         Symbol.V("S")),
-                    Symbol.V("E").GoesTo(Symbol.T('0')),
-                    Symbol.V("E").GoesTo(Symbol.T('0'))
+                    Symbol.V("E").Derives(Symbol.T('0')),
+                    Symbol.V("E").Derives(Symbol.T('0'))
                 );
 
             // Create NFA (digraph of items labeled by symbols)

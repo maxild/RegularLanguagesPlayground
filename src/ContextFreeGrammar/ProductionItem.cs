@@ -103,7 +103,7 @@ namespace ContextFreeGrammar
             {
                 throw new ArgumentNullException(nameof(production));
             }
-            if (dotPosition > production.Tail.Count)
+            if (dotPosition > production.Length)
             {
                 throw new ArgumentException("Invalid dot position --- The marker cannot be shifted beyond the end of the production.");
             }
@@ -113,6 +113,16 @@ namespace ContextFreeGrammar
             _dotPosition = dotPosition;
             Lookaheads = lookaheads;
         }
+
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithLookahead(TTerminalSymbol lookahead)
+            => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition, lookahead);
+
+        /// <summary>
+        /// Get the successor item of a shift/goto action created by 'shifting the dot'.
+        /// </summary>
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithShiftedDot()
+            // NOTE: we make a shallow copy of the read-only lookaheads set
+            => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition + 1, Lookaheads);
 
         public Production<TNonterminalSymbol> Production { get; }
 
@@ -155,12 +165,12 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Get the symbol before the dot.
         /// </summary>
-        public Symbol GetPrevSymbol() => _dotPosition > 0 ? Production.Tail[_dotPosition - 1] : null;
+        public Symbol GetPrevSymbol() => _dotPosition > 0 ? Production.Tail[_dotPosition - 1] : Symbol.Epsilon;
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public Symbol GetNextSymbol() => _dotPosition < Production.Tail.Count ? Production.Tail[_dotPosition] : null;
+        public Symbol GetNextSymbol() => _dotPosition < Production.Tail.Count ? Production.Tail[_dotPosition] : Symbol.Epsilon;
 
         /// <summary>
         /// Get the symbol after the dot.
@@ -181,20 +191,13 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Get the remaining symbols after the dot.
         /// </summary>
-        public IEnumerable<Symbol> GetRemainingSymbols()
+        public IEnumerable<Symbol> GetRemainingSymbolsAfterNextSymbol()
         {
-            for (int i = _dotPosition; i < Production.Length; i++)
+            for (int i = _dotPosition + 1; i < Production.Length; i++)
             {
                 yield return Production.Tail[i];
             }
         }
-
-        /// <summary>
-        /// Get the successor item of a shift/goto action created by 'shifting the dot'.
-        /// </summary>
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> GetNextItem() =>
-            // NOTE: we make a shallow copy of the read-only lookaheads set
-            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition + 1, Lookaheads);
 
         public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other)
         {
@@ -211,7 +214,9 @@ namespace ContextFreeGrammar
                     return Lookaheads.SetEquals(other.Lookaheads);
                 case ProductionItemComparison.Lr0ItemAndLookaheads:
                 default:
-                    return ProductionIndex == other.ProductionIndex && _dotPosition == other._dotPosition && Lookaheads.SetEquals(other.Lookaheads);
+                    return ProductionIndex == other.ProductionIndex &&
+                           _dotPosition == other._dotPosition &&
+                           Lookaheads.SetEquals(other.Lookaheads);
             }
         }
 
@@ -231,7 +236,10 @@ namespace ContextFreeGrammar
             }
         }
 
-        string IFiniteAutomatonState.Id => $"{ProductionIndex}_{_dotPosition}";
+        // $ is an illegal character for en identifier in a Graphviz DOT file
+        string IFiniteAutomatonState.Id => Lookaheads.Count == 0
+            ? $"{ProductionIndex}_{_dotPosition}"
+            : $"{ProductionIndex}_{_dotPosition}_{string.Join("_", Lookaheads.Select(s => s.IsEof ? "eof" : s.Name))}";
 
         string IFiniteAutomatonState.Label => ToString();
 

@@ -13,7 +13,10 @@ namespace ContextFreeGrammar
             var rhs = (tail ?? Enumerable.Empty<Symbol>()).ToList();
             if (rhs.Count > 1 && rhs.Any(symbol => symbol.IsEpsilon))
                 throw new ArgumentException($"{Symbol.Epsilon}-productions cannot have more than one symbol.");
-            Tail = rhs.Count > 0 ? rhs : new List<Symbol>(1) { Symbol.Epsilon };
+            if (rhs.Count == 1 && rhs[0].IsEpsilon)
+                Tail = new List<Symbol>();
+            else
+                Tail = rhs;
         }
 
         /// <summary>
@@ -22,9 +25,9 @@ namespace ContextFreeGrammar
         public TNonterminalSymbol Head { get; }
 
         /// <summary>
-        /// RHS list of grammar symbols (epsilon, terminal symbols and nonterminal symbols).
+        /// RHS list of grammar symbols (note that ε-production has empty Tail of Length zero).
         /// </summary>
-        public IReadOnlyList<Symbol> Tail { get; } // TODO: Epsilon could be empty Tail
+        public IReadOnlyList<Symbol> Tail { get; }
 
         public TSymbol TailAs<TSymbol>(int i) where TSymbol : Symbol
         {
@@ -33,17 +36,21 @@ namespace ContextFreeGrammar
 
         public int Length => Tail.Count;
 
-        public bool IsEpsilon => Tail.Count == 1 && Tail[0].IsEpsilon;
+        // IsEmpty == IsEpsilon
+        public bool IsEpsilon => Tail.Count == 0;
 
-        public bool IsNotEpsilon => !IsEpsilon;
+        // IsNotEmpty == IsNotEpsilon
+        public bool IsNotEpsilon => Tail.Count > 0;
 
-        public Symbol FirstSymbol => Tail[0];
+        public Symbol FirstSymbol => Tail.Count > 0 ? Tail[0] : Symbol.Epsilon;
 
-        public Symbol LastSymbol => Tail[Tail.Count - 1];
+        public Symbol LastSymbol => Tail.Count > 0 ? Tail[Tail.Count - 1] : Symbol.Epsilon;
 
         public override string ToString()
         {
-            return $"{Head} → {string.Join(string.Empty, Tail.Select(symbol => symbol.Name))}";
+            return Tail.Count > 0
+                ? $"{Head} → {string.Join(string.Empty, Tail.Select(symbol => symbol.Name))}"
+                : $"{Head} → {Symbol.Epsilon}";
         }
     }
 }

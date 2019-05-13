@@ -65,17 +65,19 @@ namespace ContextFreeGrammar
         public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ClosureItems => _closureItems;
 
         /// <summary>
-        /// Reduce items (not including the first production S' → S of the augmented grammar)
+        /// Reduce items (not including the first production S' → S of the augmented grammar). If grammar has no
+        /// ε-productions, then all (completed) reduce items are core items, but the single item of an ε-production
+        /// is both a reduce item and and a closure item (it can never be a core item).
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => CoreItems.Where(item => item.IsReduceItem);
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => Items.Where(item => item.IsReduceItem);
 
         /// <summary>
-        /// Is this the item set containing the augmented reduce item (S' → S•).
+        /// Does this the item set contain the the augmented reduce item (S' → S•)?
         /// </summary>
         public bool IsAcceptAction => ReduceItems.Any(item => item.ProductionIndex == 0);
 
         /// <summary>
-        /// Does this itemj set contain any reduce items (not including the augmented reduce item (S' → S•).
+        /// Does this item set contain any reduce items (not including the augmented reduce item 'S' → S•')?
         /// </summary>
         public bool IsReduceAction => ReduceItems.Any(item => item.ProductionIndex > 0);
 
@@ -87,7 +89,7 @@ namespace ContextFreeGrammar
         {
             return Items
                 .Where(item => !item.IsReduceItem)
-                .ToLookup(item => item.GetNextSymbol(), item => item.GetNextItem());
+                .ToLookup(item => item.GetNextSymbol(), item => item.WithShiftedDot());
         }
 
         public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)

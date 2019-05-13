@@ -16,9 +16,8 @@ namespace ContextFreeGrammar
         where TAlphabet : IEquatable<TAlphabet>
         where TState : IEquatable<TState>
     {
-        //private static readonly ISet<TState> s_deadState = new HashSet<TState>();
-
-        private readonly Dictionary<SourceTransitionPair<TState, TAlphabet>, List<TState>> _delta;
+        // In many cases TValue could be List<TState>, but it is better to be safe than sorry
+        private readonly Dictionary<SourceTransitionPair<TState, TAlphabet>, HashSet<TState>> _delta;
 
         private readonly HashSet<TState> _acceptStates;
         private readonly HashSet<TState> _states;
@@ -33,7 +32,7 @@ namespace ContextFreeGrammar
             StartState = startState;
             _acceptStates = new HashSet<TState>(acceptStates);
             _states = new HashSet<TState>(acceptStates) { startState };
-            _delta = new Dictionary<SourceTransitionPair<TState, TAlphabet>, List<TState>>();
+            _delta = new Dictionary<SourceTransitionPair<TState, TAlphabet>, HashSet<TState>>();
             _alphabet = new SortedSet<TAlphabet>();
 
             foreach (var triple in transitions)
@@ -44,7 +43,7 @@ namespace ContextFreeGrammar
                 if (_delta.ContainsKey(pair))
                     _delta[pair].Add(triple.TargetState);
                 else
-                    _delta[pair] = new List<TState> {triple.TargetState};
+                    _delta[pair] = new HashSet<TState> {triple.TargetState};
                 if (triple.Label.Equals(Transition.Epsilon<TAlphabet>()))
                     IsEpsilonNfa = true;
                 else
@@ -83,7 +82,7 @@ namespace ContextFreeGrammar
 
         public IEnumerable<Transition<TAlphabet, TState>> GetTransitions()
         {
-            foreach (KeyValuePair<SourceTransitionPair<TState, TAlphabet>, List<TState>> kvp in _delta)
+            foreach (KeyValuePair<SourceTransitionPair<TState, TAlphabet>, HashSet<TState>> kvp in _delta)
             {
                 TState sourceState = kvp.Key.SourceState;
                 TAlphabet label = kvp.Key.Label;
