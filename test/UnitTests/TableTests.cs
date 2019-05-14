@@ -263,6 +263,7 @@ namespace UnitTests
 
             grammar.PrintFirstAndFollowSets(writer);
 
+            WriteLine("SLR(1) Parsing Table");
             var slrParser = grammar.ComputeSlrParsingTable();
 
             slrParser.PrintParsingTable(writer);
@@ -295,6 +296,9 @@ namespace UnitTests
 
             var lr1Parser = grammar.ComputeLr1ParsingTable();
 
+            WriteLine("LR(1) Parsing Table");
+            lr1Parser.PrintParsingTable(writer);
+
             // Grammar is LR(1)
             lr1Parser.AnyConflicts.ShouldBeFalse();
 
@@ -314,11 +318,109 @@ namespace UnitTests
         }
 
         /// <summary>
+        /// Dragon book example 4.52, p. 261, 2nd ed.
+        /// (identical to example 4.54, p. 263)
+        /// </summary>
+        [Fact]
+        public void DragonBookEx4_52()
+        {
+            // Regular language for a*ba*b
+            // 0: S' → S
+            // 1: S → BB
+            // 2: B → aB
+            // 3: B → b
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "B"))
+                .SetTerminalSymbols(Symbol.Ts('a', 'b'))
+                .SetStartSymbol(Symbol.V("S'"))
+                .AndProductions(
+                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.V("B"), Symbol.V("B")),
+                    Symbol.V("B").Derives(Symbol.T('a'), Symbol.V("B")),
+                    Symbol.V("B").Derives(Symbol.T('b'))
+                );
+
+            var writer = new TestWriter();
+
+            //
+            // LR(0)
+            //
+
+            var lr0Parser = grammar.ComputeLr0ParsingTable();
+
+            WriteLine("LR(0) Parsing Table");
+            lr0Parser.PrintParsingTable(writer);
+
+            // The grammar is LR(0)
+            lr0Parser.AnyConflicts.ShouldBeFalse();
+
+            //
+            // SLR(1)
+            //
+
+            var slrParser = grammar.ComputeSlrParsingTable();
+
+            WriteLine("SLR(1) Parsing Table");
+            slrParser.PrintParsingTable(writer);
+
+            // The grammar is SLR(1)
+            slrParser.AnyConflicts.ShouldBeFalse();
+
+            WriteLine("Moves of SLR(1) parser");
+            slrParser.Parse("baab", writer);
+
+            //
+            // LR(1)
+            //
+
+            var lr1Parser = grammar.ComputeLr1ParsingTable();
+
+            WriteLine("LR(1) Parsing Table");
+            lr1Parser.PrintParsingTable(writer);
+
+            // The grammar is LR(1)
+            lr1Parser.AnyConflicts.ShouldBeFalse();
+
+            WriteLine("Moves of LR(1) parser");
+            lr1Parser.Parse("baab", writer);
+
+            //
+            // LALR(1)
+            //
+
+            // BUG: There are conflicts, but grammar is LALR(1)
+            // State 3: {shift 3, shift 3} on 'a'
+            // State 3: {B → a•B} (core items)
+            // State 3: {shift 4, shift 4} on 'b'
+            // State 3: {B → a•B} (core items)
+
+            var lalr1Parser = grammar.ComputeLalr1ParsingTable();
+
+            WriteLine("LALR(1) Parsing Table");
+            lalr1Parser.PrintParsingTable(writer);
+
+            // TODO: Create utility method PrintAnyConflicts....and use it everywhere
+            foreach (var conflict in lalr1Parser.Conflicts)
+            {
+                writer.WriteLine(conflict);
+                // TODO: Show lookahead sets of items
+                writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+            }
+
+            // The grammar is LALR(1)
+            lalr1Parser.AnyConflicts.ShouldBeFalse();
+
+            WriteLine("Moves of LALR(1) parser");
+            lalr1Parser.Parse("baab", writer);
+        }
+
+        /// <summary>
         /// Dragon book example 4.54, p. 263, 2nd ed.
         /// </summary>
         [Fact]
         public void DragonBookEx4_54()
         {
+            // Regular Language for c*dc*d
             // 0: S' → S
             // 1: S → CC
             // 2: C → cC
@@ -336,22 +438,31 @@ namespace UnitTests
 
             var writer = new TestWriter();
 
+            var lr0Parser = grammar.ComputeLr0ParsingTable();
+
+            WriteLine("LR(0) Parsing Table");
+            lr0Parser.PrintParsingTable(writer);
+
+            // The grammar is LR(0)
+            lr0Parser.AnyConflicts.ShouldBeFalse();
+
             var slrParser = grammar.ComputeSlrParsingTable();
 
+            WriteLine("SLR(1) Parsing Table");
             slrParser.PrintParsingTable(writer);
-            writer.WriteLine();
 
             // The grammar is SLR(1)
             slrParser.AnyConflicts.ShouldBeFalse();
 
             var lr1Parser = grammar.ComputeLr1ParsingTable();
 
+            WriteLine("LR(1) Parsing Table");
             lr1Parser.PrintParsingTable(writer);
 
             // The grammar is LR(1)
             lr1Parser.AnyConflicts.ShouldBeFalse();
 
+            lr1Parser.Parse("dccd", writer);
         }
-
     }
 }

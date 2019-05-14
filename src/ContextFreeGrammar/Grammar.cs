@@ -718,6 +718,27 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
+        /// Compute LALR(1) parsing table (brute force algorithm based on merging LR(1) item sets with identical
+        /// core items in the LR(1) automaton).
+        /// </summary>
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalr1ParsingTable()
+        {
+            var (states, transitions) = ComputeLr1AutomatonData();
+
+            // Merge states and transitions
+            var (mergedStates, mergedTransitions) = ComputeMergedLr1AutomatonData(states, transitions);
+
+            // LALR(1)
+            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(mergedStates, mergedTransitions,
+                reduceItem => reduceItem.Lookaheads);
+
+            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
+            // are given by {0,1,...,N-1}.
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, mergedStates, Variables, Terminals,
+                actionTableEntries, gotoTableEntries);
+        }
+
+        /// <summary>
         /// Translate LR(0) automaton representation into a shift-reduce parsing table.
         /// </summary>
         /// <param name="states">The canonical LR(0) collection of LR(0) item sets.</param>
@@ -892,6 +913,106 @@ namespace ContextFreeGrammar
             return (states, transitions);
         }
 
+        // TODO: Refactor this method
+        private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> mergedStates,
+            List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> mergedTransitions)
+            ComputeMergedLr1AutomatonData(
+                IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
+                List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions)
+        {
+            // Find blocks of states with equivalent core items (klassedeling, strongly connected components)
+            // blocks[s] contains one or more items
+            //    * first item always is the new state index
+            //    * if list contains more than a single item, first item is the original state index
+            //    * if list contains single item, either there are no other equivalent item set (original index),
+            //      or the index is smaller referencing a lower index where list has more than single item, containing this state
+            //    * blocks[i] == i (lowest index of some new state, with possibly a single item)
+            //    * blocks[i] < i, then blocks[i] points to a lower index (state) where the list contains i.
+            var blocks = states.ToDictionary(x => x, _ => new List<int>());
+
+            // equivalent items indexed by lowest possible index
+            for (int i = 0; i < states.Count; i++)
+            {
+                var state = states[i];
+
+                // index i have already been added to an earlier block
+                if (blocks[state].Count > 0)
+                    continue;
+
+                blocks[state] = new List<int> { i };
+
+                for (int j = i + 1; j < states.Count; j++)
+                {
+                    var other = states[j];
+
+                    // index j have already been added to an earlier block
+                    if (blocks[other].Count > 0)
+                        continue;
+
+                    if (state.Equals(other, ProductionItemComparison.MarkedProductionOnly))
+                    {
+                        blocks[state].Add(j);
+                        blocks[other].Add(i); // mark with 'lower' index where state is merged
+                    }
+                }
+            }
+
+            // Create new set of states
+            var mergedStates = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>();
+            int[] oldToNew = new int[states.Count];
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                var state = states[i];
+
+                // if block is a valid list of equivalent items
+                if (blocks[state][0] == i)
+                {
+                    // Remember the new state index
+                    oldToNew[i] = mergedStates.Count;
+
+                    if (blocks[state].Count > 1)
+                    {
+                        // Both core and closure items are identical and therefore can be merged
+                        // into single item set with union lookahead sets. Create hash table with
+                        // keys defined by marked productions (LR(0) items), and values defined by
+                        // the corresponding LR(1) lookahead sets.
+                        Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> itemsMap =
+                            state.Items.ToDictionary(item => item.MarkedProduction, item => new Set<TTerminalSymbol>(item.Lookaheads));
+
+                        for (int j = 1; j < blocks[state].Count; j++)
+                        {
+                            var other = states[blocks[state][j]];
+                            itemsMap.MergeLookaheads(other.Items
+                                .ToDictionary(item => item.MarkedProduction, item => item.Lookaheads));
+                        }
+
+                        mergedStates.Add(new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(
+                            itemsMap.Select(kvp =>
+                                new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(kvp.Key, kvp.Value))));
+                    }
+                    else
+                    {
+                        mergedStates.Add(state);
+                    }
+                }
+            }
+
+            // Create new list of transition triplets (s0, label, s1) for all merged states
+            var mergedTransitions =
+                new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
+            foreach (var transition in transitions)
+            {
+                // TODO: This is magic.....
+                int oldSource = blocks[transition.SourceState][0]; // first item is always the lowest merged index
+                int oldTarget = blocks[transition.TargetState][0]; // first item is always the lowest merged index
+                int source = oldToNew[oldSource];
+                int target = oldToNew[oldTarget];
+                mergedTransitions.Add(Transition.Move(mergedStates[source], transition.Label, mergedStates[target]));
+            }
+
+            return (mergedStates, mergedTransitions);
+        }
+
         /// <summary>
         /// Compute ε-closure of the kernel/core items of any LR(0) item set --- this
         /// is identical to ε-closure in the subset construction algorithm when translating
@@ -955,8 +1076,21 @@ namespace ContextFreeGrammar
                 // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
                 // symbol 'a' of [B → •γ, a], where a ∈ FIRST(βb) and 'B → γ' is a production ∈ P.
                 var beta = item.GetRemainingSymbolsAfterNextSymbol();
-                var b = item.Lookaheads.Single();
-                var lookaheads = FIRST(beta.ConcatItem(b));
+                // Because 'merged' items can have lookahead sets with many terminal symbols we have to
+                // calculate FIRST set of the union of all the singleton FIRST sets
+
+                // TODO: remove
+                //var b = item.Lookaheads.Single();
+                //var lookaheads = FIRST(beta.ConcatItem(b));
+
+                var lookaheads = new Set<TTerminalSymbol>();
+                foreach (var b in item.Lookaheads)
+                {
+                    // Union of FIRST(βb) for every b ∈ L, where L of
+                    // [A → α•Bβ, L] is the non-empty lookahead set
+                    lookaheads.AddRange(FIRST(beta.ConcatItem(b)));
+                }
+
                 foreach (var (index, production) in _productionMap[B])
                 {
                     foreach (TTerminalSymbol a in lookaheads)
@@ -972,7 +1106,19 @@ namespace ContextFreeGrammar
                 }
             }
 
-            return new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(closure);
+            // This merge operation will make every marked production of an LR(1) item unique within each LR(1) item set.
+            // This will simplify the merging of different LR(1) item sets into merged LALR(1) item sets, and it will also make
+            // every LR(1) item set a bit more lightweight, because LR(1) items (with identical marked productions) can be
+            // represented by a single LR(1) item with lookahead symbols defined by the union of the merged items.
+            var closureWithMergedItems =
+                from lookaheadsOfMarkedProduction in closure.ToLookup(x => x.MarkedProduction, x => x.Lookaheads)
+                let firstItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(
+                    markedProduction: lookaheadsOfMarkedProduction.Key,
+                    lookaheads: lookaheadsOfMarkedProduction.First())
+                select lookaheadsOfMarkedProduction.Skip(1).Aggregate(firstItem,
+                    (nextItem, lookaheads) => nextItem.WithUnionLookaheads(lookaheads));
+
+            return new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(closureWithMergedItems);
         }
 
         public override string ToString()

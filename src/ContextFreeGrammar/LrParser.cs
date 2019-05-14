@@ -28,12 +28,13 @@ namespace ContextFreeGrammar
     //     that could be used for a reduce action. (Yacc’s default action in the case of a reduce-reduce conflict is
     //     to reduce using the production that comes first, textually, in the input grammar specification.)
     //
-    // In order to figure out the reason for a conflict, we have to find out (1) which LR(0) items (state) have a conflicts;
+    // In order to figure out the reason for a conflict, we have to find out (1) which LR(0)/LR(1) item sets have a conflict;
     // and (2) the reason for the conflict.
-
+    //
     // LR(0) Grammar
     // =============
-    // A grammar is LR(0) if the following two conditions hold for all LR(0) item sets (aka items):
+    // A grammar is LR(0) if the following two conditions hold for all LR(0) item sets
+    // (aka configurating set):
     //
     //  1. For any LR(0) item set containing the (shift) item A → α•aβ there is no (reduce) item
     //     B –> w• in that set. In the parsing table, this translates to no shift/­reduce conflict
@@ -44,7 +45,8 @@ namespace ContextFreeGrammar
     //
     // SLR(1) Grammar
     // ==============
-    // A grammar is SLR(1) if the following two conditions hold for all LR(0) item sets (aka items):
+    // A grammar is SLR(1) if the following two conditions hold for all LR(0) item sets
+    // (aka configurating set):
     //
     //  1. For any (shift) item A → α•aβ in the set, with terminal 'a', there is no (reduce) item
     //     B –> w• in that set with 'a' in Follow(B). In the parsing tables, this translates to no
@@ -54,7 +56,21 @@ namespace ContextFreeGrammar
     //     be disjoint, e.g. Follow(A) ∩ Follow(B) is empty. This translates to no reduce/­reduce
     //     conflict on any state. If more than one non­terminal can be reduced from this set,
     //     it must be possible to uniquely determine which using only one token of lookahead.
-
+    //
+    // LR(1) Grammar
+    // ==============
+    // A grammar is LR(1) if the following two conditions are satisfied for all LR(1) item sets
+    // (aka configurating set):
+    //
+    //  1. For any (shift) item in the set [A → α•aβ, b] with terminal 'a', there is no (reduce) item
+    //     in the set of the form [B –> v•, a]. In the action table, this translates to no shift/reduce
+    //     conflict for any state. The successor function for symbol 'a' either shifts to a new state or
+    //     reduces, but not both.
+    //  2. The lookaheads for all reduce items within the set must be disjoint, e.g. the set
+    //     cannot have both [A –> u•, a] and [B –> v•, a]. This translates to no reduce/­reduce
+    //     conflict on any state.  If more than one non­terminal could be reduced from this
+    //     set, it must be possible to uniquely determine which is appropriate from the next
+    //     input token.
 
     // TODO: Maybe rename to ParseTable (SLR-ParsingTable, LALR-ParsingTable etc.)
     /// <summary>
@@ -140,7 +156,7 @@ namespace ContextFreeGrammar
                 if (!_actionTable[entry.State, symbolIndex].IsError)
                 {
                     // Only reduce actions can cause conflicts, when all shift actions are inserted first
-                    Debug.Assert(entry.Action.IsReduce);
+                    Debug.Assert(entry.Action.IsReduce); // TODO: LALR(1) parser fails here...
 
                     // report diagnostic for the found shift/reduce or reduce/reduce conflict
                     if (_conflictTable.ContainsKey((entry.State, entry.TerminalSymbol)))

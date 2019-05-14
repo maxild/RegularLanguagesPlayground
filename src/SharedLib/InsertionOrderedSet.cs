@@ -35,7 +35,7 @@ namespace AutomataLib
             AddRange(items);
         }
 
-        public InsertionOrderedSet(IEqualityComparer<T> comparer)
+        private InsertionOrderedSet(IEqualityComparer<T> comparer)
         {
             _dictionary = new Dictionary<T, int>(comparer);
             _list = new List<T>();

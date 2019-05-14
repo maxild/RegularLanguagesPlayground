@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using AutomataLib;
 
 namespace ContextFreeGrammar
@@ -86,62 +85,64 @@ namespace ContextFreeGrammar
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private string DebuggerDisplay => ToString();
-        private const char DOT = '•'; // Bullet
-
-        private readonly int _dotPosition;
+        private static readonly IReadOnlySet<TTerminalSymbol> s_emptyLookaheads = new Set<TTerminalSymbol>(Enumerable.Empty<TTerminalSymbol>());
 
         public ProductionItem(
             Production<TNonterminalSymbol> production,
             int productionIndex,
-            int dotPosition,
+            int markerPosition,
             params TTerminalSymbol[] lookaheads)
-            : this(production, productionIndex, dotPosition, new InsertionOrderedSet<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
+            : this(new MarkedProduction<TNonterminalSymbol>(production, productionIndex, markerPosition),
+                   new Set<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
         {
         }
 
         public ProductionItem(
             Production<TNonterminalSymbol> production,
             int productionIndex,
-            int dotPosition,
+            int markerPosition,
             IEnumerable<TTerminalSymbol> lookaheads = null)
-            : this(production, productionIndex, dotPosition, new InsertionOrderedSet<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
+            : this(new MarkedProduction<TNonterminalSymbol>(production, productionIndex, markerPosition),
+                   new Set<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
         {
         }
 
-        private ProductionItem(
-            Production<TNonterminalSymbol> production,
-            int productionIndex,
-            int dotPosition,
+        public ProductionItem(
+            MarkedProduction<TNonterminalSymbol> markedProduction,
             IReadOnlySet<TTerminalSymbol> lookaheads)
         {
-            if (production == null)
-            {
-                throw new ArgumentNullException(nameof(production));
-            }
-            if (dotPosition > production.Length)
-            {
-                throw new ArgumentException("Invalid dot position --- The marker cannot be shifted beyond the end of the production.");
-            }
-
-            Production = production;
-            ProductionIndex = productionIndex;
-            _dotPosition = dotPosition;
-            Lookaheads = lookaheads;
+            MarkedProduction = markedProduction;
+            Lookaheads = lookaheads ?? s_emptyLookaheads;
         }
 
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithLookahead(TTerminalSymbol lookahead)
-            => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition, lookahead);
+        /// <summary>
+        /// Merge lookaheads into new LR(1) item.
+        /// </summary>
+        /// <returns></returns>
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithUnionLookaheads(IEnumerable<TTerminalSymbol> lookaheadsToAdd) =>
+            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction, new Set<TTerminalSymbol>(Lookaheads).Union(lookaheadsToAdd));
+
+        /// <summary>
+        /// Convert to new LR(0) item with empty lookahead set.
+        /// </summary>
+        /// <returns></returns>
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithNoLookahead() =>
+            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction, s_emptyLookaheads);
 
         /// <summary>
         /// Get the successor item of a shift/goto action created by 'shifting the dot'.
         /// </summary>
         public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithShiftedDot()
-            // NOTE: we make a shallow copy of the read-only lookaheads set
-            => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Production, ProductionIndex, _dotPosition + 1, Lookaheads);
+            // NOTE: we only make a shallow copy of the read-only lookaheads set
+            => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction.WithShiftedDot(), Lookaheads);
 
-        public Production<TNonterminalSymbol> Production { get; }
+        public MarkedProduction<TNonterminalSymbol> MarkedProduction { get; }
 
-        public int ProductionIndex { get; }
+        public Production<TNonterminalSymbol> Production => MarkedProduction.Production;
+
+        public int ProductionIndex => MarkedProduction.ProductionIndex;
+
+        public int MarkerPosition => MarkedProduction.MarkerPosition;
 
         /// <summary>
         /// The value(s) of the lookahead (b) that can follow the recognized handle (α) of a recognized
@@ -150,7 +151,7 @@ namespace ContextFreeGrammar
         /// part of the LR item is only used for LR(1) items. LR(0) items do not carry any lookahead, and
         /// therefore the set is empty for LR(0) items.
         /// </summary>
-        public IReadOnlySet<TTerminalSymbol> Lookaheads { get; } // TODO: maybe just single item??? empty, singleton, merged
+        public IReadOnlySet<TTerminalSymbol> Lookaheads { get; }
 
         /// <summary>
         /// Any item B → α•β where α is not ε (the empty string),
@@ -158,80 +159,66 @@ namespace ContextFreeGrammar
         /// is the first production of index zero by convention). That is
         /// the initial item S' → •S, and all items where the dot is not at the left end.
         /// </summary>
-        public bool IsCoreItem => _dotPosition > 0 || ProductionIndex == 0;
+        public bool IsCoreItem => MarkedProduction.IsCoreItem;
 
         /// <summary>
         /// Is this item a completed item on the form A → α•, where the dot have been shifted
         /// all the way to the end of the production (a completed item is an accepting state,
         /// where we have recognized a handle)
         /// </summary>
-        public bool IsReduceItem => _dotPosition == Production.Tail.Count;
+        public bool IsReduceItem => MarkedProduction.IsReduceItem;
 
         /// <summary>
         /// B → α•Xβ (where X is a nonterminal symbol)
         /// </summary>
-        public bool IsGotoItem => _dotPosition < Production.Tail.Count && Production.Tail[_dotPosition].IsNonTerminal;
+        public bool IsGotoItem => MarkedProduction.IsGotoItem;
 
         /// <summary>
         /// B → α•aβ (where a is a terminal symbol)
         /// </summary>
-        public bool IsShiftItem => _dotPosition < Production.Tail.Count && Production.Tail[_dotPosition].IsTerminal;
+        public bool IsShiftItem => MarkedProduction.IsShiftItem;
 
         /// <summary>
         /// Get the symbol before the dot.
         /// </summary>
-        public Symbol GetPrevSymbol() => _dotPosition > 0 ? Production.Tail[_dotPosition - 1] : Symbol.Epsilon;
+        public Symbol GetPrevSymbol() => MarkedProduction.GetPrevSymbol();
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public Symbol GetNextSymbol() => _dotPosition < Production.Tail.Count ? Production.Tail[_dotPosition] : Symbol.Epsilon;
+        public Symbol GetNextSymbol() => MarkedProduction.GetNextSymbol();
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol
-        {
-            return (TSymbol) GetNextSymbol();
-        }
+        public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol => MarkedProduction.GetNextSymbol<TSymbol>();
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public TSymbol GetNextSymbolAs<TSymbol>() where TSymbol : Symbol
-        {
-            return GetNextSymbol() as TSymbol;
-        }
+        public TSymbol GetNextSymbolAs<TSymbol>() where TSymbol : Symbol => MarkedProduction.GetNextSymbolAs<TSymbol>();
 
         /// <summary>
         /// Get the remaining symbols after the dot.
         /// </summary>
-        public IEnumerable<Symbol> GetRemainingSymbolsAfterNextSymbol()
-        {
-            for (int i = _dotPosition + 1; i < Production.Length; i++)
-            {
-                yield return Production.Tail[i];
-            }
-        }
+        public IEnumerable<Symbol> GetRemainingSymbolsAfterNextSymbol() => MarkedProduction.GetRemainingSymbolsAfterNextSymbol();
 
         public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other)
         {
-            return Equals(other, ProductionItemComparison.Lr0ItemAndLookaheads);
+            return Equals(other, ProductionItemComparison.MarkedProductionAndLookaheads);
         }
 
         public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other, ProductionItemComparison comparison)
         {
             switch (comparison)
             {
-                case ProductionItemComparison.Lr0ItemOnly:
-                    return ProductionIndex == other.ProductionIndex && _dotPosition == other._dotPosition;
+                case ProductionItemComparison.MarkedProductionOnly:
+                    return MarkedProduction.Equals(other.MarkedProduction);
                 case ProductionItemComparison.LookaheadsOnly:
                     return Lookaheads.SetEquals(other.Lookaheads);
-                case ProductionItemComparison.Lr0ItemAndLookaheads:
+                case ProductionItemComparison.MarkedProductionAndLookaheads:
                 default:
-                    return ProductionIndex == other.ProductionIndex &&
-                           _dotPosition == other._dotPosition &&
-                           Lookaheads.SetEquals(other.Lookaheads);
+                    return MarkedProduction.Equals(other.MarkedProduction) && Lookaheads.SetEquals(other.Lookaheads);
             }
         }
 
@@ -244,8 +231,7 @@ namespace ContextFreeGrammar
         {
             unchecked
             {
-                var hashCode = _dotPosition;
-                hashCode = (hashCode * 397) ^ ProductionIndex;
+                var hashCode = MarkedProduction.GetHashCode();
                 hashCode = (hashCode * 397) ^ Lookaheads.GetHashCode();
                 return hashCode;
             }
@@ -253,42 +239,23 @@ namespace ContextFreeGrammar
 
         // $ is an illegal character for en identifier in a Graphviz DOT file
         string IFiniteAutomatonState.Id => Lookaheads.Count == 0
-            ? $"{ProductionIndex}_{_dotPosition}"
-            : $"{ProductionIndex}_{_dotPosition}_{string.Join("_", Lookaheads.Select(s => s.IsEof ? "eof" : s.Name))}";
+            ? $"{ProductionIndex}_{MarkerPosition}"
+            : $"{ProductionIndex}_{MarkerPosition}_{string.Join("_", Lookaheads.Select(s => s.IsEof ? "eof" : s.Name))}";
 
         string IFiniteAutomatonState.Label => ToString();
 
         public override string ToString()
         {
-            ProductionItem<TNonterminalSymbol, TTerminalSymbol> self = this;
-
-            StringBuilder dottedTail = self.Production.Tail
-                .Aggregate((i: 0, sb: new StringBuilder()),
-                    (t, symbol) =>
-                    {
-                        if (t.i == self._dotPosition)
-                        {
-                            t.sb.Append(DOT);
-                        }
-
-                        return (i: t.i + 1, sb: t.sb.Append(symbol.Name));
-                    }).sb;
-
-            if (_dotPosition == Production.Tail.Count)
-            {
-                dottedTail.Append(DOT);
-            }
-
             return Lookaheads.Count == 0
-                ? $"{Production.Head} → {dottedTail}"
-                : $"[{Production.Head} → {dottedTail}, {string.Join("/", Lookaheads)}]";
+                ? $"{MarkedProduction}"
+                : $"[{MarkedProduction}, {string.Join("/", Lookaheads)}]";
         }
     }
 
     public enum ProductionItemComparison
     {
-        Lr0ItemAndLookaheads = 0,
-        Lr0ItemOnly,
+        MarkedProductionAndLookaheads = 0,
+        MarkedProductionOnly,
         LookaheadsOnly
     }
 }

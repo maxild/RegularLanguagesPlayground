@@ -109,7 +109,7 @@ namespace AutomataLib
             return result;
         }
 
-        public Set<T> Union(Set<T> that)
+        public Set<T> Union(IEnumerable<T> that)
         {
             Set<T> result = new Set<T>(this);
             foreach (T x in that)

@@ -94,23 +94,27 @@ namespace ContextFreeGrammar
 
         public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)
         {
-            return Equals(other, ProductionItemComparison.Lr0ItemAndLookaheads);
+            return Equals(other, ProductionItemComparison.MarkedProductionAndLookaheads);
         }
 
-        // TODO: all comparison values will compare both fields (dotted production, lookahead) in every core item
         public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other, ProductionItemComparison comparison)
         {
             if (other == null) return false;
             switch (comparison)
             {
-                case ProductionItemComparison.Lr0ItemOnly:
-                    return _coreItems.SetEquals(other.CoreItems);
+                case ProductionItemComparison.MarkedProductionOnly:
+                    return AsLr0CoreItems().SetEquals(other.AsLr0CoreItems());
                 case ProductionItemComparison.LookaheadsOnly:
-                    return _coreItems.SetEquals(other.CoreItems);
-                case ProductionItemComparison.Lr0ItemAndLookaheads:
+                    throw new InvalidOperationException("LR(k) item sets cannot be tested for equal lookahead sets only.");
+                case ProductionItemComparison.MarkedProductionAndLookaheads:
                 default:
                     return _coreItems.SetEquals(other.CoreItems);
             }
+        }
+
+        private HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> AsLr0CoreItems()
+        {
+            return new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(_coreItems.Select(item => item.WithNoLookahead()));
         }
 
         public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()

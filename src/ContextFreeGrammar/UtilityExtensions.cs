@@ -7,6 +7,19 @@ namespace ContextFreeGrammar
 {
     public static class UtilityExtensions
     {
+        public static void MergeLookaheads<TNonterminalSymbol, TTerminalSymbol>(
+            this Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> dictionary,
+            IEnumerable<KeyValuePair<MarkedProduction<TNonterminalSymbol>, IReadOnlySet<TTerminalSymbol>>> other
+            )
+            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+            where TTerminalSymbol : IEquatable<TTerminalSymbol>
+        {
+            foreach (var kvp in other)
+            {
+                dictionary[kvp.Key].AddRange(kvp.Value);
+            }
+        }
+
         public static IEnumerable<T> AsSingletonEnumerable<T>(this T item)
         {
             yield return item;
