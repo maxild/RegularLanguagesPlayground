@@ -13,7 +13,7 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            //DragonBookEx4_54();
+            DragonBookEx4_54();
             //DragonBookEx4_48();
             //StanfordShiftReduceConflictGrammar();
             //StanfordReduceReduceConflictGrammar();
@@ -21,7 +21,7 @@ namespace CLI.TestDriver
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             //ExprGrammarCh4DragonBook();
             //GallierToyExampleLr0();
-            GallierToyExampleLr1();
+            //GallierToyExampleLr1();
             //GallierExprGrammarLr0();
             //CourseExercise();
 
@@ -36,6 +36,9 @@ namespace CLI.TestDriver
         // Context-Free languages, CFG and LR Parsing
         //
 
+        /// <summary>
+        /// Dragon book example 4.54, p. 263, 2nd ed.
+        /// </summary>
         public static void DragonBookEx4_54()
         {
             // 0: S' → S
@@ -53,9 +56,13 @@ namespace CLI.TestDriver
                     Symbol.V("C").Derives(Symbol.T('d'))
                 );
 
-            var dfa2 = grammar.GetLr1AutomatonDfa();
+            var dfaLr0 = grammar.GetLr0AutomatonDfa();
 
-            SaveFile("DragonBookEx4_54_DCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling: true));
+            SaveFile("DragonBookEx4_54_DCG0Lr.dot", DotLanguagePrinter.ToDotLanguage(dfaLr0, DotRankDirection.LeftRight, skipStateLabeling: true));
+
+            var dfaLr1 = grammar.GetLr1AutomatonDfa();
+
+            SaveFile("DragonBookEx4_54_DCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfaLr1, DotRankDirection.LeftRight, skipStateLabeling: true));
         }
 
         /// <summary>
@@ -175,7 +182,8 @@ namespace CLI.TestDriver
         /// </summary>
         public static void DragonBookEx4_48()
         {
-            // NOTE: L =l-value, R = r-value, and * is the prefix operator for pointers (as known from C lang)
+            // NOTE: We are using nonterminal L for l-value (a location), nonterminal R for r-value (value
+            //       that can be stored in a location), and terminal * for 'content-of' prefix operator.
             // 0: S' → S
             // 1: S → L = R
             // 2: S → R
@@ -195,18 +203,44 @@ namespace CLI.TestDriver
                     Symbol.V("R").Derives(Symbol.V("L"))
                 );
 
-            // Create NFA (digraph of items labeled by symbols)
-            var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
+            //
+            // LR(0) automaton
+            //
 
-            SaveFile("DragonBookEx4_48_NCG.dot", DotLanguagePrinter.ToDotLanguage(characteristicStringsNfa, DotRankDirection.TopBottom));
+            var nfa0 = grammar.GetLr0AutomatonNfa();
 
-            var dfa = characteristicStringsNfa.ToDfa();
+            SaveFile("DragonBookEx4_48_NCG0.dot", DotLanguagePrinter.ToDotLanguage(nfa0, DotRankDirection.TopBottom));
 
-            SaveFile("DragonBookEx4_48_DCG.dot", DotLanguagePrinter.ToDotLanguage(dfa, DotRankDirection.LeftRight, skipStateLabeling:true));
+            var dfa0 = nfa0.ToDfa();
 
-            var dfa2 = grammar.GetLr0AutomatonDfa();
+            SaveFile("DragonBookEx4_48_DCG0.dot", DotLanguagePrinter.ToDotLanguage(dfa0, DotRankDirection.LeftRight, skipStateLabeling:true));
 
-            SaveFile("DragonBookEx4_48_DCGLr.dot", DotLanguagePrinter.ToDotLanguage(dfa2, DotRankDirection.LeftRight, skipStateLabeling:true));
+            var dfaLr0 = grammar.GetLr0AutomatonDfa();
+
+            SaveFile("DragonBookEx4_48_DCG0Lr.dot", DotLanguagePrinter.ToDotLanguage(dfaLr0, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            // We will augment every LR(0) item with information about what portion of the follow set is appropriate given
+            // the path we have taken to that state. We can be in state 2 {S → L•=R, R → L•} for one of two reasons
+            //     (i)  We are trying to build from S => L=R    (shift =)
+            //     (ii) We are trying to build from S => R => L (reduce by R → L•)
+
+            //
+            // LR(1) automaton
+            //
+
+            var nfa1 = grammar.GetLr1AutomatonNfa();
+
+            SaveFile("DragonBookEx4_48_NCG1.dot", DotLanguagePrinter.ToDotLanguage(nfa1, DotRankDirection.TopBottom));
+
+            var dfa1 = nfa1.ToDfa();
+
+            SaveFile("DragonBookEx4_48_DCG1.dot", DotLanguagePrinter.ToDotLanguage(dfa1, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            var dfaLr1 = grammar.GetLr1AutomatonDfa();
+
+            SaveFile("DragonBookEx4_48_DCG1Lr.dot", DotLanguagePrinter.ToDotLanguage(dfaLr1, DotRankDirection.LeftRight, skipStateLabeling:true));
+
+            // TODO: Parse 'a=a'
         }
 
         /// <summary>

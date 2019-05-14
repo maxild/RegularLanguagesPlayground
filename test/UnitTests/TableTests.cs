@@ -238,7 +238,8 @@ namespace UnitTests
         [Fact]
         public void DragonBookEx4_48()
         {
-            // NOTE: L =l-value, R = r-value, and * is the prefix operator for pointers (as known from C lang)
+            // NOTE: We are using nonterminal L for l-value (a location), nonterminal R for r-value (value
+            //       that can be stored in a location), and terminal * for 'content-of' prefix operator.
             // 0: S' → S
             // 1: S → L = R
             // 2: S → R
@@ -266,30 +267,91 @@ namespace UnitTests
 
             slrParser.PrintParsingTable(writer);
 
+            // Grammar is not SLR(1)
             slrParser.AnyConflicts.ShouldBeTrue();
             slrParser.Conflicts.Count().ShouldBe(1);
 
             // This will print
             //      State 2: {shift 6, reduce 5} on '='
             //      State 2: {S → L•=R, R → L•} (core items)
-            // The correct choice of the parser is to shift, because no right sentential form begins with
-            // Therefore
+            // The correct choice of the parser is to shift, because no right sentential form begins with....TODO
+            // Therefore....TODO
             var conflict = slrParser.Conflicts.Single();
             writer.WriteLine(conflict);
             writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
-            //  ╔════════╤══════════════╤══════════════╤══════════╤════════════════════════╗
-            //  ║ SeqNo  │    Stack     │   Symbols    │  Input   │         Action         ║
-            //  ╠════════╪══════════════╪══════════════╪══════════╪════════════════════════╣
-            //  ║  (1)   │ 0            │              │     a=a$ │ shift 5                ║
-            //  ║  (2)   │ 0 5          │  a           │      =a$ │ reduce by L → a        ║
-            //  ║  (3)   │ 0 2          │  L           │      =a$ │ shift 6                ║ <----- shift/reduce conflict here (shift wins)
-            //  ║  (4)   │ 0 2 6        │  L =         │       a$ │ shift 5                ║
-            //  ║  (5)   │ 0 2 6 5      │  L = a       │        $ │ reduce by L → a        ║
-            //  ║  (6)   │ 0 2 6 8      │  L = L       │        $ │ reduce by R → L        ║
-            //  ║  (7)   │ 0 2 6 9      │  L = R       │        $ │ reduce by S → L=R      ║
-            //  ║  (8)   │ 0 1          │  S           │        $ │ accept                 ║
-            //  ╚════════╧══════════════╧══════════════╧══════════╧════════════════════════╝
+            //  ╔════════╤══════════════╤══════════════╤══════════╤══════════════════════════════════╗
+            //  ║ SeqNo  │    Stack     │   Symbols    │  Input   │              Action              ║
+            //  ╠════════╪══════════════╪══════════════╪══════════╪══════════════════════════════════╣
+            //  ║  (1)   │ 0            │              │     a=a$ │ shift 5                          ║
+            //  ║  (2)   │ 0 5          │ a            │      =a$ │ reduce by L → a, goto 2          ║
+            //  ║  (3)   │ 0 2          │ L            │      =a$ │ shift 6                          ║<--- shift/reduce conflict here (shift wins)
+            //  ║  (4)   │ 0 2 6        │ L =          │       a$ │ shift 5                          ║
+            //  ║  (5)   │ 0 2 6 5      │ L = a        │        $ │ reduce by L → a, goto 8          ║
+            //  ║  (6)   │ 0 2 6 8      │ L = L        │        $ │ reduce by R → L, goto 9          ║
+            //  ║  (7)   │ 0 2 6 9      │ L = R        │        $ │ reduce by S → L=R, goto 1        ║
+            //  ║  (8)   │ 0 1          │ S            │        $ │ accept                           ║
+            //  ╚════════╧══════════════╧══════════════╧══════════╧══════════════════════════════════╝
             slrParser.Parse("a=a", writer);
+
+            var lr1Parser = grammar.ComputeLr1ParsingTable();
+
+            // Grammar is LR(1)
+            lr1Parser.AnyConflicts.ShouldBeFalse();
+
+            //  ╔════════╤══════════════╤══════════════╤══════════╤══════════════════════════════════╗
+            //  ║ SeqNo  │    Stack     │   Symbols    │  Input   │              Action              ║
+            //  ╠════════╪══════════════╪══════════════╪══════════╪══════════════════════════════════╣
+            //  ║  (1)   │ 0            │              │     a=a$ │ shift 5                          ║
+            //  ║  (2)   │ 0 5          │ a            │      =a$ │ reduce by L → a, goto 2          ║
+            //  ║  (3)   │ 0 2          │ L            │      =a$ │ shift 6                          ║<--- no reduce, '=' is not a valid lookahead
+            //  ║  (4)   │ 0 2 6        │ L =          │       a$ │ shift 12                         ║
+            //  ║  (5)   │ 0 2 6 12     │ L = a        │        $ │ reduce by L → a, goto 10         ║
+            //  ║  (6)   │ 0 2 6 10     │ L = L        │        $ │ reduce by R → L, goto 9          ║
+            //  ║  (7)   │ 0 2 6 9      │ L = R        │        $ │ reduce by S → L=R, goto 1        ║
+            //  ║  (8)   │ 0 1          │ S            │        $ │ accept                           ║
+            //  ╚════════╧══════════════╧══════════════╧══════════╧══════════════════════════════════╝
+            lr1Parser.Parse("a=a", writer);
         }
+
+        /// <summary>
+        /// Dragon book example 4.54, p. 263, 2nd ed.
+        /// </summary>
+        [Fact]
+        public void DragonBookEx4_54()
+        {
+            // 0: S' → S
+            // 1: S → CC
+            // 2: C → cC
+            // 3: C → d
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "C"))
+                .SetTerminalSymbols(Symbol.Ts('c', 'd'))
+                .SetStartSymbol(Symbol.V("S'"))
+                .AndProductions(
+                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S").Derives(Symbol.V("C"), Symbol.V("C")),
+                    Symbol.V("C").Derives(Symbol.T('c'), Symbol.V("C")),
+                    Symbol.V("C").Derives(Symbol.T('d'))
+                );
+
+            var writer = new TestWriter();
+
+            var slrParser = grammar.ComputeSlrParsingTable();
+
+            slrParser.PrintParsingTable(writer);
+            writer.WriteLine();
+
+            // The grammar is SLR(1)
+            slrParser.AnyConflicts.ShouldBeFalse();
+
+            var lr1Parser = grammar.ComputeLr1ParsingTable();
+
+            lr1Parser.PrintParsingTable(writer);
+
+            // The grammar is LR(1)
+            lr1Parser.AnyConflicts.ShouldBeFalse();
+
+        }
+
     }
 }

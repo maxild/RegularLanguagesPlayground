@@ -674,7 +674,8 @@ namespace ContextFreeGrammar
             var (states, transitions) = ComputeLr0AutomatonData();
 
             // LR(0)
-            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions, _ => Terminals);
+            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
+                _ => Terminals);
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -690,7 +691,25 @@ namespace ContextFreeGrammar
             var (states, transitions) = ComputeLr0AutomatonData();
 
             // SLR(1)
-            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions, reduceByRule => FOLLOW(reduceByRule.Head));
+            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
+                reduceItem => FOLLOW(reduceItem.Production.Head));
+
+            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
+            // are given by {0,1,...,N-1}.
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
+                actionTableEntries, gotoTableEntries);
+        }
+
+        /// <summary>
+        /// Compute LR(1) parsing table.
+        /// </summary>
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLr1ParsingTable()
+        {
+            var (states, transitions) = ComputeLr1AutomatonData();
+
+            // LR(1)
+            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
+                reduceItem => reduceItem.Lookaheads);
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -709,13 +728,13 @@ namespace ContextFreeGrammar
         private (IEnumerable<LrActionEntry<TTerminalSymbol>>, IEnumerable<LrGotoEntry<TNonterminalSymbol>>) ComputeParsingTableData(
             IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
             List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions,
-            Func<Production<TNonterminalSymbol>, IEnumerable<TTerminalSymbol>> reduceOnTerminalSymbols
+            Func<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, IEnumerable<TTerminalSymbol>> reduceOnTerminalSymbols
             )
         {
             var actionTableEntries = new List<LrActionEntry<TTerminalSymbol>>();
             var gotoTableEntries = new List<LrGotoEntry<TNonterminalSymbol>>();
 
-            // renaming all LR(0) item sets to integer states
+            // renaming all LR(k) item sets to integer states
             var indexMap = new Dictionary<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, int>(capacity: states.Count);
             int stateIndex = 0;
             foreach (ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> state in states)
@@ -736,18 +755,18 @@ namespace ContextFreeGrammar
 
                 if (move.Label.IsTerminal)
                 {
-                    // If A → α•aβ is in LR(0) item set, where a is a terminal symbol
+                    // If [A → α•aβ, L] is in LR(k) item set, where a is a terminal symbol, and L is an arbitrary
+                    // lookahead set (possibly the empty set corresponding to an LR(0) item set)
                     var a = (TTerminalSymbol) move.Label;
-                    //var symbolIndex = _terminalToIndex[a];
-                    //_actionTable[source, symbolIndex] = LrAction.Shift(target);
+                    // Action[source, a] = shift target
                     actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(source, a, LrAction.Shift(target)));
                 }
                 else
                 {
-                    // If A → α•Xβ is in LR(0) item set, where X is a nonterminal symbol
+                    // If [A → α•Xβ, L] is in LR(k) item set, where X is a nonterminal symbol, and L is an arbitrary
+                    // lookahead set (possibly the empty set corresponding to an LR(0) item set)
                     var X = (TNonterminalSymbol) move.Label;
-                    //int symbolIndex = _nonterminalToIndex[X];
-                    //_gotoTable[source, symbolIndex - 1] = target;
+                    // Goto[source, X] = target;
                     gotoTableEntries.Add(new LrGotoEntry<TNonterminalSymbol>(source, X, target));
                 }
             }
@@ -756,9 +775,10 @@ namespace ContextFreeGrammar
             // TODO: My guess is these differ between different LR methods????!!!!????
             foreach (ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> itemSet in states)
             {
-                // If A → α• is in LR(0) item set, then set action[s, a] to 'reduce A → α•' (where A is not S')
-                //      for all a ∈ T               (LR(0) table)
-                //      for all a ∈ FOLLOW(A)       (SLR(1) table)
+                // If [A → α•, L] is in LR(k) item set, then set action[s, a] to 'reduce A → α•' (where A is not S')
+                //      for all a ∈ T               (LR(0) table of no lookahead)
+                //      for all a ∈ FOLLOW(A)       (SLR(1) table with follow set condition)
+                //      for all a ∈ L               (LR(1) table with lookahead set condition)
                 if (itemSet.IsReduceAction)
                 {
                     // choose reductions with lowest index in reduce/reduce conflict resolution
@@ -766,8 +786,8 @@ namespace ContextFreeGrammar
                         itemSet.ReduceItems.OrderBy(item => item.ProductionIndex))
                     {
                         var state = indexMap[itemSet];
-                        // LR(0) and SLR(1) grammar rules are supported here
-                        foreach (var terminal in reduceOnTerminalSymbols(reduceItem.Production))
+                        // LR(0), SLR(1) and LR(1) grammar rules are supported here
+                        foreach (var terminal in reduceOnTerminalSymbols(reduceItem))
                         {
                             var reduceAction = LrAction.Reduce(reduceItem.ProductionIndex);
                             actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(state, terminal, reduceAction));

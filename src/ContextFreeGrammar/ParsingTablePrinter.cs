@@ -36,8 +36,6 @@ namespace ContextFreeGrammar
                     grammar.FOLLOW(variable).ToVectorString());
             }
             tableWriter.WriteFooter();
-
-            writer.WriteLine();
         }
 
         public static void PrintParsingTable<TNonterminalSymbol, TTerminalSymbol>(
@@ -63,9 +61,6 @@ namespace ContextFreeGrammar
 
             actionTableWriter.WriteFooter();
 
-            writer.WriteLine();
-            writer.WriteLine();
-
             var gotoTable = new TableBuilder()
                 .SetTitle("GOTO")
                 .SetColumns(new Column("State", 8).AsSingletonEnumerable()
@@ -81,8 +76,6 @@ namespace ContextFreeGrammar
             }
 
             gotoTableWriter.WriteFooter();
-
-            writer.WriteLine();
         }
     }
 }

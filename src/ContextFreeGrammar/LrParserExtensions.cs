@@ -41,7 +41,7 @@ namespace ContextFreeGrammar
                     new Column("Stack", 14, Align.Left),
                     new Column("Symbols", 14, Align.Left),
                     new Column("Input", 10, Align.Right),
-                    new Column("Action", 24, Align.Left))
+                    new Column("Action", 34, Align.Left))
                 .Build();
 
             // We only need all the following variables because we support logging to a user-defined table writer
@@ -85,7 +85,7 @@ namespace ContextFreeGrammar
                         // output 'shift t'
                         tableWriter?.WriteRow($"({seqNo++})",
                             $" {string.Join(" ", stack.Reverse())}",
-                            $" {string.Join(" ", stack.Reverse().Select(state => parser.GetItems(state).SpellingSymbol?.Name ?? string.Empty))}",
+                            $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
                             $"{GetStringOfSpan(inputSymbols.Slice(ip++))} ",
                             $" shift {t}");
 
@@ -100,11 +100,18 @@ namespace ContextFreeGrammar
                         Production<TNonterminalSymbol> p = parser.Productions[action.ReduceToProductionIndex];
 
                         // output 'reduce by A → β'
-                        tableWriter?.WriteRow($"({seqNo++})",
-                            $" {string.Join(" ", stack.Reverse())}",
-                            $" {string.Join(" ", stack.Reverse().Select(state => parser.GetItems(state).SpellingSymbol?.Name ?? string.Empty))}",
-                            $"{GetStringOfSpan(inputSymbols.Slice(ip))} ",
-                            $" reduce by {p}");
+                        string[] values = null;
+                        if (tableWriter != null)
+                        {
+                            values = new[]
+                            {
+                                $"({seqNo++})",
+                                $" {string.Join(" ", stack.Reverse())}",
+                                $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
+                                $"{GetStringOfSpan(inputSymbols.Slice(ip))} ",
+                                $" reduce by {p}"
+                            };
+                        }
 
                         // pop |β| symbols off the stack
                         stack.PopItemsOfLength(p.Length);
@@ -114,6 +121,12 @@ namespace ContextFreeGrammar
                         int v = parser.Goto(t, p.Head);
                         stack.Push(v);
 
+                        if (tableWriter != null)
+                        {
+                            values[4] += $", goto {v}";
+                            tableWriter.WriteRow(values);
+                        }
+
                         // TODO: Create a new AST node for the (semantic) rule A → β, and build AST
                     }
                     // DFA recognized a the accept handle of the initial item set
@@ -122,7 +135,7 @@ namespace ContextFreeGrammar
                         // output accept
                         tableWriter?.WriteRow($"({seqNo})",
                             $" {string.Join(" ", stack.Reverse())}",
-                            $" {string.Join(" ", stack.Reverse().Select(state => parser.GetItems(state).SpellingSymbol?.Name ?? string.Empty))}",
+                            $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
                             $"{GetStringOfSpan(inputSymbols.Slice(ip))} ",
                             $" {action}");
 

@@ -136,6 +136,7 @@ namespace AutomataLib.Tables
                 Out.Write(new string('═', Table.Columns[i].Width));
                 Out.Write(i < Table.Columns.Count - 1 ? '╧' : '╝');
             }
+            Out.WriteLine();
         }
 
         private static string Center(string str, int totalWidth)

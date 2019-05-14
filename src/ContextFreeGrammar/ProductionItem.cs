@@ -27,6 +27,9 @@ namespace ContextFreeGrammar
     // TODO: Again we have 2 ways to build LR(1) automaton: NFA -> DFA or directly
 
     //--------------------------------------------------------------------------------------------------
+    // Def: Viable prefixes are those prefixes of right sentential forms that can appear on the stack of
+    //      a shift-reduce parser.
+    //--------------------------------------------------------------------------------------------------
     // Goal: Recognize substrings of grammar symbols that can appear on the stack. The stack contents
     //       must be a prefix (called a viable prefix) of some right sentential form. If stack holds 𝛿αβ,
     //       and the remaining input is v, then 𝛿αβ can be reduced to S' in one or more reductions.
@@ -56,14 +59,26 @@ namespace ContextFreeGrammar
     //--------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// The LR(k) item used as a building block in Donald Knuth's LR(k) Automaton. An LR(k) item is a dotted production rule,
-    /// where everything to the left of the dot has been shifted onto the parsing stack and the next input token is in the
-    /// FIRST set of the symbol following the dot (or in the FOLLOW set, if the next symbol is nullable). A dot at the right
-    /// end indicates that we have shifted all RHS symbols onto the stack (i.e. we have recognized a handle), and that we can
-    /// reduce that handle. A dot in the middle of the LR(k) item indicates that to continue further we need to shift a token
+    /// The LR(k) item used as a building block in Donald Knuth's LR(k) Automaton, and in all LR shift-reduce
+    /// parsers (LR(0), SLR(1), LALR(1) and LR(1)).
+    ///
+    /// An LR(0) item [B → α•β, {}] is a dotted production rule, where everything to the left of the dot has been shifted onto
+    /// the stack and the next input token is in the set FIRST(β) (or in the FOLLOW(B) set, if β is nullable).
+    ///
+    /// A dot at the right end indicates that we have shifted all RHS symbols onto the stack (i.e. we have recognized a handle),
+    /// and that we can reduce that handle. A dot in the middle of the item indicates that to continue further we need to shift a token
     /// that could start the symbol following the dot onto the stack. For example if the symbol following the dot is a nonterminal A
-    /// then we want to shift something in FIRST(A) onto the stack. The action of adding equivalent LR(k) items to create a set
-    /// of LR(k) items (a state of the DFA for the LR(k) automaton) is called CLOSURE.
+    /// then we want to shift something in FIRST(A) onto the stack.
+    ///
+    /// An LR(1) item [B → α•β, {b}] is a dotted production rule that have been augmented with information about what subset
+    /// of the follow set is appropriate given the path we have taken to that state. Again an item B → α•β indicates that
+    /// symbols α have been pushed on to the stack (i.e. states that spell out α is on the stack), and we are expecting to put
+    /// states corresponding to the symbols β on the stack and then reduce, but only if the token following β is the terminal b.
+    /// The symbol b is called the lookahead of the item. LR(1) items are born with a single lookahead symbol in every item, but
+    /// after computing CLOSURE (The action of adding equivalent LR(k) items to create a set of LR(k) items is called CLOSURE) of
+    /// every item set (subset construction equivalent), we will often merge lookahead symbols into its union set, of any items with
+    /// similar LR(0) item part. Thus the 'merged' item [B → α•, {a,b,c}] says that it is okay to reduce α to B if the next token
+    /// is equal to one of {a,b,c}.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct ProductionItem<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>, IFiniteAutomatonState
