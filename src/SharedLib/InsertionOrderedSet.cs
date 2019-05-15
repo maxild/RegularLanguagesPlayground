@@ -70,6 +70,12 @@ namespace AutomataLib
             return added;
         }
 
+        public InsertionOrderedSet<T> UnionWith(IEnumerable<T> other)
+        {
+            AddRange(other);
+            return this;
+        }
+
         public bool Contains(T item)
         {
             return _dictionary.ContainsKey(item);

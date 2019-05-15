@@ -53,6 +53,12 @@ namespace AutomataLib
             return added;
         }
 
+        public Set<T> UnionWith(IEnumerable<T> other)
+        {
+            AddRange(other);
+            return this;
+        }
+
         public bool IsProperSubsetOf(IEnumerable<T> other)
         {
             return _inner.IsProperSubsetOf(other);

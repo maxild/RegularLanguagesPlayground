@@ -8,7 +8,6 @@ namespace AutomataLib
     public interface ISet<T> : IReadOnlySet<T>
     {
         bool Add(T item);
-
         bool AddRange(IEnumerable<T> other);
     }
 }

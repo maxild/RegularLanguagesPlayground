@@ -7,6 +7,26 @@ namespace ContextFreeGrammar
 {
     public static class UtilityExtensions
     {
+        public static Set<T> ToUnionSet<T>(this IEnumerable<IReadOnlySet<T>> sets)
+            where T : IEquatable<T>
+        {
+            return sets.Aggregate(new Set<T>(), (unionSet, set) => unionSet.UnionWith(set));
+        }
+
+        public static Set<T> ToSet<T>(this IEnumerable<T> items)
+            where T : IEquatable<T>
+        {
+            if (items == null) throw new ArgumentNullException(nameof(items));
+            return new Set<T>(items);
+        }
+
+        public static InsertionOrderedSet<T> ToOrderedSet<T>(this IEnumerable<T> items)
+            where T : IEquatable<T>
+        {
+            if (items == null) throw new ArgumentNullException(nameof(items));
+            return new InsertionOrderedSet<T>(items);
+        }
+
         public static void MergeLookaheads<TNonterminalSymbol, TTerminalSymbol>(
             this Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> dictionary,
             IEnumerable<KeyValuePair<MarkedProduction<TNonterminalSymbol>, IReadOnlySet<TTerminalSymbol>>> other
@@ -51,7 +71,7 @@ namespace ContextFreeGrammar
             return false;
         }
 
-        //public static bool AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> items)
+        //public static bool UnionWith<T>(this HashSet<T> hashSet, IEnumerable<T> items)
         //{
         //    var c = hashSet.Count;
         //    hashSet.UnionWith(items);

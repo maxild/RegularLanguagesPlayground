@@ -850,11 +850,10 @@ namespace ContextFreeGrammar
             var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
 
-            // work-list implementation
-            var markedAddedItemSets = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            while (markedAddedItemSets.Count > 0)
+            var worklist = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            while (worklist.Count > 0)
             {
-                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = markedAddedItemSets.Dequeue();
+                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
                 // For each pair (X, { A → αX•β, where the item A → α•Xβ is in the predecessor item set}),
                 // where A → αX•β is core/kernel successor item on some grammar symbol X in the graph
                 foreach (var coreSuccessorItems in sourceState.GetTargetItems())
@@ -866,7 +865,7 @@ namespace ContextFreeGrammar
                     transitions.Add(Transition.Move(sourceState, X, targetState));
                     if (!states.Contains(targetState))
                     {
-                        markedAddedItemSets.Enqueue(targetState);
+                        worklist.Enqueue(targetState);
                         states.Add(targetState);
                     }
                 }
@@ -875,7 +874,7 @@ namespace ContextFreeGrammar
             return (states, transitions);
         }
 
-        // NOTE: All LR(1) items have single lookahead symbol, no merges/union of lookahead sets
+        // NOTE: LR(1) items have merged lookahead sets in order for LR(1) item sets (i.e. states) to have the minimal number of LR(1) items
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
                  List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions) ComputeLr1AutomatonData()
@@ -888,11 +887,10 @@ namespace ContextFreeGrammar
             var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
 
-            // work-list implementation
-            var markedAddedItemSets = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            while (markedAddedItemSets.Count > 0)
+            var worklist = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            while (worklist.Count > 0)
             {
-                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = markedAddedItemSets.Dequeue();
+                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
                 // For each successor item pair (X, { [A → αX•β, b], where the item [A → α•Xβ, b] is in the predecessor item set}),
                 // where [A → αX•β, b] is core/kernel successor item on some grammar symbol X in V, where V := N U T
                 foreach (var coreSuccessorItems in sourceState.GetTargetItems())
@@ -904,7 +902,7 @@ namespace ContextFreeGrammar
                     transitions.Add(Transition.Move(sourceState, X, targetState));
                     if (!states.Contains(targetState))
                     {
-                        markedAddedItemSets.Enqueue(targetState);
+                        worklist.Enqueue(targetState);
                         states.Add(targetState);
                     }
                 }
@@ -1016,7 +1014,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Compute ε-closure of the kernel/core items of any LR(0) item set --- this
         /// is identical to ε-closure in the subset construction algorithm when translating
-        /// NFA to DFA .
+        /// NFA to DFA.
         /// </summary>
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -1024,11 +1022,10 @@ namespace ContextFreeGrammar
         {
             var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
 
-            // work-list implementation
-            var markedAddedItems = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
-            while (markedAddedItems.Count != 0)
+            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
+            while (worklist.Count != 0)
             {
-                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = markedAddedItems.Dequeue();
+                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();
                 var B = item.GetNextSymbolAs<TNonterminalSymbol>();
                 if (B == null) continue;
                 // If item is a GOTO item of the form A → α•Bβ, where B ∈ T,
@@ -1039,7 +1036,7 @@ namespace ContextFreeGrammar
                     if (!closure.Contains(closureItem))
                     {
                         closure.Add(closureItem);
-                        markedAddedItems.Enqueue(closureItem);
+                        worklist.Enqueue(closureItem);
                     }
                 }
             }
@@ -1048,9 +1045,9 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Compute ε-closure of the kernel/core items of any LR(0) item set --- this
+        /// Compute ε-closure of the kernel/core items of any LR(1) item set --- this
         /// is identical to ε-closure in the subset construction algorithm when translating
-        /// NFA to DFA .
+        /// NFA to DFA.
         /// </summary>
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -1058,11 +1055,10 @@ namespace ContextFreeGrammar
         {
             var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
 
-            // work-list implementation
-            var markedAddedItems = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
-            while (markedAddedItems.Count != 0)
+            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
+            while (worklist.Count != 0)
             {
-                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = markedAddedItems.Dequeue();
+                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();
                 // B is the next symbol (that must be terminal)
                 var B = item.GetNextSymbolAs<TNonterminalSymbol>();
                 if (B == null) continue;
@@ -1076,20 +1072,12 @@ namespace ContextFreeGrammar
                 // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
                 // symbol 'a' of [B → •γ, a], where a ∈ FIRST(βb) and 'B → γ' is a production ∈ P.
                 var beta = item.GetRemainingSymbolsAfterNextSymbol();
+
                 // Because 'merged' items can have lookahead sets with many terminal symbols we have to
-                // calculate FIRST set of the union of all the singleton FIRST sets
-
-                // TODO: remove
-                //var b = item.Lookaheads.Single();
-                //var lookaheads = FIRST(beta.ConcatItem(b));
-
-                var lookaheads = new Set<TTerminalSymbol>();
-                foreach (var b in item.Lookaheads)
-                {
-                    // Union of FIRST(βb) for every b ∈ L, where L of
-                    // [A → α•Bβ, L] is the non-empty lookahead set
-                    lookaheads.AddRange(FIRST(beta.ConcatItem(b)));
-                }
+                // calculate the union of all FIRST(βb) for every b ∈ L, where L is the lookahead
+                // set of item [A → α•Bβ, L]
+                var lookaheads = item.Lookaheads.Aggregate(new Set<TTerminalSymbol>(), (l, b) => l.UnionWith(FIRST(beta.ConcatItem(b))));
+                //var lookaheads = item.Lookaheads.Select(b => FIRST(beta.ConcatItem(b))).ToUnionSet();
 
                 foreach (var (index, production) in _productionMap[B])
                 {
@@ -1100,7 +1088,7 @@ namespace ContextFreeGrammar
                         if (!closure.Contains(closureItem))
                         {
                             closure.Add(closureItem);
-                            markedAddedItems.Enqueue(closureItem);
+                            worklist.Enqueue(closureItem);
                         }
                     }
                 }
