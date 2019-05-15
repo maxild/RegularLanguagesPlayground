@@ -112,9 +112,9 @@ namespace ContextFreeGrammar
             }
         }
 
-        private HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> AsLr0CoreItems()
+        private HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0CoreItems()
         {
-            return new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(_coreItems.Select(item => item.WithNoLookahead()));
+            return new HashSet<MarkedProduction<TNonterminalSymbol>>(_coreItems.Select(item => item.MarkedProduction));
         }
 
         public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()

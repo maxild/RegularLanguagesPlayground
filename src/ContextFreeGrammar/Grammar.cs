@@ -926,49 +926,44 @@ namespace ContextFreeGrammar
             //      or the index is smaller referencing a lower index where list has more than single item, containing this state
             //    * blocks[i] == i (lowest index of some new state, with possibly a single item)
             //    * blocks[i] < i, then blocks[i] points to a lower index (state) where the list contains i.
-            var blocks = states.ToDictionary(x => x, _ => new List<int>());
+            var blocks = new List<int>[states.Count];
 
-            // equivalent items indexed by lowest possible index
             for (int i = 0; i < states.Count; i++)
             {
                 var state = states[i];
 
-                // index i have already been added to an earlier block
-                if (blocks[state].Count > 0)
-                    continue;
-
-                blocks[state] = new List<int> { i };
-
-                for (int j = i + 1; j < states.Count; j++)
+                // Should this state be added to a lower indexed block
+                for (int j = 0; j < i; j++)
                 {
-                    var other = states[j];
-
-                    // index j have already been added to an earlier block
-                    if (blocks[other].Count > 0)
-                        continue;
-
-                    if (state.Equals(other, ProductionItemComparison.MarkedProductionOnly))
+                    var lower = states[j];
+                    if (state.Equals(lower, ProductionItemComparison.MarkedProductionOnly))
                     {
-                        blocks[state].Add(j);
-                        blocks[other].Add(i); // mark with 'lower' index where state is merged
+                        // add to lower indexed block, and mark this
+                        // index as added to lower indexed block.
+                        blocks[j].Add(i);
+                        blocks[i] = new List<int> { j };
+                        break;
                     }
                 }
+
+                // if not added to lower indexed block, then index i is the lowest index of a new block
+                blocks[i] = blocks[i] ?? new List<int> { i };
             }
 
             // Create new set of states
             var mergedStates = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>();
             int[] oldToNew = new int[states.Count];
-            for (int i = 0; i < blocks.Count; i++)
+            for (int i = 0; i < blocks.Length; i++)
             {
                 var state = states[i];
 
                 // if block is a valid list of equivalent items
-                if (blocks[state][0] == i)
+                if (blocks[i][0] == i)
                 {
                     // Remember the new state index
                     oldToNew[i] = mergedStates.Count;
 
-                    if (blocks[state].Count > 1)
+                    if (blocks[i].Count > 1)
                     {
                         // Both core and closure items are identical and therefore can be merged
                         // into single item set with union lookahead sets. Create hash table with
@@ -977,9 +972,9 @@ namespace ContextFreeGrammar
                         Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> itemsMap =
                             state.Items.ToDictionary(item => item.MarkedProduction, item => new Set<TTerminalSymbol>(item.Lookaheads));
 
-                        for (int j = 1; j < blocks[state].Count; j++)
+                        for (int j = 1; j < blocks[i].Count; j++)
                         {
-                            var other = states[blocks[state][j]];
+                            var other = states[blocks[i][j]];
                             itemsMap.MergeLookaheads(other.Items
                                 .ToDictionary(item => item.MarkedProduction, item => item.Lookaheads));
                         }
@@ -993,6 +988,13 @@ namespace ContextFreeGrammar
                         mergedStates.Add(state);
                     }
                 }
+                else
+                {
+                    // index i have been added to a lower indexed block, and it is therefore safe
+                    // to use the oldToNew 'permutation' to translate the old index to a new index
+                    int lowerIndex = blocks[i][0];
+                    oldToNew[i] = oldToNew[lowerIndex];
+                }
             }
 
             // Create new list of transition triplets (s0, label, s1) for all merged states
@@ -1000,9 +1002,12 @@ namespace ContextFreeGrammar
                 new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
             foreach (var transition in transitions)
             {
-                // TODO: This is magic.....
-                int oldSource = blocks[transition.SourceState][0]; // first item is always the lowest merged index
-                int oldTarget = blocks[transition.TargetState][0]; // first item is always the lowest merged index
+                int oldSource = states.IndexOf(transition.SourceState);
+                int oldTarget = states.IndexOf(transition.TargetState);
+                // Ignore merged transitions in order to avoid duplicate moves that will result in all kinds of
+                // invalid shift/shift conflicts in the parsing table (remember shift/shift conflicts are impossible)
+                if (blocks[oldSource][0] < oldSource && blocks[oldTarget][0] < oldTarget)
+                    continue;
                 int source = oldToNew[oldSource];
                 int target = oldToNew[oldTarget];
                 mergedTransitions.Add(Transition.Move(mergedStates[source], transition.Label, mergedStates[target]));

@@ -156,7 +156,7 @@ namespace ContextFreeGrammar
                 if (!_actionTable[entry.State, symbolIndex].IsError)
                 {
                     // Only reduce actions can cause conflicts, when all shift actions are inserted first
-                    Debug.Assert(entry.Action.IsReduce); // TODO: LALR(1) parser fails here...
+                    Debug.Assert(entry.Action.IsReduce);
 
                     // report diagnostic for the found shift/reduce or reduce/reduce conflict
                     if (_conflictTable.ContainsKey((entry.State, entry.TerminalSymbol)))

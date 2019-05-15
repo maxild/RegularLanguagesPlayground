@@ -354,6 +354,10 @@ namespace UnitTests
             // The grammar is LR(0)
             lr0Parser.AnyConflicts.ShouldBeFalse();
 
+            // TODO: Why does this parse fail????
+            WriteLine("Moves of LR(0) parser");
+            lr0Parser.Parse("baab", writer);
+
             //
             // SLR(1)
             //
@@ -387,12 +391,6 @@ namespace UnitTests
             //
             // LALR(1)
             //
-
-            // BUG: There are conflicts, but grammar is LALR(1)
-            // State 3: {shift 3, shift 3} on 'a'
-            // State 3: {B → a•B} (core items)
-            // State 3: {shift 4, shift 4} on 'b'
-            // State 3: {B → a•B} (core items)
 
             var lalr1Parser = grammar.ComputeLalr1ParsingTable();
 
