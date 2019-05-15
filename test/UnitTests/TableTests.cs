@@ -354,7 +354,6 @@ namespace UnitTests
             // The grammar is LR(0)
             lr0Parser.AnyConflicts.ShouldBeFalse();
 
-            // TODO: Why does this parse fail????
             WriteLine("Moves of LR(0) parser");
             lr0Parser.Parse("baab", writer);
 

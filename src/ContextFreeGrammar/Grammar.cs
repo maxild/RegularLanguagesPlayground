@@ -675,7 +675,7 @@ namespace ContextFreeGrammar
 
             // LR(0)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
-                _ => Terminals);
+                _ => Terminals.UnionEofMarker());
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -739,12 +739,15 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Translate LR(0) automaton representation into a shift-reduce parsing table.
+        /// Translate LR(k) automaton (data) into a shift-reduce parsers ACTION and GOTO table entries.
         /// </summary>
         /// <param name="states">The canonical LR(0) collection of LR(0) item sets.</param>
         /// <param name="transitions">The transitions of the LR(0) automaton (GOTO successor function in dragon book)</param>
-        /// <param name="reduceOnTerminalSymbols"></param>
-        /// <returns></returns>
+        /// <param name="reduceOnTerminalSymbols">
+        /// Lambda to compute the set of valid (follow, lookahead) terminal symbols of a completed (reduce) item --- the parser
+        /// will perform a reduction of the recognized handle of the reduce item, if the lookahead token belongs to the computed set.
+        /// </param>
+        /// <returns>The entries of the ACTION and GOTO tables of a shift-reduce parser.</returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private (IEnumerable<LrActionEntry<TTerminalSymbol>>, IEnumerable<LrGotoEntry<TNonterminalSymbol>>) ComputeParsingTableData(
             IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
@@ -797,7 +800,7 @@ namespace ContextFreeGrammar
             foreach (ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> itemSet in states)
             {
                 // If [A → α•, L] is in LR(k) item set, then set action[s, a] to 'reduce A → α•' (where A is not S')
-                //      for all a ∈ T               (LR(0) table of no lookahead)
+                //      for all a ∈ T ∪ {$}         (LR(0) table of no lookahead)
                 //      for all a ∈ FOLLOW(A)       (SLR(1) table with follow set condition)
                 //      for all a ∈ L               (LR(1) table with lookahead set condition)
                 if (itemSet.IsReduceAction)

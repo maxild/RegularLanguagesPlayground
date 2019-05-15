@@ -83,6 +83,23 @@ namespace ContextFreeGrammar
             return terminalSymbols.Concat(Symbol.EofMarker.AsSingletonEnumerable());
         }
 
+        public static IEnumerable<TTerminalSymbol> UnionEofMarker<TTerminalSymbol>(this IEnumerable<TTerminalSymbol> terminals)
+            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        {
+            return terminals is IReadOnlySet<TTerminalSymbol> otherAsSet
+                ? otherAsSet.UnionEofMarker()
+                : new Set<TTerminalSymbol>(terminals).UnionWith(Symbol.Eof<TTerminalSymbol>().AsSingletonEnumerable());
+        }
+
+        public static IEnumerable<TTerminalSymbol> UnionEofMarker<TTerminalSymbol>(this IReadOnlySet<TTerminalSymbol> terminals)
+            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        {
+            var eofMarker = Symbol.Eof<TTerminalSymbol>();
+            return terminals.Contains(eofMarker)
+                ? terminals
+                : terminals.ConcatItem(eofMarker);
+        }
+
         public static void Each<T>(this IEnumerable<T> e, Action<T> a)
         {
             foreach (var i in e) a(i);
