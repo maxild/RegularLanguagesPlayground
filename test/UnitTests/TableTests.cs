@@ -261,6 +261,9 @@ namespace UnitTests
 
             var writer = new TestWriter();
 
+            var lr0Dfa = grammar.GetLr0AutomatonDfa();
+            lr0Dfa.PrintCoreItems(writer);
+
             grammar.PrintFirstAndFollowSets(writer);
 
             WriteLine("SLR(1) Parsing Table");
@@ -315,6 +318,8 @@ namespace UnitTests
             //  ║  (8)   │ 0 1          │ S            │        $ │ accept                           ║
             //  ╚════════╧══════════════╧══════════════╧══════════╧══════════════════════════════════╝
             lr1Parser.Parse("a=a", writer);
+
+            // TODO: Compute LALR(1) parser
         }
 
         /// <summary>

@@ -718,7 +718,7 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Compute LALR(1) parsing table (brute force algorithm based on merging LR(1) item sets with identical
+        /// Compute LALR(1) parsing table (by 'brute force' algorithm based on merging LR(1) item sets with identical
         /// core items in the LR(1) automaton).
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalr1ParsingTable()
@@ -914,21 +914,16 @@ namespace ContextFreeGrammar
             return (states, transitions);
         }
 
-        // TODO: Refactor this method
         private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> mergedStates,
             List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> mergedTransitions)
             ComputeMergedLr1AutomatonData(
                 IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
                 List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions)
         {
-            // Find blocks of states with equivalent core items (klassedeling, strongly connected components)
-            // blocks[s] contains one or more items
-            //    * first item always is the new state index
-            //    * if list contains more than a single item, first item is the original state index
-            //    * if list contains single item, either there are no other equivalent item set (original index),
-            //      or the index is smaller referencing a lower index where list has more than single item, containing this state
-            //    * blocks[i] == i (lowest index of some new state, with possibly a single item)
-            //    * blocks[i] < i, then blocks[i] points to a lower index (state) where the list contains i.
+            // blocks[i][0] indicates what block and old index belongs to.
+            // That is
+            //      * blocks[i][0] == i   =>   i is itself a lower indexed block
+            //      * blocks[i][0]  < i   =>   i belongs to another lower indexed block
             var blocks = new List<int>[states.Count];
 
             for (int i = 0; i < states.Count; i++)
@@ -960,7 +955,6 @@ namespace ContextFreeGrammar
             {
                 var state = states[i];
 
-                // if block is a valid list of equivalent items
                 if (blocks[i][0] == i)
                 {
                     // Remember the new state index
@@ -968,10 +962,10 @@ namespace ContextFreeGrammar
 
                     if (blocks[i].Count > 1)
                     {
-                        // Both core and closure items are identical and therefore can be merged
-                        // into single item set with union lookahead sets. Create hash table with
+                        // Core items are identical and therefore both core and closure items can be merged
+                        // into a single item set with union lookahead sets. Create hash table with
                         // keys defined by marked productions (LR(0) items), and values defined by
-                        // the corresponding LR(1) lookahead sets.
+                        // the union of the corresponding LR(1) items' lookahead sets.
                         Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> itemsMap =
                             state.Items.ToDictionary(item => item.MarkedProduction, item => new Set<TTerminalSymbol>(item.Lookaheads));
 

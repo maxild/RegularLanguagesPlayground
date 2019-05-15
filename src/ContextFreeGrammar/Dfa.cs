@@ -13,7 +13,6 @@ namespace ContextFreeGrammar
         private readonly Dictionary<TAlphabet, int> _alphabetToIndex;
         private readonly TAlphabet[] _indexToAlphabet;
 
-        private readonly int _maxState;
         private readonly int[,] _nextState;
         private readonly HashSet<int> _acceptStates;
 
@@ -25,10 +24,10 @@ namespace ContextFreeGrammar
             IEnumerable<TState> acceptStates)
         {
             _originalStates = states.ToArray();
-            _maxState = _originalStates.Length; // 0,1,2,...,maxState, where dead state is at index zero
+            MaxState = _originalStates.Length; // 0,1,2,...,maxState, where dead state is at index zero
 
             // renaming all states to integers
-            var indexMap = new Dictionary<TState, int>(_maxState); // dead state excluded here
+            var indexMap = new Dictionary<TState, int>(MaxState); // dead state excluded here
             int stateIndex = 1;
             foreach (TState state in _originalStates)
             {
@@ -51,7 +50,7 @@ namespace ContextFreeGrammar
                 _acceptStates.Add(indexMap[state]);
             }
 
-            _nextState = new int[_maxState + 1, _alphabetToIndex.Count];
+            _nextState = new int[MaxState + 1, _alphabetToIndex.Count];
 
             foreach (var move in transitions)
             {
@@ -63,6 +62,8 @@ namespace ContextFreeGrammar
 
         public int StartState { get; }
 
+        public int MaxState { get; }
+
         public bool IsAcceptState(int state)
         {
             return _acceptStates.Contains(state);
@@ -70,13 +71,13 @@ namespace ContextFreeGrammar
 
         public IEnumerable<int> GetStates()
         {
-            return Enumerable.Range(0, _maxState + 1);  // 0, 1, 2,..., maxState
+            return Enumerable.Range(0, MaxState + 1);  // 0, 1, 2,..., maxState
         }
 
         public IEnumerable<int> GetTrimmedStates()
         {
             // We do not show the dead state
-            return Enumerable.Range(1, _maxState);      // 1, 2,..., maxState
+            return Enumerable.Range(1, MaxState);      // 1, 2,..., maxState
         }
 
         public IEnumerable<TAlphabet> GetAlphabet()
@@ -135,6 +136,12 @@ namespace ContextFreeGrammar
         public bool IsMatch(string input)
         {
             return IsAcceptState(TransitionFunction(StartState, Letterizer<TAlphabet>.Default.GetLetters(input)));
+        }
+
+        public TState GetUnderlyingState(int state)
+        {
+            int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
+            return _originalStates[originalIndex];
         }
 
         public string GetStateLabel(int state, string sep)
