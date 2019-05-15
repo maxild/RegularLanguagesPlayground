@@ -55,6 +55,27 @@ namespace ContextFreeGrammar
     //
     //    CG1 = {𝛿β ∈ Pow(V) | S′ ∗⇒ 𝛿Av ⇒ 𝛿βv, 𝛿β ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols)
     //          where each item is carrying lookahead symbol for follow-condition on reductions
+    //
+    // For any reduce state (LR(0) item set containing a reduce item), and any reducing production A → β in q, let
+    //
+    //    LA(q, A → β) := {b ∈ T | S′ ∗⇒ 𝛿Abv ⇒ 𝛿βbv, 𝛿β ∈ Pow(V), v ∈ Pow(T), 𝛿β accesses q},
+    //
+    // where V := N U V (all grammar symbols). In words LA(q, A → β) consists of the terminal symbols for
+    // which the reduction by production A → β in state q is the correct action. That 𝛿β accesses q means it
+    // is a viable prefix found/recognized in state q.
+    //
+    // For any state p and any nonterminal A, let
+    //
+    //    FOLLOW(p, A) := {b ∈ T | S′ ∗⇒ 𝛿Abv, 𝛿 ∈ Pow(V), v ∈ Pow(T), 𝛿 accesses p}
+    //
+    // Propagation of lookahead symbols into state p after having reduced 𝛿β into 𝛿A by production A → β
+    // on the stack (just before pushing GOTO(p, A) onto the stack).
+    //
+    // Since for any derivation
+    //
+    //         S′ ∗⇒ 𝛿Abv ⇒ 𝛿βbv
+    //
+    // where 𝛿β accesses q, there is a state p such that p --β--> q and 𝛿 accesses p, it is
     //--------------------------------------------------------------------------------------------------
 
     /// <summary>

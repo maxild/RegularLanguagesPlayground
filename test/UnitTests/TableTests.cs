@@ -320,6 +320,8 @@ namespace UnitTests
             lr1Parser.Parse("a=a", writer);
 
             // TODO: Compute LALR(1) parser
+            //      - brute force merging: LR(1) -> LALR(1)
+            //      - fixed-point algorithm of propagated lookaheads: LR(0) -> SLR(1) extended follow sets --> LALR(1)
         }
 
         /// <summary>
