@@ -36,6 +36,22 @@ namespace CLI.TestDriver
         // Context-Free languages, CFG and LR Parsing
         //
 
+        public static void GrammarSomething()
+        {
+            // See also http://www.lsv.fr/Publis/PAPERS/PDF/schmitz-dlt06.pdf
+            // The following grammar generates the regular language: aa+ | aa∗b.
+            // 0: S' → S
+            // 1: S → BC
+            // 2: S → AD
+            // 3: A → a
+            // 4: B → a
+            // 5: C → CA
+            // 6: C → A
+            // 7: D → aD
+            // 8: D → b
+            // TODO: Create this example some day
+        }
+
         /// <summary>
         /// Dragon book example 4.54, p. 263, 2nd ed.
         /// </summary>

@@ -25,6 +25,53 @@ namespace ContextFreeGrammar
     // TODO: 1) Build Lr1AutomataDFA, 2) Build paring table using modified SLR(1) algorithm where FOLLOW(A) is substituted by the Lookahead set
     // TODO: Again we have 2 ways to build LR(1) automaton: NFA -> DFA or directly
 
+    // NOTE: valid prefix = viable prefix = characteristic string
+
+    // Valid Items and Prefixes
+    // ========================
+    // A marked production A → α•β is a valid LR(0) item for a string δα in V∗ if
+    //      S′ ∗⇒ δAv ⇒ δαβv = γβv
+    // If such a derivation holds in G, then γ in V′∗ is a valid prefix.
+    //
+    // The set of valid items for a given string γ in V∗ is denoted by Valid(γ). Therefore Valid(γ) denotes a state of
+    // the LR(0) automaton also called an LR(0) item set.
+    // Two strings δ and γ are equivalent if and only if they have the same valid items.
+    // The valid item sets are obtained through the following computations:
+    //
+    // The function Kernel(γX) yields the core items (aka kernel items) reached by a transition on symbol X from the
+    // state Valid(γ):
+    //
+    //      Kernel(ε) = {S′ → •S$}                                     (base case for kernel items)
+    //      Kernel(γX) = {A → αX•β | A → α•Xβ ∈ Valid(γ)}              (induction/transition step for kernel items)
+    //
+    //      Valid(γ) = Kernel(γ) ∪ Closure(Valid(γ)).                  (closure of item set: from core items to closure items)
+    //
+    // where the function Closure(I) yields the result of adding closure items to the core items of a LR(0) item set I.
+    //
+    //      Closure(I) = {B → •ω | A → α•Bβ ∈ I}
+    //
+    // Since states are uniquely determined by their sets of kernel/core items, the test to see if a new state have
+    // been found does not require that the Closure function be applied to the core items first.
+    //
+    // LR(0) Automaton
+    // ===============
+    // LR(0) automaton is a deterministic pushdown automaton (DPDA) that uses equivalence classes on valid
+    // prefixes as their stack alphabet Q. We therefore denote explicitly states of a LR parser as q = [δ],
+    // where δ is some valid prefix in the state q reached upon reading this prefix (s0 --δ--> q is therefore
+    // denoted q = [δ]). For instance, in the automaton of Figure 1a, state q2 is the equivalence class {S}, while state q8 is
+    // the equivalence class described by the regular language Aa∗a.
+    //
+    // A pair ([δ],X) in Q × V is a transition if and only if δX is a valid prefix. If this is the
+    // case, then [δX] is the state accessed upon reading δX, thus the notation [δX] also implies (we
+    // always assume when writing [δX] that Valid(δX) is not the empty set) a transition from [δ] on X,
+    // and [δα] a path on α ([δ]--X-->[δX], that is [δX] is accessed from [δ] on the singleton-path X).
+    // This means that [δα] is accessed from [δ] on a path equal to α.
+    //
+    // LALR(1) Automaton
+    // =================
+    // The LALR(1) lookahead set of a reduction using A → α in state q is
+    //      LA(q, A → α) = {1:z | S′ *⇒ δAz and q = [δα]}
+    //
     //--------------------------------------------------------------------------------------------------
     // Def: Viable prefixes are those prefixes of right sentential forms that can appear on the stack of
     //      a shift-reduce parser.
@@ -59,6 +106,7 @@ namespace ContextFreeGrammar
     // For any reduce state (LR(0) item set containing a reduce item), and any reducing production A → β in q, let
     //
     //    LA(q, A → β) := {b ∈ T | S′ ∗⇒ 𝛿Abv ⇒ 𝛿βbv, 𝛿β ∈ Pow(V), v ∈ Pow(T), 𝛿β accesses q},
+    //    LA(q, A → β) := {1:v | S′ *⇒ δAv and q = [δβ]}
     //
     // where V := N U V (all grammar symbols). In words LA(q, A → β) consists of the terminal symbols for
     // which the reduction by production A → β in state q is the correct action. That 𝛿β accesses q means it
@@ -77,6 +125,62 @@ namespace ContextFreeGrammar
     //
     // where 𝛿β accesses q, there is a state p such that p --β--> q and 𝛿 accesses p, it is
     //--------------------------------------------------------------------------------------------------
+
+    // TODO: Change Func to lookaheadSetResolver in ComputeParsingTable
+    // Definition: Lookahead set
+    // For a non-terminal A we define a lookahead set to be any set of terminals which
+    // immediately follow an instance of A in the grammar. A reduction (A → α•) is only
+    // applicable if the next input symbol, the lookahead, appears in the given lookahead
+    // set of A.
+
+
+    // Dragon Book Algorithm on finding LA-sets
+    //
+    // If the existence of some item, I1, in some state implies the existence of another item, I2, either
+    // in the same state (through the addition of closure items) or in some other state (through
+    // the state completion process), then the lookahead function applied to I2 yields a set which may
+    // contain symbols determined by I1. This is called spontaneous generation of lookahead symbols.
+    // In addition, it is possible that the set of lookahead symbols for I2 must include the entire set of
+    // lookahead symbols for I1. In this case, the symbols are said to propagate from I1 to I2.
+
+    // spontaneous generation
+    // ======================
+    // If the existence of some item, I1, in some state implies the existence of another item, I2, either
+    // in the same state (through the addition of completion/closure items) or in some other state (through the
+    // state completion process), then the lookahead function applied to I2 yields a set which may contain
+    // symbols determined by I1. This is called spontaneous generation of lookahead symbols.
+    //
+    // propagate
+    // =========
+    // In addition, it is possible that the set of lookahead symbols for I2 must include the entire set of
+    // lookahead symbols for I1. In this case, the symbols are said to propagate from I1 to I2.
+    //
+    // The rules for spontaneous generation of symbols and propagation of symbols in the two possible
+    // settings are as follows.
+    //
+    // Case 1 -- Closure Items
+    // Suppose that state q contains an item I1, where the marker appears to the left of a nonterminal symbol.
+    // That is, I1 has the form [A → α•Xβ]. The state must also contain one or more closure items with the form
+    // [B → •ω]. Let I2 be one such item.
+    // The symbols which can follow the RHS of I2 must include the symbols which follow X in item I1, and the
+    // symbols which can follow X in that item must include FIRST(β). In other words, a ∈ FIRST(β) implies
+    // a ∈ LA(q, I2). In the terminology of the dragon book, the symbol a is spontaneously generated (by I1)
+    // and must appear in the lookahead set of I2.
+    // In addition, if β is nullable and b ∈ LA(q, I1), then b ∈ LA(q, I2) must hold. This would be a case
+    // of symbol b propagating from I1 to I2.
+    //
+    // Case 2 -- Kernel Items
+    // Suppose that state q1 contains an item I1 with the form [A → α•Xβ]. There must necessarily be another
+    // state q2 reached by a transition on symbol X from q1, where q2 contains a kernel item with the form
+    // [A → αX•β]. In such a case, if a ∈ LA(q1, I1) then a ∈ LA(q2, I2). This is another example of propagation,
+    // where symbol a propagates from I1 to I2.
+    //
+    // A simple algorithm to determine the lookahead sets can start by initializing all lookahead sets
+    // to empty. Then it can make repeated passes over all items in all states adding spontaneously
+    // generated symbols and propagated symbols to the sets. This iterative procedure can halt when
+    // a pass fails to add any new symbols to any set. A faster version, would use a worklist so that
+    // only items whose lookahead sets have changed participate in the next pass. Entries in the worklist
+    // consist of (state, item)-pairs.
 
     /// <summary>
     /// The LR(k) item used as a building block in Donald Knuth's LR(k) Automaton, and in all LR shift-reduce

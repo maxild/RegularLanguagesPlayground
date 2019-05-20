@@ -18,6 +18,9 @@ namespace ContextFreeGrammar
     // exists a derivation of the form S *=> αAaβ for some α and β. Note that there may, at some time
     // during the derivation, have been symbols between A and a, but if so, they derived ε and disappeared.
 
+    // Test your grammar online here
+    // http://smlweb.cpsc.ucalgary.ca/start.html
+
     /// <summary>
     /// Immutable context-free grammar (CFG) type.
     /// </summary>
@@ -70,6 +73,7 @@ namespace ContextFreeGrammar
 
         public bool IsAugmentedWithEofMarker => IsAugmented && Productions[0].LastSymbol.IsEof;
 
+        // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
         // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
         public bool IsReduced => true;
 
@@ -145,6 +149,18 @@ namespace ContextFreeGrammar
             return FIRST(Productions[productionIndex].Tail);
         }
 
+        // The START function yields the set of starter symbols for a grammar symbol. It is formally
+        // defined as
+        //      START(X) = { x ∈ T | X ∗⇒ xβ }
+        // for a nonterminal X ∈ N. NOTE: START can be extended to all grammar symbols
+        // FIRST can be thought of as the extension of START, but often FIRST is defined for both single symbols
+        // and sentential forms. That is FIRST is extended to all grammar symbols (i.e. sentential forms)
+        // The FIRST function is a simple extension of START (single symbol) to the domain of sentential forms.
+        //      FIRST(α) = { x ∈ T | α ∗⇒ xβ }
+        // An alternative definition which shows how to derive FIRST from START is
+        //      FIRST(X1X2...Xk) = START(X1) ∪ FIRST(X2...Xk), if X1 is nullable
+        //      FIRST(X1X2...Xk) = START(X1)                   otherwise
+        //      FIRST(ε) = Ø = { }
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FIRST(IEnumerable<Symbol> symbols)
         {
@@ -163,6 +179,12 @@ namespace ContextFreeGrammar
             return First[symbol];
         }
 
+        // The FOLLOW function yields the set of symbols that may legally follow a grammar symbol in a
+        // sentential form. It is defined as
+        //      FOLLOW(X) = { Y | Y ∈ T and S ∗⇒ αXYβ }
+        // for a nonterminal X ∈ N.
+        // If there is a derivation of the form S ∗⇒ βA then $ (eof) is also added to FOLLOW(A). In
+        // particular, $ ∈ follow(S').
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FOLLOW(TNonterminalSymbol symbol)
         {
