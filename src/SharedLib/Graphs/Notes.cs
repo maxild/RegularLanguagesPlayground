@@ -92,6 +92,7 @@
 //      - https://www.ics.uci.edu/~eppstein/161/syl.html and https://www.ics.uci.edu/~eppstein/161/960201.html
 //      - http://opendatastructures.org/versions/edition-0.1e/ods-java/12_Graphs.html
 //      - https://www.boost.org/doc/libs/1_70_0/libs/graph/doc/index.html
+//      - https://www.boost.org/doc/libs/1_70_0/libs/graph/doc/graph_concepts.html
 //      - https://www.codeproject.com/Articles/5603/QuickGraph-A-100-C-graph-library-with-Graphviz-Sup
 //      - https://archive.codeplex.com/?p=quickgraph
 //      - https://github.com/Microsoft/automatic-graph-layout
@@ -99,4 +100,19 @@
 //      - https://github.com/etmendz/Mendz.Graph
 //      - https://github.com/panthernet/GraphX/blob/PCL/README.md
 //      - https://github.com/mokeyish/QuickGraph and https://github.com/YaccConstructor/QuickGraph
+//        (QuickGraph uses Code Contracts from MS research. This project have not been moved forward
+//        from .NET Framework to .NET Core, and never will be according to MS: See https://github.com/dotnet/corefx/issues/24681)
+//      - https://gephi.org/ and https://github.com/gephi/gephi
+//      - Gephi supports (See also https://github.com/gephi/gephi/wiki/Datasets):
+//            * GEXF
+//            * GDF
+//            * GML
+//            * GraphML http://graphml.graphdrawing.org/       <----------!!!!
+//            * Pajek NET
+//            * GraphViz DOT https://en.wikipedia.org/wiki/DOT_(graph_description_language)  <----------!!!!
+//            * CSV
+//            * UCINET DL
+//            * Tulip TPL
+//            * Netdraw VNA
+//      - https://www.yworks.com/products/yed (yEd Graph Editor uses GraphML, https://yed.yworks.com/support/manual/fileformat.html)
 //
