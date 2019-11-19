@@ -154,5 +154,50 @@ namespace UnitTests
 
             // Create it directly...in single step
         }
+
+        [Fact]
+        public void HuttonBookCh13()
+        {
+            // NOTE: Both addition (+) and multiplication (*) are right-associative (unusual)!!
+            // 0: S ::= <expr>
+            // 1: <expr>   ::= <term> + <expr>
+            // 2: <expr>   ::= <term>
+            // 3: <term>   ::= <factor> * <term>
+            // 4: <term>   ::= <factor>
+            // 5: <factor> ::= ( <expr> )
+            // 6: <factor> ::= nat
+            // 7: <nat>    ::= 'a' (1 | ... | 9) (0 | 1 | ... | 9)* (this is just a token 'a')
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "expr", "term", "factor", "nat"))
+                .SetTerminalSymbols(Symbol.Ts('+', '*', '(', ')', 'a'))
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").Derives(Symbol.V("expr")),
+                    Symbol.V("expr").Derives(Symbol.V("term"), Symbol.T('+'), Symbol.V("expr")),
+                    Symbol.V("expr").Derives(Symbol.V("term")),
+                    Symbol.V("term").Derives(Symbol.V("factor"), Symbol.T('*'), Symbol.V("term")),
+                    Symbol.V("term").Derives(Symbol.V("factor")),
+                    Symbol.V("factor").Derives(Symbol.T('('), Symbol.V("expr"), Symbol.T(')')),
+                    Symbol.V("factor").Derives(Symbol.T('a'))
+                );
+
+            // The grammar is not LL(1) => Recursive Descent Parser is not an option
+
+            grammar.NULLABLE(Symbol.V("S")).ShouldBeFalse();
+            grammar.NULLABLE(Symbol.V("expr")).ShouldBeFalse();
+            grammar.NULLABLE(Symbol.V("term")).ShouldBeFalse();
+            grammar.NULLABLE(Symbol.V("factor")).ShouldBeFalse();
+
+            // First sets are not disjoint sets. They are all equal
+            grammar.FIRST(Symbol.V("S")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
+            grammar.FIRST(Symbol.V("expr")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
+            grammar.FIRST(Symbol.V("term")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
+            grammar.FIRST(Symbol.V("factor")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
+
+            grammar.FOLLOW(Symbol.V("S")).SetEquals(Symbol.Ts().WithEofMarker()).ShouldBeTrue();
+            grammar.FOLLOW(Symbol.V("expr")).SetEquals(Symbol.Ts(')').WithEofMarker()).ShouldBeTrue();
+            grammar.FOLLOW(Symbol.V("term")).SetEquals(Symbol.Ts('+', ')').WithEofMarker()).ShouldBeTrue();
+            grammar.FOLLOW(Symbol.V("factor")).SetEquals(Symbol.Ts('*', '+', ')').WithEofMarker()).ShouldBeTrue();
+        }
     }
 }

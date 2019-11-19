@@ -181,8 +181,8 @@ namespace ContextFreeGrammar
 
         // The FOLLOW function yields the set of symbols that may legally follow a grammar symbol in a
         // sentential form. It is defined as
-        //      FOLLOW(X) = { Y | Y ∈ T and S ∗⇒ αXYβ }
-        // for a nonterminal X ∈ N.
+        //      FOLLOW(A) = { a ∈ T| S ∗⇒ αAaβ }
+        // for a nonterminal A ∈ N.
         // If there is a derivation of the form S ∗⇒ βA then $ (eof) is also added to FOLLOW(A). In
         // particular, $ ∈ follow(S').
         [SuppressMessage("ReSharper", "InconsistentNaming")]
