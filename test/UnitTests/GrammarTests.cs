@@ -66,22 +66,32 @@ namespace UnitTests
             grammar.Variables.Each(symbol => grammar.NULLABLE(symbol).ShouldBeFalse());
             Enumerable.Range(0, grammar.Productions.Count).Each(i => grammar.NULLABLE(i).ShouldBeFalse());
 
-            // TODO: Better assertion failure messages for set comparisons
+            grammar.ERASABLE(Symbol.V("S")).ShouldBeFalse();
+            grammar.ERASABLE(Symbol.V("E")).ShouldBeFalse();
+            grammar.ERASABLE(Symbol.V("T")).ShouldBeFalse();
+            grammar.ERASABLE(Symbol.V("F")).ShouldBeFalse();
+
+            // graph traversal
+            grammar.START(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.START(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.START(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.START(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
 
             // FIRST(X) for all X in T (i.e. all nonterminal symbols, aka variables)
-            grammar.FIRST(Symbol.V("E")).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(Symbol.V("T")).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(Symbol.V("F")).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
+            grammar.FIRST(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
 
             // FIRST(Y1 Y2...Yn) for all X → Y1 Y2...Yn in P (i.e. all productions)
-            grammar.FIRST(0).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(1).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(2).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(3).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(4).SetEquals(Symbol.Ts('(', '-', 'a')).ShouldBeTrue();
-            grammar.FIRST(5).SetEquals(Symbol.Ts('(')).ShouldBeTrue();
-            grammar.FIRST(6).SetEquals(Symbol.Ts('-')).ShouldBeTrue();
-            grammar.FIRST(7).SetEquals(Symbol.Ts('a')).ShouldBeTrue();
+            grammar.FIRST(0).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(1).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(2).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(3).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(4).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.FIRST(5).ShouldSetEqual(Symbol.Ts('('));
+            grammar.FIRST(6).ShouldSetEqual(Symbol.Ts('-'));
+            grammar.FIRST(7).ShouldSetEqual(Symbol.Ts('a'));
         }
 
         [Fact]
@@ -110,9 +120,9 @@ namespace UnitTests
                     Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
-            grammar.FOLLOW(Symbol.V("E")).SetEquals(Symbol.Ts('+', ')').WithEofMarker()).ShouldBeTrue();
-            grammar.FOLLOW(Symbol.V("T")).SetEquals(Symbol.Ts('+', '*', ')').WithEofMarker()).ShouldBeTrue();
-            grammar.FOLLOW(Symbol.V("F")).SetEquals(Symbol.Ts('+', '*', ')').WithEofMarker()).ShouldBeTrue();
+            grammar.FOLLOW(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
+            grammar.FOLLOW(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
+            grammar.FOLLOW(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
         }
 
         [Fact]
@@ -189,15 +199,15 @@ namespace UnitTests
             grammar.NULLABLE(Symbol.V("factor")).ShouldBeFalse();
 
             // First sets are not disjoint sets. They are all equal
-            grammar.FIRST(Symbol.V("S")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
-            grammar.FIRST(Symbol.V("expr")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
-            grammar.FIRST(Symbol.V("term")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
-            grammar.FIRST(Symbol.V("factor")).SetEquals(Symbol.Ts('(', 'a')).ShouldBeTrue();
+            grammar.FIRST(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.FIRST(Symbol.V("expr")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.FIRST(Symbol.V("term")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.FIRST(Symbol.V("factor")).ShouldSetEqual(Symbol.Ts('(', 'a'));
 
-            grammar.FOLLOW(Symbol.V("S")).SetEquals(Symbol.Ts().WithEofMarker()).ShouldBeTrue();
-            grammar.FOLLOW(Symbol.V("expr")).SetEquals(Symbol.Ts(')').WithEofMarker()).ShouldBeTrue();
-            grammar.FOLLOW(Symbol.V("term")).SetEquals(Symbol.Ts('+', ')').WithEofMarker()).ShouldBeTrue();
-            grammar.FOLLOW(Symbol.V("factor")).SetEquals(Symbol.Ts('*', '+', ')').WithEofMarker()).ShouldBeTrue();
+            grammar.FOLLOW(Symbol.V("S")).ShouldSetEqual(Symbol.Ts().WithEofMarker());
+            grammar.FOLLOW(Symbol.V("expr")).ShouldSetEqual(Symbol.Ts(')').WithEofMarker());
+            grammar.FOLLOW(Symbol.V("term")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
+            grammar.FOLLOW(Symbol.V("factor")).ShouldSetEqual(Symbol.Ts('*', '+', ')').WithEofMarker());
         }
     }
 }

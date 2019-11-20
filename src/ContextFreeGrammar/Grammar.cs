@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using AutomataLib;
+using AutomataLib.Graphs;
 
 namespace ContextFreeGrammar
 {
@@ -149,18 +151,34 @@ namespace ContextFreeGrammar
             return FIRST(Productions[productionIndex].Tail);
         }
 
-        // The START function yields the set of starter symbols for a grammar symbol. It is formally
-        // defined as
-        //      START(X) = { x ∈ T | X ∗⇒ xβ }
-        // for a nonterminal X ∈ N. NOTE: START can be extended to all grammar symbols
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public bool ERASABLE(TNonterminalSymbol variable)
+        {
+            return Erasable[variable];
+        }
+
+        /// <summary>
+        /// The START function yields the set of starter symbols for a grammar symbol. It is formally
+        /// defined as
+        ///      START(A) = { a ∈ T | A ∗⇒ aβ }
+        /// for a nonterminal A ∈ N.
+        /// </summary>
+        /// <param name="variable">nonterminal X ∈ N</param>
+        /// <returns>set of starter symbols (aka FIRST set)</returns>
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public IReadOnlySet<TTerminalSymbol> START(TNonterminalSymbol variable)
+        {
+            return Start[variable];
+        }
+
         // FIRST can be thought of as the extension of START, but often FIRST is defined for both single symbols
         // and sentential forms. That is FIRST is extended to all grammar symbols (i.e. sentential forms)
         // The FIRST function is a simple extension of START (single symbol) to the domain of sentential forms.
         //      FIRST(α) = { x ∈ T | α ∗⇒ xβ }
-        // An alternative definition which shows how to derive FIRST from START is
+        // An alternative definition which shows how to derive FIRST from START recursively is
         //      FIRST(X1X2...Xk) = START(X1) ∪ FIRST(X2...Xk), if X1 is nullable
-        //      FIRST(X1X2...Xk) = START(X1)                   otherwise
-        //      FIRST(ε) = Ø = { }
+        //      FIRST(X1X2...Xk) = START(X1)                    otherwise
+        //      FIRST(ε) = Ø = { }
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FIRST(IEnumerable<Symbol> symbols)
         {
@@ -189,6 +207,30 @@ namespace ContextFreeGrammar
         public IReadOnlySet<TTerminalSymbol> FOLLOW(TNonterminalSymbol symbol)
         {
             return Follow[symbol];
+        }
+
+        private Dictionary<TNonterminalSymbol, bool> _erasable;
+        protected Dictionary<TNonterminalSymbol, bool> Erasable
+        {
+            get
+            {
+                if (_erasable == null)
+                    ComputeErasableAndStart();
+
+                return _erasable;
+            }
+        }
+
+        private Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _start;
+        protected Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> Start
+        {
+            get
+            {
+                if (_start == null)
+                    ComputeErasableAndStart();
+
+                return _start;
+            }
         }
 
         // nullable extended to all grammar symbols, including epsilon
@@ -390,6 +432,150 @@ namespace ContextFreeGrammar
             _nullable = nullableMap;
             _first = firstMap;
             _follow = followMap;
+        }
+
+        // Graph method
+        private Dictionary<TNonterminalSymbol, bool> ComputeNullableV2()
+        {
+            // only define nullable predicate on non-terminals
+            var nullableMap = Variables.ToDictionary(symbol => symbol, _ => false);
+
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                // For each production X → Y1 Y2...Yn
+                foreach (var production in Productions)
+                {
+                    if (false == nullableMap[production.Head])
+                    {
+                        // if all symbols Y1 Y2...Yn are nullable (e.g. if X is an ε-production)
+                        if (production.Tail.Count == 0 ||
+                            production.Tail.All(Nullable))
+                        {
+                            nullableMap[production.Head] = true;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            return nullableMap;
+
+            bool Nullable(Symbol s)
+            {
+                return s.IsEpsilon || s is TNonterminalSymbol t && nullableMap[t];
+            }
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        private (Dictionary<TNonterminalSymbol, bool>, Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>>) ComputeFirstV2()
+        {
+            // only define first set on non-terminals
+            var nullableMap = ComputeNullableV2();
+
+            // TODO: INITFIRST sets should be indexed by terminal index
+            // TODO: production.HeadIndex is not possible without getting grammar to resolve it: Grammar.Variables.IndexOf(production.Head)
+            // direct/initial first sets
+            var initFirstSets =
+                Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>()); // maybe use HashSet
+
+            // superset relations between nonterminals
+            var contains_the_first_set_of = new List<(int, int)>();
+
+            // initialize initial first sets and list of relations
+            foreach (var production in Productions)
+            {
+                foreach (var Yi in production.Tail)
+                {
+                    if (Yi is TTerminalSymbol a)
+                    {
+                        // direct contribution: A → αaβ, where α *=> ε and a ∈ T
+                        initFirstSets[production.Head].Add(a);
+                        break;
+                    }
+
+                    if (Yi is TNonterminalSymbol B)
+                    {
+                        // indirect (recursive) contribution: A → αBβ, where α *=> ε and B ∈ N
+                        var Ai = Variables.IndexOf(production.Head);
+                        var Bi = Variables.IndexOf(B);
+                        contains_the_first_set_of.Add((Ai, Bi));
+
+                        // if we cannot erase Yi (Yi *=> ε), then no more 'direct contributions' or
+                        // subset (contains_the_first_set_of) relation pairs exist for this production rule
+                        if (!nullableMap[B]) break;
+                    }
+                }
+            }
+
+            var graph = new AdjacencyListGraph(Variables.Count, contains_the_first_set_of);
+
+            var firstSets = Variables.ToDictionary(symbol => symbol,
+                symbol => new Set<TTerminalSymbol>(initFirstSets[symbol]));
+
+            // We can collectively characterize all FIRST sets as the smallest sets
+            // FIRST(A) satisfying, for each A in N:
+            //    (i)  FIRST(A) contains INITFIRST(A), and
+            //    (ii) for each nonterminal B, s.t. A contains_the_first_set_of B:
+            //                 FIRST(A) contains FIRST(B).
+            // By the way, this is equivalent to
+            //
+            // FIRST(A) = INITFIRST(A) ∪ { FIRST(B) : (A,B) ∈ contains_the_first_set_of+ }
+            //                            -- or --
+            // FIRST(A) = ∪ { INITFIRST(B) : A contains_the_first_set_of* B }.
+            //                            -- or --
+            // FIRST(A) = ∪ { INITFIRST(B) : (A,B) ∈ contains_the_first_set_of* }
+            for (int startIndex = 0; startIndex < Variables.Count; startIndex++)
+            {
+                var variable = Variables[startIndex];
+                // We traverse the contains_the_first_set_of graph in a depth-first
+                // manner taken the union of every reachable FIRST(B) into FIRST(A)
+                // when returning from the traversal of en edge (A,B)
+                foreach (var successor in Reachable(graph, startIndex))
+                {
+                    var terminal = Variables[successor];
+                    // FIRST[start] := FIRST[start] ∪ INITFIRST[successor]
+                    firstSets[variable].AddRange(initFirstSets[terminal]);
+                }
+            }
+
+            return (nullableMap, firstSets);
+
+            // DFS helper that traverse the graph to determine positive transitive
+            // closure (contains_the_first_set_of)+ for each terminal symbol
+            static IEnumerable<int> Reachable(IGraph g, int start) // non-recursive, uses stack
+            {
+                var visited = new BitArray(g.VertexCount);
+                var stack = new Stack<int>();
+
+                stack.Push(start);
+
+                var reachable = new List<int>();
+
+                while (stack.Count > 0)
+                {
+                    var current = stack.Pop();
+                    visited[current] = true;
+                    foreach (var successor in g.NeighboursOf(current))
+                    {
+                        if (!visited[successor])
+                        {
+                            stack.Push(successor);
+                            reachable.Add(successor);
+                        }
+                    }
+                }
+
+                return reachable;
+            }
+        }
+
+        private void ComputeErasableAndStart()
+        {
+            var (nullableMap, firstMap) = ComputeFirstV2();
+            _erasable = nullableMap;
+            _start = firstMap;
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
