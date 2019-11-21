@@ -26,13 +26,13 @@ namespace UnitTests
                     Symbol.V("R").Derives(Symbol.T('b'), Symbol.V("R"))
                 );
 
-            grammar.NULLABLE(Symbol.V("T")).ShouldBeTrue();
-            grammar.NULLABLE(Symbol.V("R")).ShouldBeTrue();
+            grammar.Erasable(Symbol.V("T")).ShouldBeTrue();
+            grammar.Erasable(Symbol.V("R")).ShouldBeTrue();
 
-            grammar.NULLABLE(0).ShouldBeTrue();
-            grammar.NULLABLE(1).ShouldBeFalse();
-            grammar.NULLABLE(2).ShouldBeTrue();
-            grammar.NULLABLE(3).ShouldBeFalse();
+            grammar.Erasable(0).ShouldBeTrue();
+            grammar.Erasable(1).ShouldBeFalse();
+            grammar.Erasable(2).ShouldBeTrue();
+            grammar.Erasable(3).ShouldBeFalse();
         }
 
         [Fact]
@@ -63,24 +63,24 @@ namespace UnitTests
                 );
 
             // No ε-productions, no nullable symbols
-            grammar.Variables.Each(symbol => grammar.NULLABLE(symbol).ShouldBeFalse());
-            Enumerable.Range(0, grammar.Productions.Count).Each(i => grammar.NULLABLE(i).ShouldBeFalse());
+            grammar.Variables.Each(symbol => grammar.Erasable(symbol).ShouldBeFalse());
+            Enumerable.Range(0, grammar.Productions.Count).Each(i => grammar.Erasable(i).ShouldBeFalse());
 
             // FIRST(X) for all X in T (i.e. all nonterminal symbols, aka variables)
-            grammar.FIRST(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
 
             // FIRST(Y1 Y2...Yn) for all X → Y1 Y2...Yn in P (i.e. all productions)
-            grammar.FIRST(0).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(1).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(2).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(3).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(4).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.FIRST(5).ShouldSetEqual(Symbol.Ts('('));
-            grammar.FIRST(6).ShouldSetEqual(Symbol.Ts('-'));
-            grammar.FIRST(7).ShouldSetEqual(Symbol.Ts('a'));
+            grammar.First(0).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(1).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(2).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(3).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(4).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            grammar.First(5).ShouldSetEqual(Symbol.Ts('('));
+            grammar.First(6).ShouldSetEqual(Symbol.Ts('-'));
+            grammar.First(7).ShouldSetEqual(Symbol.Ts('a'));
         }
 
         [Fact]
@@ -109,9 +109,9 @@ namespace UnitTests
                     Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
-            grammar.FOLLOW(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
-            grammar.FOLLOW(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
-            grammar.FOLLOW(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
+            grammar.Follow(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
+            grammar.Follow(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
+            grammar.Follow(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
         }
 
         [Fact]
@@ -183,21 +183,21 @@ namespace UnitTests
 
             // The grammar is not LL(1) => Recursive Descent Parser is not an option
 
-            grammar.NULLABLE(Symbol.V("S")).ShouldBeFalse();
-            grammar.NULLABLE(Symbol.V("expr")).ShouldBeFalse();
-            grammar.NULLABLE(Symbol.V("term")).ShouldBeFalse();
-            grammar.NULLABLE(Symbol.V("factor")).ShouldBeFalse();
+            grammar.Erasable(Symbol.V("S")).ShouldBeFalse();
+            grammar.Erasable(Symbol.V("expr")).ShouldBeFalse();
+            grammar.Erasable(Symbol.V("term")).ShouldBeFalse();
+            grammar.Erasable(Symbol.V("factor")).ShouldBeFalse();
 
             // First sets are not disjoint sets. They are all equal
-            grammar.FIRST(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', 'a'));
-            grammar.FIRST(Symbol.V("expr")).ShouldSetEqual(Symbol.Ts('(', 'a'));
-            grammar.FIRST(Symbol.V("term")).ShouldSetEqual(Symbol.Ts('(', 'a'));
-            grammar.FIRST(Symbol.V("factor")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.First(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.First(Symbol.V("expr")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.First(Symbol.V("term")).ShouldSetEqual(Symbol.Ts('(', 'a'));
+            grammar.First(Symbol.V("factor")).ShouldSetEqual(Symbol.Ts('(', 'a'));
 
-            grammar.FOLLOW(Symbol.V("S")).ShouldSetEqual(Symbol.Ts().WithEofMarker());
-            grammar.FOLLOW(Symbol.V("expr")).ShouldSetEqual(Symbol.Ts(')').WithEofMarker());
-            grammar.FOLLOW(Symbol.V("term")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
-            grammar.FOLLOW(Symbol.V("factor")).ShouldSetEqual(Symbol.Ts('*', '+', ')').WithEofMarker());
+            grammar.Follow(Symbol.V("S")).ShouldSetEqual(Symbol.Ts().WithEofMarker());
+            grammar.Follow(Symbol.V("expr")).ShouldSetEqual(Symbol.Ts(')').WithEofMarker());
+            grammar.Follow(Symbol.V("term")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
+            grammar.Follow(Symbol.V("factor")).ShouldSetEqual(Symbol.Ts('*', '+', ')').WithEofMarker());
         }
     }
 }

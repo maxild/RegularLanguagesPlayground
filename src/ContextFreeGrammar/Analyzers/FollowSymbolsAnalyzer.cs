@@ -7,14 +7,14 @@ using AutomataLib.Graphs;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    public class FollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : DigraphAlgorithmBaseAnalyzer, IStarterSymbolsAnalyzer<TTerminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
+    public class FollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : DigraphAlgorithmBaseAnalyzer, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
     {
         private readonly Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _followMap;
-        private readonly IStarterSymbolsAnalyzer<TTerminalSymbol> _analyzer;
+        private readonly IFirstSymbolsAnalyzer<TTerminalSymbol> _analyzer;
 
-        public FollowSymbolsAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IStarterSymbolsAnalyzer<TTerminalSymbol> analyzer)
+        public FollowSymbolsAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer)
         {
             _followMap = ComputeFollow(grammar, analyzer);
             _analyzer = analyzer;
@@ -36,7 +36,7 @@ namespace ContextFreeGrammar.Analyzers
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private static Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> ComputeFollow(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IStarterSymbolsAnalyzer<TTerminalSymbol> analyzer)
+            IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer)
         {
             // TODO: maybe use HashSet
             var initFollowSets = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());

@@ -19,12 +19,6 @@ namespace ContextFreeGrammar.Analyzers
             _nullableMap = ComputeErasableSymbols(grammar);
         }
 
-        public bool Erasable(IEnumerable<Symbol> symbols)
-        {
-            // OR monoid is false by default
-            return symbols.All(Erasable);
-        }
-
         public bool Erasable(Symbol symbol)
         {
             return symbol.IsEpsilon || symbol is TNonterminalSymbol t && _nullableMap[t];

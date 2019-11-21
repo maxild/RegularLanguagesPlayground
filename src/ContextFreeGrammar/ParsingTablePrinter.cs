@@ -81,9 +81,9 @@ namespace ContextFreeGrammar
             foreach (TNonterminalSymbol variable in grammar.Variables)
             {
                 tableWriter.WriteRow(variable.Name,
-                    grammar.NULLABLE(variable).FormatBoolean(),
-                    grammar.FIRST(variable).ToVectorString(),
-                    grammar.FOLLOW(variable).ToVectorString());
+                    grammar.Erasable(variable).FormatBoolean(),
+                    grammar.First(variable).ToVectorString(),
+                    grammar.Follow(variable).ToVectorString());
             }
             tableWriter.WriteFooter();
         }

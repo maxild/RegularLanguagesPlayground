@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using AutomataLib;
+using ContextFreeGrammar.Analyzers;
 
 namespace ContextFreeGrammar
 {
@@ -24,42 +25,51 @@ namespace ContextFreeGrammar
     /// <summary>
     /// Immutable context-free grammar (CFG) type.
     /// </summary>
-    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>
+    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
-        private readonly List<Production<TNonterminalSymbol>> _productions;
         private readonly Dictionary<TNonterminalSymbol, List<(int, Production<TNonterminalSymbol>)>> _productionMap;
+        private readonly IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> _analyzer;
 
         public Grammar(
             IEnumerable<TNonterminalSymbol> variables,
             IEnumerable<TTerminalSymbol> terminals,
             TNonterminalSymbol startSymbol,
-            IEnumerable<Production<TNonterminalSymbol>> productions)
+            IEnumerable<Production<TNonterminalSymbol>> productions,
+            Func<Grammar<TNonterminalSymbol, TTerminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>> analyzerFactory)
         {
             if (variables == null) throw new ArgumentNullException(nameof(variables));
             if (terminals == null) throw new ArgumentNullException(nameof(terminals));
             if (productions == null) throw new ArgumentNullException(nameof(productions));
 
-            Variables = new InsertionOrderedSet<TNonterminalSymbol>(variables);
-            Terminals = new Set<TTerminalSymbol>(terminals);
             StartSymbol = startSymbol ?? throw new ArgumentNullException(nameof(startSymbol));
 
-            _productions = new List<Production<TNonterminalSymbol>>();
+            Variables = new InsertionOrderedSet<TNonterminalSymbol>(variables);
+            Terminals = new Set<TTerminalSymbol>(terminals);
+
+            // Productions are numbered 0,1,2,...,^Productions.Count
+            var prods = new List<Production<TNonterminalSymbol>>();
+            // Variables (productions on the shorter form (A -> α | β | ...) are numbered 0,1,...,^Variables.Count
             _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
 
             int index = 0;
             foreach (var production in productions)
             {
-                _productions.Add(production);
+                prods.Add(production);
                 _productionMap[production.Head].Add((index, production));
                 index += 1;
             }
 
-            if (_productions.Count == 0)
+            if (prods.Count == 0)
             {
                 throw new ArgumentException("The productions are empty.", nameof(productions));
             }
+
+            Productions = prods;
+
+            // Calculate lookahead sets (Erasable, First, Follow) using strategy provided by the caller
+            _analyzer = analyzerFactory(this);
         }
 
         /// <summary>
@@ -102,7 +112,7 @@ namespace ContextFreeGrammar
         public IEnumerable<Symbol> AllSymbols => Symbols.ConcatItem(Symbol.Epsilon);
 
         /// <inheritdoc />
-        public IReadOnlyList<Production<TNonterminalSymbol>> Productions => _productions;
+        public IReadOnlyList<Production<TNonterminalSymbol>> Productions { get; }
 
         ///// <summary>
         ///// Production rules for any given variable (nonterminal symbol).
@@ -112,336 +122,21 @@ namespace ContextFreeGrammar
 
         public TNonterminalSymbol StartSymbol { get; }
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public bool NULLABLE(int productionIndex)
+        public bool Erasable(int productionIndex)
         {
-            if (Productions[productionIndex].Tail.Count == 0) return true;
-            return Productions[productionIndex].Tail.All(symbol => Nullable[symbol]);
+            return this.Erasable(Productions[productionIndex].Tail);
         }
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public bool NULLABLE(Symbol symbol)
+        public IReadOnlySet<TTerminalSymbol> First(int productionIndex)
         {
-            return Nullable[symbol];
+            return this.First(Productions[productionIndex].Tail);
         }
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<TTerminalSymbol> FIRST(int productionIndex)
-        {
-            return FIRST(Productions[productionIndex].Tail);
-        }
+        public bool Erasable(Symbol symbol) => _analyzer.Erasable(symbol);
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<TTerminalSymbol> FIRST(IEnumerable<Symbol> symbols)
-        {
-            var first = new Set<TTerminalSymbol>();
-            foreach (var symbol in symbols)
-            {
-                first.AddRange(FIRST(symbol));
-                if (!NULLABLE(symbol)) break;
-            }
-            return first;
-        }
+        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol) => _analyzer.First(symbol);
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<TTerminalSymbol> FIRST(Symbol symbol)
-        {
-            return First[symbol];
-        }
-
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<TTerminalSymbol> FOLLOW(TNonterminalSymbol symbol)
-        {
-            return Follow[symbol];
-        }
-
-        // nullable extended to all grammar symbols, including epsilon
-        private Dictionary<Symbol, bool> _nullable;
-        protected Dictionary<Symbol, bool> Nullable
-        {
-            get
-            {
-                if (_nullable == null)
-                    ComputeNullableAndFirstAndFollow();
-
-                return _nullable;
-            }
-        }
-
-        // first extended to all grammar symbols, including epsilon
-        private Dictionary<Symbol, Set<TTerminalSymbol>> _first;
-        protected Dictionary<Symbol, Set<TTerminalSymbol>> First
-        {
-            get
-            {
-                if (_first == null)
-                    ComputeNullableAndFirstAndFollow();
-
-                return _first;
-            }
-        }
-
-        private Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _follow;
-        protected Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> Follow
-        {
-            get
-            {
-                if (_follow == null)
-                    ComputeNullableAndFirstAndFollow();
-
-                return _follow;
-            }
-        }
-
-        // This method is kept around, because we might need to calculate nullable predicate, if calculating
-        // FIRST and FOLLOW sets using a Graph representing all the recursive set constraints as a relation and
-        // using Graph traversal as an efficient iteration technique to solve for the unique least fixed-point solution.
-        private Dictionary<Symbol, bool> ComputeNullable()
-        {
-            // we extend nullable to all grammar symbols, including epsilon (to avoid need
-            // for symbol.IsEpsilon checks), and initialize all values to false (except epsilon)
-            var nullableMap = AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
-
-            // Add EOF to avoid unnecessary exceptions
-            if (!nullableMap.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                nullableMap.Add(Symbol.Eof<TTerminalSymbol>(), false);
-
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                // For each production X → Y1 Y2...Yn
-                foreach (var production in Productions)
-                {
-                    if (!nullableMap[production.Head])
-                    {
-                        // if all symbols Y1 Y2...Yn are nullable (e.g. if X is an ε-production)
-                        if (production.Tail.Count == 0 ||
-                            production.Tail.All(symbol => nullableMap[symbol]))
-                        {
-                            nullableMap[production.Head] = true;
-                            changed = true;
-                        }
-                    }
-                }
-            }
-
-            return nullableMap;
-        }
-
-        // From the dragon book...we compute nullable predicate in separate least fixed-point iteration, and
-        // make First only have range of terminal symbols (that is First do not contain epsilon in my implementation)
-        //=======================================================================================================
-        // To compute First(X) for all grammar symbols, apply the Following rules until no more terminals or ε can
-        // be added to any First set.
-        //
-        //    1. If X is terminal, then First(X) is X.
-        //    2. If X→ ε is a production, then add ε to First(X).
-        //    3. If X is non-terminal and X → Y1 Y2...YK is a production, then place a in First(X) if for some i, a
-        //       is in First(Yi), and ε is in all of First(Y1)...First(Yi-1); that is, Y1...Yi-1 *=> ε. If ε is
-        //       in First(Yj) for all j=1, 2, ⋯, k, then add ε to First(X).
-        //
-        // Now define First(α) for any string α = X1X2…Xn as follows. First(α) contains First(X1)-{ε}.For each
-        // i=2,…,n, if First(Xk) contains ε for all k=1,…,i-1, then First(α) contains First(Xi)-{ε}.Finally,
-        // if for all i=1,…,n, First(Xi) contains ε, then First(α) contains ε.
-        //=======================================================================================================
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<TTerminalSymbol>>) ComputeFirst()
-        {
-            // We extend Nullable and First to the entire vocabulary of grammar symbols, including epsilon
-            var nullableMap = ComputeNullable();
-            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
-
-            // Base case: First(a) = {a} for all terminal symbols a ∈ T.
-            foreach (var terminal in Terminals)
-                firstMap[terminal].Add(terminal);
-
-            // Add EOF to avoid unnecessary exceptions
-            if (!firstMap.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                firstMap.Add(Symbol.Eof<TTerminalSymbol>(), new Set<TTerminalSymbol> { Symbol.Eof<TTerminalSymbol>() });
-
-            // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                // For each production X → Y1 Y2...Yn
-                foreach (var production in Productions)
-                {
-                    // FirstDelta(X) = FIRST(Y1) U ... U FIRST(Yk), where k, 1 <= k <= n, is
-                    // the largest integer such that Nullable(Y1) = ... = Nullable(Yk) = true
-                    // is added to First(X)
-                    for (int i = 0; i < production.Length; i += 1)
-                    {
-                        var Yi = production.Tail[i];
-                        if (firstMap[production.Head].AddRange(firstMap[Yi]))
-                            changed = true;
-                        if (!nullableMap[Yi])
-                            break;
-                    }
-                }
-            }
-
-            return (nullableMap, firstMap);
-        }
-
-        // Also inspired by Dragon book....should be changed to more clever Graph Traversal Method
-        // See also https://compilers.iecc.com/comparch/article/01-04-079 for sketch of algorithm
-        // based on set-valued functions over digraph containing relations/edges for all set constraints
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public (Dictionary<Symbol, bool>,
-                Dictionary<Symbol, Set<TTerminalSymbol>>,
-                Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>>) ComputeFollow()
-        {
-            var (nullableMap, firstMap) = ComputeFirst();
-
-            // We define Follow only on nonterminal symbols
-            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
-
-            // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
-            // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
-            if (!IsAugmentedWithEofMarker)
-                followMap[StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
-
-            // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                // For each production X → Y1 Y2...Yn
-                foreach (var production in Productions)
-                {
-                    for (int i = 0; i < production.Length; i += 1)
-                    {
-                        // for each Yi that is a nonterminal symbol
-                        var Yi = production.TailAs<TNonterminalSymbol>(i);
-                        if (Yi == null) continue;
-                        // Let m = First(Y(i+1)...Yn)
-                        var m = First(production.Tail.Skip(i + 1));
-                        // add m to Follow(Yi)
-                        changed = followMap[Yi].AddRange(m) || changed;
-                        // add Follow(X) to Follow(Yi)
-                        if (!Yi.Equals(production.Head) && Nullable(production.Tail.Skip(i + 1)))
-                            changed = followMap[Yi].AddRange(followMap[production.Head]) || changed;
-                    }
-                }
-            }
-
-            return (nullableMap, firstMap, followMap);
-
-            // extend First to words of symbols
-            Set<TTerminalSymbol> First(IEnumerable<Symbol> symbols)
-            {
-                var m = new Set<TTerminalSymbol>();
-                foreach (var symbol in symbols)
-                {
-                    m.AddRange(firstMap[symbol]);
-                    if (!nullableMap[symbol]) break;
-                }
-
-                return m;
-            }
-
-            // extend Nullable to words of symbols
-            bool Nullable(IEnumerable<Symbol> symbols)
-            {
-                return symbols.All(symbol => nullableMap[symbol]);
-            }
-        }
-
-        private void ComputeNullableAndFirstAndFollow()
-        {
-            var (nullableMap, firstMap, followMap) = ComputeFollow();
-            _nullable = nullableMap;
-            _first = firstMap;
-            _follow = followMap;
-        }
-
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        [SuppressMessage("ReSharper", "UnusedMember.Local")]
-        private void OldComputeNullableAndFirstAndFollow()
-        {
-            // we keep a separate nullable map, instead of adding epsilon to First sets
-            var nullableMap = AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
-            var firstMap = AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
-            var followMap = Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
-
-            // Base case: First(a) = {a} for all terminal symbols a ∈ T.
-            foreach (var symbol in Terminals)
-                firstMap[symbol].Add(symbol);
-
-            // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
-            // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
-            if (!IsAugmentedWithEofMarker)
-                followMap[StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
-
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                // For each production X → Y1 Y2...Yn
-                foreach (var production in Productions)
-                {
-                    if (!nullableMap[production.Head])
-                    {
-                        // if all symbols Y1 Y2...Yn are nullable (e.g. if X is an ε-production)
-                        if (production.Tail.Count == 0 ||
-                            production.Tail.All(symbol => nullableMap[symbol]))
-                        {
-                            nullableMap[production.Head] = true;
-                            changed = true;
-                        }
-                    }
-
-                    // For each RHS symbol in production X → Y1 Y2...Yn
-                    for (var i = 0; i < production.Length; i++)
-                    {
-                        // X → Y1 Y2...Yn
-                        Symbol yi = production.Tail[i]; // FIRST is extended to all symbols
-
-                        // If all symbols Y1 Y2...Y(i-1) preceding Yi are nullable,
-                        if (i == 0 || production.Tail.Take(i).All(symbol => nullableMap[symbol]))
-                        {
-                            // then everything in First(Yi) is in First(X)
-                            if (firstMap[production.Head].AddRange(firstMap[yi]))
-                                changed = true;
-                        }
-
-                        // for each Yi that is a nonterminal symbol
-                        var Yi = yi as TNonterminalSymbol; // FOLLOW is only defined w.r.t. nonterminal symbols.
-                        if (Yi == null) continue;
-
-                        // If all symbols Y(i+1)...Yn succeeding Yi are nullable,
-                        if (i == production.Tail.Count - 1 || production.Tail.Skip(i + 1).All(symbol => nullableMap[symbol]))
-                        {
-                            // then everything in Follow(X) is in Follow(Yi)
-                            if (followMap[Yi].AddRange(followMap[production.Head]))
-                                changed = true;
-                        }
-
-                        // Here we try to add everything in First(Y(i+1)...Yn) to Follow(Yi)
-                        // For each symbol Y(j) in Y(i+1)...Yn, e.g. for each Y(j) succeeding Y(i)
-                        for (var j = i + 1; j < production.Tail.Count; j += 1)
-                        {
-                            var Yj = production.Tail[j];
-                            // If the sequence Y(i+1)...Y(j-1) is nullable (or empty,
-                            // as is the case for the first iteration),
-                            if (j > i + 1 && !production.Tail.Skip(i + 1).Take(j - i - 1)
-                                    .All(symbol => nullableMap[symbol]))
-                                break;
-
-                            // then everything in First(Y(j)) is in Follow(Y(i))
-                            if (followMap[Yi].AddRange(firstMap[Yj]))
-                                changed = true;
-                        }
-                    }
-                }
-            }
-
-            _nullable = nullableMap;
-            _first = firstMap;
-            _follow = followMap;
-        }
+        public IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable) => _analyzer.Follow(variable);
 
         /// <summary>
         /// Get NFA representation of the set of characteristic strings (aka viable prefixes) that are defined by
@@ -598,7 +293,7 @@ namespace ContextFreeGrammar
                         // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
                         // symbol 'a' of [B → γ, a], where a ∈ FIRST(βb) and 'B → γ' is a production ∈ P.
                         Symbol b = item.Lookaheads.Single();
-                        foreach (TTerminalSymbol a in FIRST(item.GetRemainingSymbolsAfterNextSymbol().ConcatItem(b)))
+                        foreach (TTerminalSymbol a in this.First(item.GetRemainingSymbolsAfterNextSymbol().ConcatItem(b)))
                         {
                             // [B → γ, a]
                             var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(productionOfB, index, 0, a);
@@ -679,7 +374,7 @@ namespace ContextFreeGrammar
 
             // SLR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
-                reduceItem => FOLLOW(reduceItem.Production.Head));
+                reduceItem => Follow(reduceItem.Production.Head));
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -1065,7 +760,7 @@ namespace ContextFreeGrammar
                 // Because 'merged' items can have lookahead sets with many terminal symbols we have to
                 // calculate the union of all FIRST(βb) for every b ∈ L, where L is the lookahead
                 // set of item [A → α•Bβ, L]
-                var lookaheads = item.Lookaheads.Aggregate(new Set<TTerminalSymbol>(), (l, b) => l.UnionWith(FIRST(beta.ConcatItem(b))));
+                var lookaheads = item.Lookaheads.Aggregate(new Set<TTerminalSymbol>(), (l, b) => l.UnionWith(this.First(beta.ConcatItem(b))));
                 //var lookaheads = item.Lookaheads.Select(b => FIRST(beta.ConcatItem(b))).ToUnionSet();
 
                 foreach (var (index, production) in _productionMap[B])

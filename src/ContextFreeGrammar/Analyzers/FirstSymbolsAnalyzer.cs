@@ -7,7 +7,7 @@ using AutomataLib.Graphs;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    public class FirstSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : DigraphAlgorithmBaseAnalyzer, IStarterSymbolsAnalyzer<TTerminalSymbol>
+    public class FirstSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : DigraphAlgorithmBaseAnalyzer, IFirstSymbolsAnalyzer<TTerminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
 
@@ -34,18 +34,6 @@ namespace ContextFreeGrammar.Analyzers
                 return new Set<TTerminalSymbol>(new []{token});
             // TODO: Set.Empty<T>()
             return new Set<TTerminalSymbol>(); // epsilon, eof
-        }
-
-        /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> First(IEnumerable<Symbol> symbols)
-        {
-            var m = new Set<TTerminalSymbol>();
-            foreach (var symbol in symbols)
-            {
-                m.AddRange(First(symbol));
-                if (!_analyzer.Erasable(symbol)) break;
-            }
-            return m;
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
