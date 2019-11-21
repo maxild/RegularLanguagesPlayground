@@ -1,11 +1,9 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using AutomataLib;
-using AutomataLib.Graphs;
 
 namespace ContextFreeGrammar
 {
@@ -112,38 +110,20 @@ namespace ContextFreeGrammar
         //public IReadOnlyDictionary<Nonterminal, IReadOnlyList<Production>> ProductionsFor =>
         //    (IReadOnlyDictionary<Nonterminal, IReadOnlyList<Production>>) _productionMap;
 
-        /// <summary>
-        /// The start symbol.
-        /// </summary>
         public TNonterminalSymbol StartSymbol { get; }
 
-        /// <summary>
-        /// Does the production P(i) derive the empty string such that the nonterminal (LHS) can be erased.
-        /// </summary>
-        /// <param name="productionIndex">The index of a production in the Grammar.</param>
-        /// <returns>True, if the production is nullable (such that the nonterminal symbol is erasable).</returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public bool NULLABLE(int productionIndex)
         {
-            // ε-production has empty tail
             if (Productions[productionIndex].Tail.Count == 0) return true;
-            // Nullable(X) = Nullable(Y1) Λ ... Λ Nullable(Yn), for X → Y1 Y2...Yn
             return Productions[productionIndex].Tail.All(symbol => Nullable[symbol]);
         }
 
-        /// <summary>
-        /// Can a given symbol (typically nonterminal) derive the empty string such that the nonterminal can be erased.
-        /// </summary>
-        /// <param name="symbol">The (typically nonterminal) symbol.</param>
-        /// <returns>True, if the (typically nonterminal) is nullable (such that the nonterminal symbol is erasable).</returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public bool NULLABLE(Symbol symbol)
         {
             return Nullable[symbol];
         }
-
-        // FIRST(u) is the set of terminals that can occur first in a full derivation of u,
-        // where u is a sequence of terminals and non-terminals.
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FIRST(int productionIndex)
@@ -151,34 +131,6 @@ namespace ContextFreeGrammar
             return FIRST(Productions[productionIndex].Tail);
         }
 
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public bool ERASABLE(TNonterminalSymbol variable)
-        {
-            return Erasable[variable];
-        }
-
-        /// <summary>
-        /// The START function yields the set of starter symbols for a grammar symbol. It is formally
-        /// defined as
-        ///      START(A) = { a ∈ T | A ∗⇒ aβ }
-        /// for a nonterminal A ∈ N.
-        /// </summary>
-        /// <param name="variable">nonterminal X ∈ N</param>
-        /// <returns>set of starter symbols (aka FIRST set)</returns>
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<TTerminalSymbol> START(TNonterminalSymbol variable)
-        {
-            return Start[variable];
-        }
-
-        // FIRST can be thought of as the extension of START, but often FIRST is defined for both single symbols
-        // and sentential forms. That is FIRST is extended to all grammar symbols (i.e. sentential forms)
-        // The FIRST function is a simple extension of START (single symbol) to the domain of sentential forms.
-        //      FIRST(α) = { x ∈ T | α ∗⇒ xβ }
-        // An alternative definition which shows how to derive FIRST from START recursively is
-        //      FIRST(X1X2...Xk) = START(X1) ∪ FIRST(X2...Xk), if X1 is nullable
-        //      FIRST(X1X2...Xk) = START(X1)                    otherwise
-        //      FIRST(ε) = Ø = { }
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FIRST(IEnumerable<Symbol> symbols)
         {
@@ -197,40 +149,10 @@ namespace ContextFreeGrammar
             return First[symbol];
         }
 
-        // The FOLLOW function yields the set of symbols that may legally follow a grammar symbol in a
-        // sentential form. It is defined as
-        //      FOLLOW(A) = { a ∈ T| S ∗⇒ αAaβ }
-        // for a nonterminal A ∈ N.
-        // If there is a derivation of the form S ∗⇒ βA then $ (eof) is also added to FOLLOW(A). In
-        // particular, $ ∈ follow(S').
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public IReadOnlySet<TTerminalSymbol> FOLLOW(TNonterminalSymbol symbol)
         {
             return Follow[symbol];
-        }
-
-        private Dictionary<TNonterminalSymbol, bool> _erasable;
-        protected Dictionary<TNonterminalSymbol, bool> Erasable
-        {
-            get
-            {
-                if (_erasable == null)
-                    ComputeErasableAndStart();
-
-                return _erasable;
-            }
-        }
-
-        private Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _start;
-        protected Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> Start
-        {
-            get
-            {
-                if (_start == null)
-                    ComputeErasableAndStart();
-
-                return _start;
-            }
         }
 
         // nullable extended to all grammar symbols, including epsilon
@@ -336,7 +258,7 @@ namespace ContextFreeGrammar
 
             // Add EOF to avoid unnecessary exceptions
             if (!firstMap.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                firstMap.Add(Symbol.Eof<TTerminalSymbol>(), new Set<TTerminalSymbol> {Symbol.Eof<TTerminalSymbol>()});
+                firstMap.Add(Symbol.Eof<TTerminalSymbol>(), new Set<TTerminalSymbol> { Symbol.Eof<TTerminalSymbol>() });
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -349,7 +271,7 @@ namespace ContextFreeGrammar
                     // FirstDelta(X) = FIRST(Y1) U ... U FIRST(Yk), where k, 1 <= k <= n, is
                     // the largest integer such that Nullable(Y1) = ... = Nullable(Yk) = true
                     // is added to First(X)
-                    for (int i = 0; i < production.Length; i++)
+                    for (int i = 0; i < production.Length; i += 1)
                     {
                         var Yi = production.Tail[i];
                         if (firstMap[production.Head].AddRange(firstMap[Yi]))
@@ -389,7 +311,7 @@ namespace ContextFreeGrammar
                 // For each production X → Y1 Y2...Yn
                 foreach (var production in Productions)
                 {
-                    for (int i = 0; i < production.Length; i++)
+                    for (int i = 0; i < production.Length; i += 1)
                     {
                         // for each Yi that is a nonterminal symbol
                         var Yi = production.TailAs<TNonterminalSymbol>(i);
@@ -419,6 +341,7 @@ namespace ContextFreeGrammar
 
                 return m;
             }
+
             // extend Nullable to words of symbols
             bool Nullable(IEnumerable<Symbol> symbols)
             {
@@ -432,150 +355,6 @@ namespace ContextFreeGrammar
             _nullable = nullableMap;
             _first = firstMap;
             _follow = followMap;
-        }
-
-        // Graph method
-        private Dictionary<TNonterminalSymbol, bool> ComputeNullableV2()
-        {
-            // only define nullable predicate on non-terminals
-            var nullableMap = Variables.ToDictionary(symbol => symbol, _ => false);
-
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                // For each production X → Y1 Y2...Yn
-                foreach (var production in Productions)
-                {
-                    if (false == nullableMap[production.Head])
-                    {
-                        // if all symbols Y1 Y2...Yn are nullable (e.g. if X is an ε-production)
-                        if (production.Tail.Count == 0 ||
-                            production.Tail.All(Nullable))
-                        {
-                            nullableMap[production.Head] = true;
-                            changed = true;
-                        }
-                    }
-                }
-            }
-
-            return nullableMap;
-
-            bool Nullable(Symbol s)
-            {
-                return s.IsEpsilon || s is TNonterminalSymbol t && nullableMap[t];
-            }
-        }
-
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (Dictionary<TNonterminalSymbol, bool>, Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>>) ComputeFirstV2()
-        {
-            // only define first set on non-terminals
-            var nullableMap = ComputeNullableV2();
-
-            // TODO: INITFIRST sets should be indexed by terminal index
-            // TODO: production.HeadIndex is not possible without getting grammar to resolve it: Grammar.Variables.IndexOf(production.Head)
-            // direct/initial first sets
-            var initFirstSets =
-                Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>()); // maybe use HashSet
-
-            // superset relations between nonterminals
-            var contains_the_first_set_of = new List<(int, int)>();
-
-            // initialize initial first sets and list of relations
-            foreach (var production in Productions)
-            {
-                foreach (var Yi in production.Tail)
-                {
-                    if (Yi is TTerminalSymbol a)
-                    {
-                        // direct contribution: A → αaβ, where α *=> ε and a ∈ T
-                        initFirstSets[production.Head].Add(a);
-                        break;
-                    }
-
-                    if (Yi is TNonterminalSymbol B)
-                    {
-                        // indirect (recursive) contribution: A → αBβ, where α *=> ε and B ∈ N
-                        var Ai = Variables.IndexOf(production.Head);
-                        var Bi = Variables.IndexOf(B);
-                        contains_the_first_set_of.Add((Ai, Bi));
-
-                        // if we cannot erase Yi (Yi *=> ε), then no more 'direct contributions' or
-                        // subset (contains_the_first_set_of) relation pairs exist for this production rule
-                        if (!nullableMap[B]) break;
-                    }
-                }
-            }
-
-            var graph = new AdjacencyListGraph(Variables.Count, contains_the_first_set_of);
-
-            var firstSets = Variables.ToDictionary(symbol => symbol,
-                symbol => new Set<TTerminalSymbol>(initFirstSets[symbol]));
-
-            // We can collectively characterize all FIRST sets as the smallest sets
-            // FIRST(A) satisfying, for each A in N:
-            //    (i)  FIRST(A) contains INITFIRST(A), and
-            //    (ii) for each nonterminal B, s.t. A contains_the_first_set_of B:
-            //                 FIRST(A) contains FIRST(B).
-            // By the way, this is equivalent to
-            //
-            // FIRST(A) = INITFIRST(A) ∪ { FIRST(B) : (A,B) ∈ contains_the_first_set_of+ }
-            //                            -- or --
-            // FIRST(A) = ∪ { INITFIRST(B) : A contains_the_first_set_of* B }.
-            //                            -- or --
-            // FIRST(A) = ∪ { INITFIRST(B) : (A,B) ∈ contains_the_first_set_of* }
-            for (int startIndex = 0; startIndex < Variables.Count; startIndex++)
-            {
-                var variable = Variables[startIndex];
-                // We traverse the contains_the_first_set_of graph in a depth-first
-                // manner taken the union of every reachable FIRST(B) into FIRST(A)
-                // when returning from the traversal of en edge (A,B)
-                foreach (var successor in Reachable(graph, startIndex))
-                {
-                    var terminal = Variables[successor];
-                    // FIRST[start] := FIRST[start] ∪ INITFIRST[successor]
-                    firstSets[variable].AddRange(initFirstSets[terminal]);
-                }
-            }
-
-            return (nullableMap, firstSets);
-
-            // DFS helper that traverse the graph to determine positive transitive
-            // closure (contains_the_first_set_of)+ for each terminal symbol
-            static IEnumerable<int> Reachable(IGraph g, int start) // non-recursive, uses stack
-            {
-                var visited = new BitArray(g.VertexCount);
-                var stack = new Stack<int>();
-
-                stack.Push(start);
-
-                var reachable = new List<int>();
-
-                while (stack.Count > 0)
-                {
-                    var current = stack.Pop();
-                    visited[current] = true;
-                    foreach (var successor in g.NeighboursOf(current))
-                    {
-                        if (!visited[successor])
-                        {
-                            stack.Push(successor);
-                            reachable.Add(successor);
-                        }
-                    }
-                }
-
-                return reachable;
-            }
-        }
-
-        private void ComputeErasableAndStart()
-        {
-            var (nullableMap, firstMap) = ComputeFirstV2();
-            _erasable = nullableMap;
-            _start = firstMap;
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -642,7 +421,7 @@ namespace ContextFreeGrammar
 
                         // Here we try to add everything in First(Y(i+1)...Yn) to Follow(Yi)
                         // For each symbol Y(j) in Y(i+1)...Yn, e.g. for each Y(j) succeeding Y(i)
-                        for (var j = i + 1; j < production.Tail.Count; j++)
+                        for (var j = i + 1; j < production.Tail.Count; j += 1)
                         {
                             var Yj = production.Tail[j];
                             // If the sequence Y(i+1)...Y(j-1) is nullable (or empty,
@@ -989,7 +768,7 @@ namespace ContextFreeGrammar
                 {
                     // If [A → α•aβ, L] is in LR(k) item set, where a is a terminal symbol, and L is an arbitrary
                     // lookahead set (possibly the empty set corresponding to an LR(0) item set)
-                    var a = (TTerminalSymbol) move.Label;
+                    var a = (TTerminalSymbol)move.Label;
                     // Action[source, a] = shift target
                     actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(source, a, LrAction.Shift(target)));
                 }
@@ -997,7 +776,7 @@ namespace ContextFreeGrammar
                 {
                     // If [A → α•Xβ, L] is in LR(k) item set, where X is a nonterminal symbol, and L is an arbitrary
                     // lookahead set (possibly the empty set corresponding to an LR(0) item set)
-                    var X = (TNonterminalSymbol) move.Label;
+                    var X = (TNonterminalSymbol)move.Label;
                     // Goto[source, X] = target;
                     gotoTableEntries.Add(new LrGotoEntry<TNonterminalSymbol>(source, X, target));
                 }
@@ -1134,12 +913,12 @@ namespace ContextFreeGrammar
             //      * blocks[i][0]  < i   =>   i belongs to another lower indexed block
             var blocks = new List<int>[states.Count];
 
-            for (int i = 0; i < states.Count; i++)
+            for (int i = 0; i < states.Count; i += 1)
             {
                 var state = states[i];
 
                 // Should this state be added to a lower indexed block
-                for (int j = 0; j < i; j++)
+                for (int j = 0; j < i; j += 1)
                 {
                     var lower = states[j];
                     if (state.Equals(lower, ProductionItemComparison.MarkedProductionOnly))
@@ -1159,7 +938,7 @@ namespace ContextFreeGrammar
             // Create new set of states
             var mergedStates = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>();
             int[] oldToNew = new int[states.Count];
-            for (int i = 0; i < blocks.Length; i++)
+            for (int i = 0; i < blocks.Length; i += 1)
             {
                 var state = states[i];
 
@@ -1177,7 +956,7 @@ namespace ContextFreeGrammar
                         Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> itemsMap =
                             state.Items.ToDictionary(item => item.MarkedProduction, item => new Set<TTerminalSymbol>(item.Lookaheads));
 
-                        for (int j = 1; j < blocks[i].Count; j++)
+                        for (int j = 1; j < blocks[i].Count; j += 1)
                         {
                             var other = states[blocks[i][j]];
                             itemsMap.MergeLookaheads(other.Items

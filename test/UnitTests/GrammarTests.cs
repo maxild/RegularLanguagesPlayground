@@ -66,17 +66,6 @@ namespace UnitTests
             grammar.Variables.Each(symbol => grammar.NULLABLE(symbol).ShouldBeFalse());
             Enumerable.Range(0, grammar.Productions.Count).Each(i => grammar.NULLABLE(i).ShouldBeFalse());
 
-            grammar.ERASABLE(Symbol.V("S")).ShouldBeFalse();
-            grammar.ERASABLE(Symbol.V("E")).ShouldBeFalse();
-            grammar.ERASABLE(Symbol.V("T")).ShouldBeFalse();
-            grammar.ERASABLE(Symbol.V("F")).ShouldBeFalse();
-
-            // graph traversal
-            grammar.START(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.START(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.START(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-            grammar.START(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
-
             // FIRST(X) for all X in T (i.e. all nonterminal symbols, aka variables)
             grammar.FIRST(Symbol.V("S")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
             grammar.FIRST(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
@@ -156,6 +145,7 @@ namespace UnitTests
             // Create LR(0) Automaton
             grammar.IsReduced.ShouldBeTrue();
             grammar.IsAugmented.ShouldBeTrue();
+
 
             //var characteristicStringsNfa = grammar.GetLr0AutomatonNfa();
 
