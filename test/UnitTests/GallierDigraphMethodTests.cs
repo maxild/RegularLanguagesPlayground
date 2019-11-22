@@ -87,11 +87,10 @@ namespace UnitTests
         [Fact]
         public void Follow()
         {
-            // TODO: INITFIRST(S) is wrong...write tests for init routine
-            //Grammar.Follow(Symbol.V("S")).ShouldSetEqual(Symbol.Ts().WithEofMarker());
+            Grammar.Follow(Symbol.V("S")).ShouldBeEmpty(); // INITFOLLOW(S) = Ø
             Grammar.Follow(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
-            //Grammar.Follow(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
-            //Grammar.Follow(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
+            Grammar.Follow(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
+            Grammar.Follow(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
         }
     }
 }

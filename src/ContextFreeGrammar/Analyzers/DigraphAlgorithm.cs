@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using AutomataLib;
@@ -7,6 +9,8 @@ using AutomataLib.Graphs;
 
 namespace ContextFreeGrammar.Analyzers
 {
+    // See also https://compilers.iecc.com/comparch/article/01-04-079 for sketch of algorithm
+    // based on set-valued functions over digraph containing relations/edges for all set constraints
     public static class DigraphAlgorithm
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -120,6 +124,67 @@ namespace ContextFreeGrammar.Analyzers
             var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_follow_set_of);
 
             return (initSets, graph);
+        }
+
+        // TODO: This simple DFS traversal can be optimized using Component Graph (SCCs)
+        public static Set<TResult>[] Traverse<TNonterminalSymbol, TTerminalSymbol, TResult>(
+            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+            IGraph graph,
+            Set<TResult>[] initSets)
+        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        where TResult : IEquatable<TResult>
+        {
+            int count = grammar.Variables.Count;
+
+            Debug.Assert(count == initSets.Length);
+
+            // copy result (typically terminals) from init sets to the set-valued functions before traversing
+            var f = new Set<TResult>[count];
+            for (int i = 0; i < count; i += 1)
+                f[i] = new Set<TResult>(initSets[i]);
+
+            for (int start = 0; start < count; start += 1)
+            {
+                // We traverse the graph induced by all the superset relations in
+                // a depth-first manner, taking the union of every reachable F(B)
+                // into F(A) when returning from the traversal of en edge (A,B)
+                foreach (var successor in Reachable(graph, start))
+                {
+                    // F[start] := F[start] ∪ F0[successor]
+                    f[start].AddRange(initSets[successor]);
+                }
+            }
+
+            return f;
+
+            // DFS helper that traverse the graph to determine positive transitive
+            // closure (contains_the_first_set_of)+ for each terminal symbol
+            static IEnumerable<int> Reachable(IGraph g, int start) // non-recursive, uses stack
+            {
+                var visited = new BitArray(g.VertexCount);
+                var stack = new Stack<int>();
+
+                stack.Push(start);
+
+                var reachable = new List<int>();
+
+                while (stack.Count > 0)
+                {
+                    var current = stack.Pop();
+                    visited[current] = true;
+                    foreach (var successor in g.NeighboursOf(current))
+                    {
+                        if (!visited[successor])
+                        {
+                            stack.Push(successor);
+                            reachable.Add(successor);
+                        }
+                    }
+                }
+
+                return reachable;
+            }
         }
     }
 }

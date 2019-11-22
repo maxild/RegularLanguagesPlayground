@@ -30,5 +30,27 @@ namespace ContextFreeGrammar.Analyzers
             return new FollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(nullableSymbolsAnalyzer,
                 starterTokensAnalyzer, followerTokensAnalyzer);
         }
+
+        public static IErasableSymbolsAnalyzer CreateErasableSymbolsAnalyzer<TNonterminalSymbol,
+            TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        {
+            return new ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar);
+        }
+
+        public static IFirstSymbolsAnalyzer<TTerminalSymbol> CreateFirstSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        {
+            var nullableSymbolsAnalyzer
+                = new ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar);
+
+            var starterTokensAnalyzer =
+                new FirstSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar, nullableSymbolsAnalyzer);
+
+            return new FirstSymbolsAnalyzer<TTerminalSymbol>(nullableSymbolsAnalyzer,
+                starterTokensAnalyzer);
+        }
     }
 }

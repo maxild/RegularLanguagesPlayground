@@ -5,13 +5,13 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    public class ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IErasableSymbolsAnalyzer
+    internal class ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IErasableSymbolsAnalyzer
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
     {
         private readonly Dictionary<TNonterminalSymbol, bool> _nullableMap;
 
-        public ErasableSymbolsAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+        internal ErasableSymbolsAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
         {
             if (grammar == null)
                 throw new ArgumentNullException(nameof(grammar));

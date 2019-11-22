@@ -68,14 +68,13 @@ namespace CLI.TestDriver
                     Symbol.V("F").Derives(Symbol.T('a'))
                 );
 
-            var analyzer = new ErasableSymbolsAnalyzer<Nonterminal, Terminal>(grammar);
+            var analyzer = Analyzers.CreateErasableSymbolsAnalyzer(grammar);
 
             (Set<Terminal>[] initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
             SaveFile("FirstGraph.dot", DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
 
-            var firstSetAnalyzer = new FirstSetsDigraphAnalyzer<Nonterminal, Terminal>(grammar, analyzer);
-            var firstSymbolsAnalyzer = new FirstSymbolsAnalyzer<Terminal>(analyzer, firstSetAnalyzer);
+            var firstSymbolsAnalyzer = Analyzers.CreateFirstSymbolsAnalyzer(grammar);
 
             (Set<Terminal>[] initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
 

@@ -1,3 +1,4 @@
+using System.Linq;
 using AutomataLib;
 using ContextFreeGrammar;
 using ContextFreeGrammar.Analyzers;
@@ -46,6 +47,19 @@ namespace UnitTests
         }
 
         [Fact]
+        public void Erasable()
+        {
+            // No ε-productions, no nullable/erasable symbols
+            Grammar.Variables.Each(symbol => Grammar.Erasable(symbol).ShouldBeFalse());
+            Enumerable.Range(0, Grammar.Productions.Count).Each(i => Grammar.Erasable(i).ShouldBeFalse());
+
+            Grammar.Erasable(Symbol.V("S")).ShouldBeFalse();
+            Grammar.Erasable(Symbol.V("E")).ShouldBeFalse();
+            Grammar.Erasable(Symbol.V("T")).ShouldBeFalse();
+            Grammar.Erasable(Symbol.V("F")).ShouldBeFalse();
+        }
+
+        [Fact]
         public void FirstEdgeCases()
         {
             Grammar.First(Symbol.Epsilon).ShouldBeEmpty();
@@ -68,6 +82,15 @@ namespace UnitTests
             Grammar.First(5).ShouldSetEqual(Symbol.Ts('('));
             Grammar.First(6).ShouldSetEqual(Symbol.Ts('-'));
             Grammar.First(7).ShouldSetEqual(Symbol.Ts('a'));
+        }
+
+        [Fact]
+        public void Follow()
+        {
+            Grammar.Follow(Symbol.V("S")).ShouldBeEmpty();
+            Grammar.Follow(Symbol.V("E")).ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
+            Grammar.Follow(Symbol.V("T")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
+            Grammar.Follow(Symbol.V("F")).ShouldSetEqual(Symbol.Ts('+', '*', ')').WithEofMarker());
         }
     }
 }
