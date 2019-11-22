@@ -12,6 +12,10 @@ namespace AutomataLib.Graphs
 
         int EdgeCount { get; }
 
+        IEnumerable<int> Vertices { get; }
+
+        IEnumerable<(int,int)> Edges { get; }
+
         IEnumerable<int> NeighboursOf(Index vertex);
     }
 
@@ -28,7 +32,8 @@ namespace AutomataLib.Graphs
     // That is we cannot use Move, Transition for edge in DFA/NFA models
     public class AdjacencyListGraph : IGraph
     {
-        private readonly int[][] _adjList;
+        // array of adjacency lists
+        private readonly int[][] _arrayOfNeighbours;
 
         // TODO: Could be Range as type of first arg (keep naming of vertices out of the Graph type..make naming abstraction)
         public AdjacencyListGraph(int numberOfVertices, IEnumerable<(int,int)> edges)
@@ -42,18 +47,30 @@ namespace AutomataLib.Graphs
                 adjList[edge.Item1].Add(edge.Item2); // TODO: avoid duplicates (parallel edges)
             }
 
-            _adjList = new int[numberOfVertices][];
+            _arrayOfNeighbours = new int[numberOfVertices][];
             for (int i = 0; i < numberOfVertices; i++)
-                _adjList[i] = adjList[i].ToArray(); // could be sorted, and use BinarySearch in ContainsEdge
+                _arrayOfNeighbours[i] = adjList[i].ToArray(); // could be sorted, and use BinarySearch in ContainsEdge
         }
 
-        public int VertexCount => _adjList.Length;
+        public int VertexCount => _arrayOfNeighbours.Length;
 
-        public int EdgeCount => _adjList.Sum(al => al.Length);
+        public int EdgeCount => _arrayOfNeighbours.Sum(al => al.Length);
+
+        public IEnumerable<int> Vertices => Enumerable.Range(0, VertexCount);
+
+        public IEnumerable<(int, int)> Edges
+        {
+            get
+            {
+                for (int i = 0; i < _arrayOfNeighbours.Length; i += 1)
+                    for (int j = 0; j < _arrayOfNeighbours[i].Length; j += 1)
+                        yield return (i, _arrayOfNeighbours[i][j]);
+            }
+        }
 
         public IEnumerable<int> NeighboursOf(Index vertex)
         {
-            return _adjList[vertex];
+            return _arrayOfNeighbours[vertex];
         }
     }
 
@@ -82,7 +99,7 @@ namespace AutomataLib.Graphs
                     if (!visited[succ])
                     {
                         stack.Push(succ);
-                        // Add set of succ to 
+                        // Add set of succ to
                         //    F[start] := F[start] ∪ I[succ]
                         reachable.Add(succ);
                     }

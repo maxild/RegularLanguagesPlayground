@@ -3,8 +3,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using AutomataLib;
+using AutomataLib.Graphs;
 using CLI.TestDriver.Parsers;
 using ContextFreeGrammar;
+using ContextFreeGrammar.Analyzers;
+using ContextFreeGrammar.Analyzers.Internal;
 using FiniteAutomata;
 
 namespace CLI.TestDriver
@@ -13,7 +16,9 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            DragonBookEx4_54();
+            DigraphMethods();
+
+            //DragonBookEx4_54();
             //DragonBookEx4_48();
             //StanfordShiftReduceConflictGrammar();
             //StanfordReduceReduceConflictGrammar();
@@ -35,6 +40,47 @@ namespace CLI.TestDriver
         //
         // Context-Free languages, CFG and LR Parsing
         //
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public static void DigraphMethods()
+        {
+            // Example 1 from the small survey of digraph methods https://www.cis.upenn.edu/~jean/gbooks/graphm.pdf
+            // 0: S → E$
+            // 1: E → E+T
+            // 2: E → T
+            // 3: T → T*F
+            // 4: T → F
+            // 5: F → (E)
+            // 6: F → -T
+            // 7: F → a
+            var grammar = new GrammarBuilder()
+                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "F"))
+                .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
+                .SetStartSymbol(Symbol.V("S"))
+                .AndProductions(
+                    Symbol.V("S").Derives(Symbol.V("E"), Symbol.EofMarker),
+                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
+                    Symbol.V("E").Derives(Symbol.V("T")),
+                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
+                    Symbol.V("T").Derives(Symbol.V("F")),
+                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
+                    Symbol.V("F").Derives(Symbol.T('-'), Symbol.V("T")),
+                    Symbol.V("F").Derives(Symbol.T('a'))
+                );
+
+            var analyzer = new ErasableSymbolsAnalyzer<Nonterminal, Terminal>(grammar);
+
+            (Set<Terminal>[] initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
+
+            SaveFile("FirstGraph.dot", DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
+
+            var firstSetAnalyzer = new FirstSetsDigraphAnalyzer<Nonterminal, Terminal>(grammar, analyzer);
+            var firstSymbolsAnalyzer = new FirstSymbolsAnalyzer<Terminal>(analyzer, firstSetAnalyzer);
+
+            (Set<Terminal>[] initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
+
+            SaveFile("FollowGraph.dot", DotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Variables[v].Name));
+        }
 
         public static void GrammarSomething()
         {

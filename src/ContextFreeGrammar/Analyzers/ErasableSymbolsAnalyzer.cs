@@ -19,12 +19,13 @@ namespace ContextFreeGrammar.Analyzers
             _nullableMap = ComputeErasableSymbols(grammar);
         }
 
+        /// <inheritdoc />
         public bool Erasable(Symbol symbol)
         {
-            return symbol.IsEpsilon || symbol is TNonterminalSymbol t && _nullableMap[t];
+            return symbol.IsEpsilon || symbol.IsEof || symbol is TNonterminalSymbol t && _nullableMap[t];
             //return symbol is TNonterminalSymbol variable
             //    ? _nullableMap[variable]
-            //    : symbol.IsEpsilon; // terminal and eof are not erasable
+            //    : symbol.IsEpsilon || symbol.IsEof; // terminal and eof are both erasable (eof by convention)
         }
 
         private static Dictionary<TNonterminalSymbol, bool> ComputeErasableSymbols(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)

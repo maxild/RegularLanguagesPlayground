@@ -4,31 +4,24 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using AutomataLib;
 using AutomataLib.Graphs;
+using ContextFreeGrammar.Analyzers.Internal;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    public class FollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : DigraphAlgorithmBaseAnalyzer, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
+    public class FollowSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol> : AbstractDigraphAnalyzer, IFollowSetsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
     {
         private readonly Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _followMap;
-        private readonly IFirstSymbolsAnalyzer<TTerminalSymbol> _analyzer;
 
-        public FollowSymbolsAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer)
+        public FollowSetsDigraphAnalyzer(
+            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+            IErasableSymbolsAnalyzer nullableSymbolsAnalyzer,
+            IFirstSetsAnalyzer<TTerminalSymbol> starterTokensAnalyzer)
         {
+            var analyzer = new FirstSymbolsAnalyzer<TTerminalSymbol>(nullableSymbolsAnalyzer, starterTokensAnalyzer);
             _followMap = ComputeFollow(grammar, analyzer);
-            _analyzer = analyzer;
         }
-
-        public bool Erasable(IEnumerable<Symbol> symbols) => _analyzer.Erasable(symbols);
-
-        public bool Erasable(Symbol symbol) => _analyzer.Erasable(symbol);
-
-        /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol) => _analyzer.First(symbol);
-
-        /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> First(IEnumerable<Symbol> symbols) => _analyzer.First(symbols);
 
         /// <inheritdoc />
         public IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable) => _followMap[variable];

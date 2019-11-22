@@ -6,7 +6,7 @@ namespace ContextFreeGrammar.Analyzers
 {
     // See also https://compilers.iecc.com/comparch/article/01-04-079 for sketch of algorithm
     // based on set-valued functions over digraph containing relations/edges for all set constraints
-    public abstract class DigraphAlgorithmBaseAnalyzer
+    public abstract class AbstractDigraphAnalyzer
     {
         // DFS helper that traverse the graph to determine positive transitive
         // closure (contains_the_first_set_of)+ for each terminal symbol

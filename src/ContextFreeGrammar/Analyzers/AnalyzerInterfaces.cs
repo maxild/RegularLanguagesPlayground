@@ -5,6 +5,9 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers
 {
+    /// <summary>
+    /// Nullable symbols analyzer.
+    /// </summary>
     public interface IErasableSymbolsAnalyzer
     {
         /// <summary>
@@ -12,10 +15,16 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         /// <param name="symbol">The (typically nonterminal) symbol.</param>
         /// <returns>True, if the (typically nonterminal) is nullable (such that the nonterminal symbol is erasable).</returns>
+        /// <remarks>
+        /// ERASABLE(eof) = ERASABLE(ε) = <c>true</c>
+        /// </remarks>
         bool Erasable(Symbol symbol);
     }
 
-    public interface IFirstSymbolsAnalyzer<TTerminalSymbol> : IErasableSymbolsAnalyzer
+    /// <summary>
+    /// Starter tokens analyzer.
+    /// </summary>
+    public interface IFirstSetsAnalyzer<TTerminalSymbol>
         where TTerminalSymbol : IEquatable<TTerminalSymbol>
     {
         /// <summary>
@@ -25,23 +34,47 @@ namespace ContextFreeGrammar.Analyzers
         /// for a nonterminal A ∈ N. We have extended the set-valued function to all grammar symbols.
         /// </summary>
         /// <param name="symbol">A single grammar symbol.</param>
+        /// <remarks>
+        /// FIRST(eof) = {eof} = {$}
+        /// FIRST(ε) = Ø
+        /// </remarks>
         IReadOnlySet<TTerminalSymbol> First(Symbol symbol);
     }
 
-    public interface IFollowSymbolsAnalyzer<in TNonterminalSymbol, TTerminalSymbol> : IFirstSymbolsAnalyzer<TTerminalSymbol>
+    /// <summary>
+    /// Combined 'nullable symbols' and 'starter tokens' analyzer.
+    /// </summary>
+    public interface IFirstSymbolsAnalyzer<TTerminalSymbol> : IErasableSymbolsAnalyzer, IFirstSetsAnalyzer<TTerminalSymbol>
+        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    {
+    }
+
+    /// <summary>
+    /// Follower tokens analyzer.
+    /// </summary>
+    public interface IFollowSetsAnalyzer<in TNonterminalSymbol, TTerminalSymbol>
         where TTerminalSymbol : IEquatable<TTerminalSymbol>
     {
         /// <summary>
-        /// The FOLLOW function yields the set of symbols that may legally follow a grammar symbol in a
+        /// The FOLLOW function yields the set of terminal symbols that may legally follow a nonterminal symbol in a
         /// sentential form. It is defined as
         ///      FOLLOW(A) = { a ∈ T| S ∗⇒ αAaβ }
-        /// for a nonterminal A ∈ N.
+        /// where A ∈ N.
         /// If there is a derivation of the form S ∗⇒ βA then $ (eof) is also added to FOLLOW(A). In
-        /// particular, $ ∈ follow(S').
+        /// particular, $ ∈ FOLLOW(S').
         /// </summary>
-        /// <param name="variable"></param>
-        /// <returns></returns>
+        /// <param name="variable">A nonterminal symbol.</param>
+        /// <returns>The set of terminal symbols that may legally follow a nonterminal symbol.</returns>
         IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable);
+    }
+
+    /// <summary>
+    /// Combined 'nullable symbols', 'starter tokens' and 'follower tokens' analyzer.
+    /// </summary>
+    public interface IFollowSymbolsAnalyzer<in TNonterminalSymbol, TTerminalSymbol> :
+        IFirstSymbolsAnalyzer<TTerminalSymbol>, IFollowSetsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
+        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    {
     }
 
     /// <summary>

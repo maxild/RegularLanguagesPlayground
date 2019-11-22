@@ -34,13 +34,10 @@ namespace ContextFreeGrammar.Analyzers
         // using Graph traversal as an efficient iteration technique to solve for the unique least fixed-point solution.
         private static Dictionary<Symbol, bool> ComputeNullable(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
         {
-            // we extend nullable to all grammar symbols, including epsilon (to avoid need
-            // for symbol.IsEpsilon checks), and initialize all values to false (except epsilon)
-            var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
+            var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon || symbol.IsEof);
 
-            // Add EOF to avoid unnecessary exceptions
             if (!nullableMap.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                nullableMap.Add(Symbol.Eof<TTerminalSymbol>(), false);
+                nullableMap.Add(Symbol.Eof<TTerminalSymbol>(), true); // by convention
 
             bool changed = true;
             while (changed)
@@ -85,7 +82,6 @@ namespace ContextFreeGrammar.Analyzers
         private static (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<TTerminalSymbol>>) ComputeFirst(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
         {
-            // We extend Nullable and First to the entire vocabulary of grammar symbols, including epsilon
             var nullableMap = ComputeNullable(grammar);
             var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
@@ -129,9 +125,10 @@ namespace ContextFreeGrammar.Analyzers
         {
             var (nullableMap, firstMap) = ComputeFirst(grammar);
 
-            // We define Follow only on nonterminal symbols
+            // We define Follow only for nonterminal symbols
             var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
+            // TODO: Er det noedvendigt, naar $ by convention is nullable/erasable????
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!grammar.IsAugmentedWithEofMarker)
