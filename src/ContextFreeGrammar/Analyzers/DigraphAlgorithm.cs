@@ -70,6 +70,14 @@ namespace ContextFreeGrammar.Analyzers
             for (int i = 0; i < initSets.Length; i += 1)
                 initSets[i] = new Set<TTerminalSymbol>();
 
+            // TODO: This is a requirement of the parsing table of shift-reduce parser (dragon book analyzer automates this)
+            // We only need to place Eof ('$' in the dragon book) in INITFOLLOW(S) if the grammar haven't
+            // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
+            // NOTE: If $ should be part of the Follow sets are up to the grammar specifikation, it must satisfy
+            //       grammar.IsAugmentedWithEofMarker by its definition
+            //if (!grammar.IsAugmentedWithEofMarker)
+            //    initSets[0].Add(Symbol.Eof<TTerminalSymbol>());
+
             // indirect contributions: superset relations between nonterminals
             var contains_the_follow_set_of = new HashSet<(int, int)>(); // parallel edges
 

@@ -128,11 +128,11 @@ namespace ContextFreeGrammar.Analyzers
             // We define Follow only for nonterminal symbols
             var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
 
-            // TODO: Er det noedvendigt, naar $ by convention is nullable/erasable????
+            // NOTE: This is a requirement of the parsing table of shift-reduce parser
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!grammar.IsAugmentedWithEofMarker)
-                followMap[grammar.StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
+                followMap[grammar.StartSymbol].Add(Symbol.Eof<TTerminalSymbol>()); 
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;

@@ -7,8 +7,9 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     /// <summary>
-    /// A set of LR(0) items that together form a single state in the DFA of LR(0) automaton.
-    /// This DFA is our so called "LR(0) viable prefix (handle) recognizer" used to construct
+    /// A set of LR(k) items that together form a single state in the DFA of LR(k) automaton, where k=0 or k=1.
+    /// LR(0) items form the basis of LR(0), SLR(1) and LALR(1) parsers, and LR(1) form the basis of CLR(1) (Canonical LR) parsers.
+    /// This DFA is our so called "LR(k) viable prefix (handle) recognizer" used to construct
     /// the parser table of any shift/reduce LR parser. Note that all states of the DFA except the initial state
     /// satisfies the so-called spelling property that only a single label/symbol will move/transition into that state.
     /// Thus each state except the initial state has a unique grammar symbol associated with it.
@@ -82,8 +83,8 @@ namespace ContextFreeGrammar
         public bool IsReduceAction => ReduceItems.Any(item => item.ProductionIndex > 0);
 
         /// <summary>
-        /// Compute the successor goto items (for non-terminal label/symbol) and/or shift items
-        /// (for terminal label/symbol). This is the core items of the GOTO function in the dragon book.
+        /// Compute the successor goto items (i.e for non-terminal transitions) and/or shift items
+        /// (i.e. for terminal transitions). This is the core items of the GOTO function in the dragon book.
         /// </summary>
         public ILookup<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetTargetItems()
         {

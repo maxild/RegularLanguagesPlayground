@@ -6,32 +6,37 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    // TODO: Add IReadonlySet<TNonterminalSymbol> Lookaheads { get; } to item class => Both LR(0) and LR(1) items can be represented
-    // TODO: Maybe better define Lr1Item := (Lr0Item, Lookaheads), because Lr(0) item can be reused betwenn LR(1) items
     // TODO: Kernel items (rename IsCore to IsKernel) are the only mandatory items. Closure items should be lazy.
-    // NOTE: It is common for LR(1) item sets to have identical first components (i.e. identical LR(0) items),
-    //       and only differ w.r.t different lookahead symbols (the second component). In construction LALR(1) we
-    //       will look for different LR(1) items having the same (core) LR(0) items, and merge these into new union
-    //       states (i.e. new one set of items). Since the GOTO (successor) function on;ly depends on the core LR(0) items
-    //       of any LR91) items, it is easy to merge the transitions of the LR(1) automaton into a new simpler LALR automaton.
-    //       On the other hand the ACTION table will change, and it is possible to introduce conflicts when merging.
     // TODO: Could be renamed to LRItem
-    // TODO: Grammar should be read-only, make GrammarBuilder API
-    // Different collections (set of items)
-    //  - LR(0) collection (also used by SLR(1) parser)
-    //  - LR(1) collection
-    //  - LALR(1) collection (constructed in 2 different ways: Merging of LR(1) items, or, Efficient Construction)
 
-    // TODO: 1) Build Lr1AutomataDFA, 2) Build paring table using modified SLR(1) algorithm where FOLLOW(A) is substituted by the Lookahead set
-    // TODO: Again we have 2 ways to build LR(1) automaton: NFA -> DFA or directly
+    #region docs
+
+    // Different collections (set of items)
+    //  - LR(0) collection (also used by SLR(1) parser), aka LR(0) or SLR(1) (when using simple Follow sets)
+    //  - LR(1) collection (The Canonical LR(1) parser, aka CLR(1))
+    //  - LALR(1) collection (constructed in 2 different ways: Merging of LR(1) items, or, Efficient Construction)
 
     // NOTE: valid prefix = viable prefix = characteristic string
 
     // Valid Items and Prefixes
     // ========================
-    // A marked production A → α•β is a valid LR(0) item for a string δα in V∗ if
+    // Definition: A marked production A → α•β is a _valid_ LR(0) item for a string δα in V∗ if
     //      S′ ∗⇒ δAv ⇒ δαβv = γβv
-    // If such a derivation holds in G, then γ in V′∗ is a valid prefix.
+    // If such a derivation holds in G, then γ = δα in V∗ is a valid prefix.
+    //
+    // Definition: We say that 'γ = δα _accesses_ the state' q containing A → α•β. This is often written
+    //        * γ accesses q
+    //        * s0 --γ--> q
+    //        * q = [γ]
+    //        * In state q we have pushed states that spell out γ onto the stack, therefore we have pushed γ onto that stack
+    //
+    // The transitions of the DFA van can be analyzed via splitting the valid prefixes into transitions
+    // A pair ([δ],X) in Q × V is a transition if and only if δX is a valid prefix. If this is the
+    // case, then [δX] is the state accessed upon reading δX, thus the notation [δX] also implies (we
+    // always assume when writing [δX] that Valid(δX) is not the empty set) a transition from [δ] on X,
+    // into [δX]. This is written [δ]--X-->[δX], and we say that [δX] is accessed from [δ] on the path X,
+    // where |X|=1). The notation can be extended to non-singleton paths, where [δα] is accessed from [δ]
+    // on a path equal to α.
     //
     // The set of valid items for a given string γ in V∗ is denoted by Valid(γ). Therefore Valid(γ) denotes a state of
     // the LR(0) automaton also called an LR(0) item set.
@@ -41,7 +46,7 @@ namespace ContextFreeGrammar
     // The function Kernel(γX) yields the core items (aka kernel items) reached by a transition on symbol X from the
     // state Valid(γ):
     //
-    //      Kernel(ε) = {S′ → •S$}                                     (base case for kernel items)
+    //      Kernel(ε) = {S′ → •S$}                                      (base case for kernel items)
     //      Kernel(γX) = {A → αX•β | A → α•Xβ ∈ Valid(γ)}              (induction/transition step for kernel items)
     //
     //      Valid(γ) = Kernel(γ) ∪ Closure(Valid(γ)).                  (closure of item set: from core items to closure items)
@@ -50,7 +55,7 @@ namespace ContextFreeGrammar
     //
     //      Closure(I) = {B → •ω | A → α•Bβ ∈ I}
     //
-    // Since states are uniquely determined by their sets of kernel/core items, the test to see if a new state have
+    // NOTE: Since states are uniquely determined by their sets of kernel/core items, the test to see if a new state have
     // been found does not require that the Closure function be applied to the core items first.
     //
     // LR(0) Automaton
@@ -58,19 +63,17 @@ namespace ContextFreeGrammar
     // LR(0) automaton is a deterministic pushdown automaton (DPDA) that uses equivalence classes on valid
     // prefixes as their stack alphabet Q. We therefore denote explicitly states of a LR parser as q = [δ],
     // where δ is some valid prefix in the state q reached upon reading this prefix (s0 --δ--> q is therefore
-    // denoted q = [δ]). For instance, in the automaton of Figure 1a, state q2 is the equivalence class {S}, while state q8 is
-    // the equivalence class described by the regular language Aa∗a.
-    //
-    // A pair ([δ],X) in Q × V is a transition if and only if δX is a valid prefix. If this is the
-    // case, then [δX] is the state accessed upon reading δX, thus the notation [δX] also implies (we
-    // always assume when writing [δX] that Valid(δX) is not the empty set) a transition from [δ] on X,
-    // and [δα] a path on α ([δ]--X-->[δX], that is [δX] is accessed from [δ] on the singleton-path X).
-    // This means that [δα] is accessed from [δ] on a path equal to α.
+    // denoted q = [δ]). For instance, in the automaton of Figure 1a, state q2 is the equivalence class {S},
+    // while state q8 is the equivalence class described by the regular language Aa∗a.
     //
     // LALR(1) Automaton
     // =================
     // The LALR(1) lookahead set of a reduction using A → α in state q is
-    //      LA(q, A → α) = {1:z | S′ *⇒ δAz and q = [δα]}
+    //      LA(q, A → α) = {a ∈ T | S′ *⇒ δAav ⇒ δαav and q = [δα], v ∈ N*}
+    // That is given the DFA has reached a state [δα] containing the reduce item A → α•, where we consider to
+    // reduce and backtrack to the predecessor state p (after popping |α| states/symbols of the stack),
+    // because we know [δ]--α-->[δα], we collect all terminal symbols that can follow the GOTO action (non-terminal)
+    // transition on A, i.e. where [δAa] can be accessed such that δAav is a valid right-most sentential form.
     //
     //--------------------------------------------------------------------------------------------------
     // Def: Viable prefixes are those prefixes of right sentential forms that can appear on the stack of
@@ -181,6 +184,7 @@ namespace ContextFreeGrammar
     // a pass fails to add any new symbols to any set. A faster version, would use a worklist so that
     // only items whose lookahead sets have changed participate in the next pass. Entries in the worklist
     // consist of (state, item)-pairs.
+    #endregion
 
     /// <summary>
     /// The LR(k) item used as a building block in Donald Knuth's LR(k) Automaton, and in all LR shift-reduce
@@ -217,6 +221,7 @@ namespace ContextFreeGrammar
             int productionIndex,
             int markerPosition,
             params TTerminalSymbol[] lookaheads)
+
             : this(new MarkedProduction<TNonterminalSymbol>(production, productionIndex, markerPosition),
                    new Set<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
         {
@@ -271,8 +276,8 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// The value(s) of the lookahead (b) that can follow the recognized handle (α) of a recognized
-        /// completed item [A → α•, b] on the stack. The parser will only perform the the reduction and pop
-        /// |α| symbols off the stack, and push (GOTO(s, A)) if the lookahead is equal to 'b. The lookahead
+        /// completed item [A → α•, b] on the stack. The parser will only perform the reduction and pop
+        /// |α| symbols off the stack, and push (GOTO(s, A)) if the lookahead is equal to b. The lookahead
         /// part of the LR item is only used for LR(1) items. LR(0) items do not carry any lookahead, and
         /// therefore the set is empty for LR(0) items.
         /// </summary>

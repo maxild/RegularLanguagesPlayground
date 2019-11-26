@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using AutomataLib;
@@ -73,14 +74,26 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// First production is a unit production (S → E), where the head variable (S) has only this single production,
-        /// and the head variable (S) is found no where else in any productions.
+        /// First production is a unit production (S → E), where the head (LHS) variable (S) and the tail (RHS symbols) is
+        /// a single nonterminal symbol, and the head variable (S) is found no where else in any productions. We also accept
+        /// a (pseudo) unit production on the form (S' → S$), where the start unit production have been augmented with an
+        /// eof marker ($).
         /// </summary>
         public bool IsAugmented =>
             Productions[0].Head.Equals(StartSymbol) &&
+            (Productions[0].LastSymbol.IsEof
+                ? Productions[0].Tail.Count == 2
+                : Productions[0].Tail.Count == 1) &&
+            Productions[0].Tail[0].IsNonTerminal &&
             Productions.Skip(1).All(p => !p.Head.Equals(StartSymbol)) &&
             Productions.All(p => !p.Tail.Contains(StartSymbol));
 
+        /// <summary>
+        /// First production is a (pseudo) unit production (S' → S$), where the head (LHS) variable (S') and the tail (RHS symbols) is
+        /// a single nonterminal symbol (S), and the head variable (S') is found no where else in any productions. We call this a unit
+        /// production, because the eof marker ($) is not a terminal symbol, and the rule only augments the grammar (not the syntax/language)
+        /// in a way that enables a shift-reduce parser to determine 'end of input'.
+        /// </summary>
         public bool IsAugmentedWithEofMarker => IsAugmented && Productions[0].LastSymbol.IsEof;
 
         // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
@@ -568,7 +581,7 @@ namespace ContextFreeGrammar
                 ClosureLr1(new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Productions[0], 0, 0,
                     Symbol.Eof<TTerminalSymbol>()).AsSingletonEnumerable());
 
-            // states (aka LR(0) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
+            // states (aka LR(k) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
             var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
 
@@ -577,11 +590,11 @@ namespace ContextFreeGrammar
             {
                 ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
                 // For each successor item pair (X, { [A → αX•β, b], where the item [A → α•Xβ, b] is in the predecessor item set}),
-                // where [A → αX•β, b] is core/kernel successor item on some grammar symbol X in V, where V := N U T
+                // where [A → αX•β, b] is a core/kernel successor item on some grammar symbol X in V, where V := N U T
                 foreach (var coreSuccessorItems in sourceState.GetTargetItems())
                 {
-                    // For each grammar symbol (label on the transition/edge in the graph)
-                    var X = coreSuccessorItems.Key;
+                    // For each transition grammar symbol (label on the transition/edge in the graph)
+                    var X = coreSuccessorItems.Key; // can be either terminal (goto) or nonterminal (shift/read)
                     // Get the closure of all the core/kernel successor items A → αX•β that we can move/transition to in the graph
                     ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> targetState = ClosureLr1(coreSuccessorItems);
                     transitions.Add(Transition.Move(sourceState, X, targetState));
@@ -596,6 +609,12 @@ namespace ContextFreeGrammar
             return (states, transitions);
         }
 
+        // NOTE: It is common for LR(1) item sets to have identical first components (i.e. identical LR(0) items),
+        //       and only differ w.r.t different lookahead symbols (the second component). In construction of LALR(1) we
+        //       will look for different LR(1) items having the same (core) LR(0) items, and merge these into new union
+        //       states (i.e. new one set of items). Since the GOTO (successor) function only depends on the core LR(0) items
+        //       of any LR(1) items, it is easy to merge the transitions of the LR(1) automaton into a new simpler LALR automaton.
+        //       On the other hand the ACTION table will change, and it is possible to introduce conflicts when merging.
         private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> mergedStates,
             List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> mergedTransitions)
             ComputeMergedLr1AutomatonData(
@@ -743,7 +762,7 @@ namespace ContextFreeGrammar
             while (worklist.Count != 0)
             {
                 ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();
-                // B is the next symbol (that must be terminal)
+                // B is the next symbol (that must be a nonterminal symbol)
                 var B = item.GetNextSymbolAs<TNonterminalSymbol>();
                 if (B == null) continue;
                 // If item is a GOTO item of the form [A → α•Bβ, b], where B ∈ T,

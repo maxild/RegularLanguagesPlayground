@@ -24,6 +24,9 @@ namespace AutomataLib
     {
         public static readonly Symbol Epsilon = new Eps();
 
+        /// <summary>
+        /// reserved (terminal) symbol -- many texts will not call this a terminal symbol.
+        /// </summary>
         public static readonly Terminal EofMarker = new EndOfFileMarker();
 
         public static TTerminalSymbol Eof<TTerminalSymbol>()
@@ -76,7 +79,7 @@ namespace AutomataLib
             public override bool IsEof => false;
         }
 
-        class EndOfFileMarker : Terminal
+        class EndOfFileMarker : Terminal // TODO: maybe not a Terminal?
         {
             // TODO: Cannot use 'eof', because of Terminal limitation to single characters
             public EndOfFileMarker() : base('$')

@@ -7,7 +7,6 @@ using AutomataLib.Graphs;
 using CLI.TestDriver.Parsers;
 using ContextFreeGrammar;
 using ContextFreeGrammar.Analyzers;
-using ContextFreeGrammar.Analyzers.Internal;
 using FiniteAutomata;
 
 namespace CLI.TestDriver
@@ -16,7 +15,8 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            DigraphMethods();
+            GallierLookaheadLR_Example3();
+            //DigraphMethods();
 
             //DragonBookEx4_54();
             //DragonBookEx4_48();
@@ -40,6 +40,70 @@ namespace CLI.TestDriver
         //
         // Context-Free languages, CFG and LR Parsing
         //
+
+        /// <summary>
+        /// G3 in "A Survey of LR-Parsing Methods", Gallier.
+        /// </summary>
+        public static void GallierLookaheadLR_Example3()
+        {
+            // 0: S' → S$
+            // 1: S  → L = R
+            // 2: S  → R
+            // 3: R  → *R
+            // 4: R  → a    ('id' in Gallier notes)
+            // 5: R  → L
+            var grammar = new GrammarBuilder()
+                .SetAnalyzer(Analyzers.CreateDigraphAlgorithmAnalyzer)
+                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "R", "L"))
+                //.SetTerminalSymbols(Symbol.Ts('=', '*', 'a').WithEofMarker()) // augmented grammar with terminals T U {$}
+                .SetTerminalSymbols(Symbol.Ts('=', '*', 'a'))
+                .SetStartSymbol(Symbol.V("S'"))
+                .AndProductions(
+                    Symbol.V("S'").Derives(Symbol.V("S")), //Symbol.EofMarker),
+                    Symbol.V("S").Derives(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
+                    Symbol.V("S").Derives(Symbol.V("R")),
+                    Symbol.V("L").Derives(Symbol.T('*'), Symbol.V("R")),
+                    Symbol.V("L").Derives(Symbol.T('a')),
+                    Symbol.V("R").Derives(Symbol.V("L"))
+                );
+
+            // characteristic automaton (LR(0) automaton)
+            var cga = grammar.GetLr0AutomatonDfa();
+
+            SaveFile("GallierEx3_LR0Automaton.dot", DotLanguagePrinter.ToDotLanguage(cga, DotRankDirection.LeftRight, skipStateLabeling: true));
+
+            var analyzer = Analyzers.CreateErasableSymbolsAnalyzer(grammar);
+
+            (Set<Terminal>[] initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
+
+            SaveFile("GallierEx3_FirstGraph.dot",
+                DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
+
+            var firstSymbolsAnalyzer = Analyzers.CreateFirstSymbolsAnalyzer(grammar);
+
+            (Set<Terminal>[] initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
+
+            SaveFile("GallierEx3_FollowGraph.dot",
+                DotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Variables[v].Name));
+
+            var stringWriter = new StringWriter();
+            grammar.PrintFirstAndFollowSets(stringWriter);
+            SaveFile("GallierEx3_FirstAndFollowSets.txt", stringWriter.ToString());
+
+            // Grammar is LR(0)
+            var lr0Parser = grammar.ComputeLr0ParsingTable();
+            var writer = new StringWriter();
+            lr0Parser.PrintParsingTable(writer);
+
+            foreach (var conflict in lr0Parser.Conflicts)
+            {
+                writer.WriteLine(conflict);
+                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+            }
+            writer.WriteLine();
+
+            SaveFile("GallierEx3_Lr0ParsingTable.txt", writer.ToString());
+        }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static void DigraphMethods()
