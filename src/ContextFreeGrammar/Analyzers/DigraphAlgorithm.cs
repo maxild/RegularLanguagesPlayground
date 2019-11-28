@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -14,15 +15,18 @@ namespace ContextFreeGrammar.Analyzers
     public static class DigraphAlgorithm
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (Set<TTerminalSymbol>[] INITFIRST, IGraph Graph) GetFirstGraph<TNonterminalSymbol, TTerminalSymbol>(
+        public static (ImmutableArray<IReadOnlySet<TTerminalSymbol>> INITFIRST, IGraph Graph) GetFirstGraph<TNonterminalSymbol, TTerminalSymbol>(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IErasableSymbolsAnalyzer analyzer)
             where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
             where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         {
             // direct contributions: initial first sets (INITFIRST)
-            var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
-            for (int i = 0; i < initSets.Length; i += 1)
-                initSets[i] = new Set<TTerminalSymbol>();
+            //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
+            //for (int i = 0; i < initSets.Length; i += 1)
+            //    initSets[i] = new Set<TTerminalSymbol>();
+            var initSets = Enumerable.Range(0, grammar.Variables.Count)
+                .Select(_ => new Set<TTerminalSymbol>()) // empty sets
+                .ToImmutableArray();
 
             // indirect contributions: superset relations between nonterminals
             var contains_the_first_set_of = new HashSet<(int, int)>(); // no parallel edges
@@ -55,20 +59,23 @@ namespace ContextFreeGrammar.Analyzers
 
             var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_first_set_of);
 
-            return (initSets, graph);
+            return (ImmutableArray<IReadOnlySet<TTerminalSymbol>>.CastUp(initSets), graph);
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (Set<TTerminalSymbol>[] INITFOLLOW, IGraph Graph) GetFollowGraph<TNonterminalSymbol,
+        public static (ImmutableArray<IReadOnlySet<TTerminalSymbol>> INITFOLLOW, IGraph Graph) GetFollowGraph<TNonterminalSymbol,
             TTerminalSymbol>(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer)
             where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
             where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         {
             // direct contributions: initial follow sets (INITFOLLOW)
-            var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
-            for (int i = 0; i < initSets.Length; i += 1)
-                initSets[i] = new Set<TTerminalSymbol>();
+            //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
+            //for (int i = 0; i < initSets.Length; i += 1)
+            //    initSets[i] = new Set<TTerminalSymbol>();
+            var initSets = Enumerable.Range(0, grammar.Variables.Count)
+                .Select(_ => new Set<TTerminalSymbol>()) // empty sets
+                .ToImmutableArray();
 
             // TODO: This is a requirement of the parsing table of shift-reduce parser (dragon book analyzer automates this)
             // We only need to place Eof ('$' in the dragon book) in INITFOLLOW(S) if the grammar haven't
@@ -131,21 +138,21 @@ namespace ContextFreeGrammar.Analyzers
 
             var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_follow_set_of);
 
-            return (initSets, graph);
+            return (ImmutableArray<IReadOnlySet<TTerminalSymbol>>.CastUp(initSets), graph);
         }
 
         // TODO: This simple DFS traversal can be optimized using Component Graph (SCCs)
         public static Set<TResult>[] Traverse<TNonterminalSymbol, TTerminalSymbol, TResult>(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
             IGraph graph,
-            Set<TResult>[] initSets)
+            IReadOnlyList<IReadOnlySet<TResult>> initSets)
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         where TResult : IEquatable<TResult>
         {
             int count = grammar.Variables.Count;
 
-            Debug.Assert(count == initSets.Length);
+            Debug.Assert(count == initSets.Count);
 
             // copy result (typically terminals) from init sets to the set-valued functions before traversing
             var f = new Set<TResult>[count];
@@ -181,7 +188,7 @@ namespace ContextFreeGrammar.Analyzers
                 {
                     var current = stack.Pop();
                     visited[current] = true;
-                    foreach (var successor in g.NeighboursOf(current))
+                    foreach (var successor in g.NeighborsOf(current))
                     {
                         if (!visited[successor])
                         {

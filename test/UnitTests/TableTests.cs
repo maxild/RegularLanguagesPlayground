@@ -160,7 +160,7 @@ namespace UnitTests
             foreach (var conflict in lr0Parser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
             }
             writer.WriteLine();
             writer.WriteLine();
@@ -227,7 +227,7 @@ namespace UnitTests
             foreach (var conflict in slrParser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
             }
             writer.WriteLine();
             writer.WriteLine();
@@ -282,7 +282,7 @@ namespace UnitTests
             // Therefore....TODO
             var conflict = slrParser.Conflicts.Single();
             writer.WriteLine(conflict);
-            writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+            writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
             //  ╔════════╤══════════════╤══════════════╤══════════╤══════════════════════════════════╗
             //  ║ SeqNo  │    Stack     │   Symbols    │  Input   │              Action              ║
             //  ╠════════╪══════════════╪══════════════╪══════════╪══════════════════════════════════╣
@@ -408,7 +408,7 @@ namespace UnitTests
             {
                 writer.WriteLine(conflict);
                 // TODO: Show lookahead sets of items
-                writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+                writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
             }
 
             // The grammar is LALR(1)

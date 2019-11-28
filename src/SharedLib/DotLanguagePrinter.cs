@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using AutomataLib.Graphs;
@@ -21,7 +22,7 @@ namespace AutomataLib
         /// </summary>
         public static string PrintGraph(
             string functionName,
-            Set<Terminal>[] initSets,
+            IReadOnlyList<IReadOnlySet<Terminal>> initSets,
             IGraph graph,
             Func<int, string> labelFunc = null,
             DotRankDirection direction = DotRankDirection.LeftRight
@@ -59,7 +60,7 @@ namespace AutomataLib
             // Show init sets: INITFIRST(E) = {..}, INITFIRST(T) = {..} etc...
             sb.AppendLine("node [shape=box];");
             sb.Append("node_docs [label=\"");
-            for (int i = 0; i < initSets.Length; i++)
+            for (int i = 0; i < initSets.Count; i++)
             {
                 if (i > 0)
                     sb.Append(",\\l");

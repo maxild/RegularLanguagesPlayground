@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using AutomataLib;
@@ -30,7 +30,6 @@ namespace ContextFreeGrammar
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
-        private readonly Dictionary<TNonterminalSymbol, List<(int, Production<TNonterminalSymbol>)>> _productionMap;
         private readonly IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> _analyzer;
 
         public Grammar(
@@ -52,15 +51,18 @@ namespace ContextFreeGrammar
             // Productions are numbered 0,1,2,...,^Productions.Count
             var prods = new List<Production<TNonterminalSymbol>>();
             // Variables (productions on the shorter form (A -> α | β | ...) are numbered 0,1,...,^Variables.Count
-            _productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
+            var productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
 
             int index = 0;
             foreach (var production in productions)
             {
                 prods.Add(production);
-                _productionMap[production.Head].Add((index, production));
+                productionMap[production.Head].Add((index, production));
                 index += 1;
             }
+
+            ProductionsFor = productionMap.ToImmutableDictionary(kvp => kvp.Key,
+                kvp => (IReadOnlyList<(int, Production<TNonterminalSymbol>)>) kvp.Value);
 
             if (prods.Count == 0)
             {
@@ -96,6 +98,22 @@ namespace ContextFreeGrammar
         /// </summary>
         public bool IsAugmentedWithEofMarker => IsAugmented && Productions[0].LastSymbol.IsEof;
 
+        /// <summary>
+        /// This is the augmented start dotted production [S' → •S].
+        /// This is also the CORE of the start item of the LR(k) automaton.
+        /// The (initial) start item (with CORE [S' → •S]) is the only LR(k) item in the LR(k) automaton,
+        /// that is considered a kernel item even though the dot is at the beginning of the RHS of the production.
+        /// </summary>
+        public MarkedProduction<TNonterminalSymbol> AugmentedStartItem =>
+            new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, 0);
+
+        /// <summary>
+        /// This is the augmented accept dotted production [S' → S•].
+        /// This is also the CORE of the unique accept item (augmented final item) of the LR(k) automaton.
+        /// </summary>
+        public MarkedProduction<TNonterminalSymbol> AugmentedAcceptItem =>
+            new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, 1);
+
         // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
         // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
         public bool IsReduced => true;
@@ -127,11 +145,13 @@ namespace ContextFreeGrammar
         /// <inheritdoc />
         public IReadOnlyList<Production<TNonterminalSymbol>> Productions { get; }
 
-        ///// <summary>
-        ///// Production rules for any given variable (nonterminal symbol).
-        ///// </summary>
-        //public IReadOnlyDictionary<Nonterminal, IReadOnlyList<Production>> ProductionsFor =>
-        //    (IReadOnlyDictionary<Nonterminal, IReadOnlyList<Production>>) _productionMap;
+        /// <summary>
+        /// List of production rules for any given variable (nonterminal symbol).
+        /// When A → α | β | ... | ω, then ProductionsFor[A] = α, β,..., ω.
+        /// </summary>
+        //public IReadOnlyDictionary<Nonterminal, IReadOnlyList<(int, Production<TNonterminalSymbol>)>> ProductionsFor { get; }
+        public IReadOnlyDictionary<TNonterminalSymbol, IReadOnlyList<(int, Production<TNonterminalSymbol>)>> ProductionsFor { get; }
+
 
         public TNonterminalSymbol StartSymbol { get; }
 
@@ -160,175 +180,11 @@ namespace ContextFreeGrammar
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonNfa()
-        {
-            // NOTE: These are all synonyms for what machine we are building here
-            //          - 'characteristic strings' recognizer
-            //          - 'viable prefix' recognizer  (αβ is the viable prefix on top of the the stack)
-            //          - 'handle' recognizer         (β is the handle on top of the stack)
-            //          - LR(0) automaton
+        public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonNfa() =>
+            Lr0AutomatonAlgorithm.GetLr0AutomatonNfa(this);
 
-            if (!IsAugmented)
-            {
-                throw new InvalidOperationException("The grammar should be augmented with canonical S' → S production.");
-            }
-
-            if (!IsReduced)
-            {
-                throw new InvalidOperationException("The grammar contains useless symbols.");
-            }
-
-            var startItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Productions[0], 0, 0);
-            var transitions = new List<Transition<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>>();
-            var acceptItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
-
-            // (a) For every terminal a ∈ T, if A → α•aβ is a marked production, then
-            //     there is a transition on input a from state A → α•aβ to state A → αa•β
-            //     obtained by "shifting the dot"
-            // (b) For every variable B ∈ V, if A → α•Bβ is a marked production, then
-            //     there is a transition on input B from state A → α•Bβ to state A → αB•β
-            //     obtained by "shifting the dot", and transitions on input ε (the empty string)
-            //     to all states B → •γ(i), for all productions B → γ(i) ∈ P with left-hand side B.
-            int productionIndex = 0;
-            foreach (var production in Productions)
-            {
-                for (int dotPosition = 0; dotPosition <= production.Tail.Count; dotPosition += 1)
-                {
-                    // (productionIndex, dotPosition) is identifier
-                    var item = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(production, productionIndex, dotPosition);
-
-                    // (a) A → α•aβ
-                    if (item.IsShiftItem)
-                    {
-                        Symbol a = item.GetNextSymbol<Terminal>();
-                        var shiftToItem = item.WithShiftedDot();
-                        transitions.Add(Transition.Move(item, a, shiftToItem));
-                    }
-
-                    // (b) A → α•Bβ
-                    if (item.IsGotoItem)
-                    {
-                        var B = item.GetNextSymbol<TNonterminalSymbol>();
-                        var gotoItem = item.WithShiftedDot();
-                        transitions.Add(Transition.Move(item, (Symbol)B, gotoItem));
-
-                        // closure items
-                        foreach (var (index, productionOfB) in _productionMap[B])
-                        {
-                            var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(productionOfB, index, 0);
-                            // Expecting to see a nonterminal 'B' (of Bβ) is the same as expecting to see
-                            // RHS grammar symbols 'γ(i)', where B → γ(i) is a production ∈ P
-                            transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(item, closureItem));
-                        }
-                    }
-
-                    // (c) A → β• (Accepting states has dot shifted all the way to the end)
-                    if (item.IsReduceItem)
-                    {
-                        acceptItems.Add(item);
-                    }
-                }
-
-                productionIndex += 1;
-            }
-
-            return new Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol>(transitions, startItem, acceptItems);
-        }
-
-        // TODO: Make it DRY between LR(0) and LR(1)...compare with method above
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonNfa()
-        {
-            if (!IsAugmented)
-            {
-                throw new InvalidOperationException("The grammar should be augmented with canonical S' → S production.");
-            }
-
-            if (!IsReduced)
-            {
-                throw new InvalidOperationException("The grammar contains useless symbols.");
-            }
-
-            // Lookahead of items are defined by
-            //
-
-            // The start state is [S' → •S, $]
-            var startItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Productions[0], 0, 0, Symbol.Eof<TTerminalSymbol>());
-
-            var transitions = new List<Transition<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>>();
-            var acceptItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
-
-            var states = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(startItem.AsSingletonEnumerable());
-
-            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
-            worklist.Enqueue(startItem);
-
-            // (a) For every terminal a ∈ T, if [A → α•aβ, b] is a marked production, then
-            //     there is a transition on input a from state [A → α•aβ, b] to state [A → αa•β, b]
-            //     obtained by "shifting the dot" (where a = b is possible)
-            // (b) For every variable B ∈ N, if [A → α•Bβ, b] is a marked production, then
-            //     there is a transition on input B from state [A → α•Bβ, b] to state [A → αB•β, b]
-            //     obtained by "shifting the dot", and transitions on input ε (the empty string)
-            //     to all states [B → •γ, a], for all productions B → γ ∈ P with left-hand side B
-            //     and a ∈ FIRST(βb).
-            while (worklist.Count > 0)
-            {
-                var item = worklist.Dequeue();
-
-                // (a) [A → α•aβ, b] --a--> [A → αa•β, b]
-                if (item.IsShiftItem)
-                {
-                    Symbol a = item.GetNextSymbol<Terminal>();
-                    var shiftToItem = item.WithShiftedDot();
-                    if (states.Add(shiftToItem))
-                    {
-                        worklist.Enqueue(shiftToItem);
-                    }
-                    transitions.Add(Transition.Move(item, a, shiftToItem));
-                }
-
-                // (b) [A → α•Bβ, b] (with new CLOSURE function, because of lookahead)
-                if (item.IsGotoItem)
-                {
-                    var B = item.GetNextSymbol<TNonterminalSymbol>();
-                    var gotoItem = item.WithShiftedDot();
-                    if (states.Add(gotoItem))
-                    {
-                        worklist.Enqueue(gotoItem);
-                    }
-                    transitions.Add(Transition.Move(item, (Symbol)B, gotoItem));
-
-                    // closure items (with changed lookahead symbols) represented by ε-transitions
-                    foreach (var (index, productionOfB) in _productionMap[B])
-                    {
-                        // Expecting to see 'Bβ', where B ∈ T, followed by lookahead symbol 'b' of [A → α•Bβ, b]
-                        // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
-                        // symbol 'a' of [B → γ, a], where a ∈ FIRST(βb) and 'B → γ' is a production ∈ P.
-                        Symbol b = item.Lookaheads.Single();
-                        foreach (TTerminalSymbol a in this.First(item.GetRemainingSymbolsAfterNextSymbol().ConcatItem(b)))
-                        {
-                            // [B → γ, a]
-                            var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(productionOfB, index, 0, a);
-                            if (states.Add(closureItem))
-                            {
-                                worklist.Enqueue(closureItem);
-                            }
-                            transitions.Add(
-                                Transition.EpsilonMove<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(item, closureItem));
-                        }
-                    }
-                }
-
-                // (c) [A → β•, b] completed item with dot in rightmost position
-                if (item.IsReduceItem)
-                {
-                    acceptItems.Add(item);
-                }
-            }
-
-            return new Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol>(transitions, startItem, acceptItems);
-        }
+        public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonNfa() =>
+            Lr1AutomatonAlgorithm.GetLr1AutomatonNfa(this);
 
         /// <summary>
         /// Get DFA representation of the set of characteristic strings (aka viable prefixes) that are defined by
@@ -339,34 +195,18 @@ namespace ContextFreeGrammar
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonDfa()
-        {
-            var (states, transitions) = ComputeLr0AutomatonData();
+        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonDfa() =>
+            Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this);
 
-            var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
-
-            // NOTE: This DFA representation always need to have a so called dead state (0),
-            // and {1,2,...,N} are therefore the integer values of the actual states.
-            return new Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol>(states, Symbols, transitions, states[0], acceptStates);
-        }
-
-        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa()
-        {
-            var (states, transitions) = ComputeLr1AutomatonData();
-
-            var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
-
-            // NOTE: This DFA representation always need to have a so called dead state (0),
-            // and {1,2,...,N} are therefore the integer values of the actual states.
-            return new Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol>(states, Symbols, transitions, states[0], acceptStates);
-        }
+        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa() =>
+            Lr1AutomatonAlgorithm.GetLr1AutomatonDfa(this);
 
         /// <summary>
         /// Compute LR(0) parsing table.
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLr0ParsingTable()
         {
-            var (states, transitions) = ComputeLr0AutomatonData();
+            var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
             // LR(0)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
@@ -383,7 +223,7 @@ namespace ContextFreeGrammar
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
         {
-            var (states, transitions) = ComputeLr0AutomatonData();
+            var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
             // SLR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
@@ -400,7 +240,7 @@ namespace ContextFreeGrammar
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLr1ParsingTable()
         {
-            var (states, transitions) = ComputeLr1AutomatonData();
+            var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
             // LR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
@@ -418,7 +258,7 @@ namespace ContextFreeGrammar
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalr1ParsingTable()
         {
-            var (states, transitions) = ComputeLr1AutomatonData();
+            var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
             // Merge states and transitions
             var (mergedStates, mergedTransitions) = ComputeMergedLr1AutomatonData(states, transitions);
@@ -529,86 +369,6 @@ namespace ContextFreeGrammar
             return (actionTableEntries, gotoTableEntries);
         }
 
-        /// <summary>
-        /// Get data representation of the set of characteristic strings (aka viable prefixes) that are defined by
-        /// CG = {αβ ∈ Pow(V) | S′ ∗⇒ αAv ⇒ αβv, αβ ∈ Pow(V), v ∈ Pow(T)}, where V := N U V (all grammar symbols),
-        /// and ⇒ is the right-most derivation relation. CG is the set of viable prefixes containing all prefixes (αβ)
-        /// of right sentential forms (αβv) that can appear on the stack of a shift/reduce parser,
-        /// i.e. prefixes of right sentential forms that do not extend past the end of the right-most handle
-        /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
-        /// right sentential form where the substring β can be found).
-        /// </summary>
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
-                 List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions) ComputeLr0AutomatonData()
-        {
-            ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> startItemSet =
-                ClosureLr0(new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Productions[0], 0, 0).AsSingletonEnumerable());
-            // states (aka LR(0) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
-            var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
-
-            var worklist = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            while (worklist.Count > 0)
-            {
-                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
-                // For each pair (X, { A → αX•β, where the item A → α•Xβ is in the predecessor item set}),
-                // where A → αX•β is core/kernel successor item on some grammar symbol X in the graph
-                foreach (var coreSuccessorItems in sourceState.GetTargetItems())
-                {
-                    // For each grammar symbol (label on the transition/edge in the graph)
-                    var X = coreSuccessorItems.Key;
-                    // Get the closure of all the core/kernel successor items A → αX•β that we can move/transition to in the graph
-                    ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> targetState = ClosureLr0(coreSuccessorItems);
-                    transitions.Add(Transition.Move(sourceState, X, targetState));
-                    if (!states.Contains(targetState))
-                    {
-                        worklist.Enqueue(targetState);
-                        states.Add(targetState);
-                    }
-                }
-            }
-
-            return (states, transitions);
-        }
-
-        // NOTE: LR(1) items have merged lookahead sets in order for LR(1) item sets (i.e. states) to have the minimal number of LR(1) items
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
-                 List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions) ComputeLr1AutomatonData()
-        {
-            ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> startItemSet =
-                ClosureLr1(new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(Productions[0], 0, 0,
-                    Symbol.Eof<TTerminalSymbol>()).AsSingletonEnumerable());
-
-            // states (aka LR(k) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
-            var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
-
-            var worklist = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            while (worklist.Count > 0)
-            {
-                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
-                // For each successor item pair (X, { [A → αX•β, b], where the item [A → α•Xβ, b] is in the predecessor item set}),
-                // where [A → αX•β, b] is a core/kernel successor item on some grammar symbol X in V, where V := N U T
-                foreach (var coreSuccessorItems in sourceState.GetTargetItems())
-                {
-                    // For each transition grammar symbol (label on the transition/edge in the graph)
-                    var X = coreSuccessorItems.Key; // can be either terminal (goto) or nonterminal (shift/read)
-                    // Get the closure of all the core/kernel successor items A → αX•β that we can move/transition to in the graph
-                    ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> targetState = ClosureLr1(coreSuccessorItems);
-                    transitions.Add(Transition.Move(sourceState, X, targetState));
-                    if (!states.Contains(targetState))
-                    {
-                        worklist.Enqueue(targetState);
-                        states.Add(targetState);
-                    }
-                }
-            }
-
-            return (states, transitions);
-        }
-
         // NOTE: It is common for LR(1) item sets to have identical first components (i.e. identical LR(0) items),
         //       and only differ w.r.t different lookahead symbols (the second component). In construction of LALR(1) we
         //       will look for different LR(1) items having the same (core) LR(0) items, and merge these into new union
@@ -712,104 +472,6 @@ namespace ContextFreeGrammar
             }
 
             return (mergedStates, mergedTransitions);
-        }
-
-        /// <summary>
-        /// Compute ε-closure of the kernel/core items of any LR(0) item set --- this
-        /// is identical to ε-closure in the subset construction algorithm when translating
-        /// NFA to DFA.
-        /// </summary>
-        [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> ClosureLr0(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> coreItems)
-        {
-            var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
-
-            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
-            while (worklist.Count != 0)
-            {
-                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();
-                var B = item.GetNextSymbolAs<TNonterminalSymbol>();
-                if (B == null) continue;
-                // If item is a GOTO item of the form A → α•Bβ, where B ∈ T,
-                // then find all its closure items
-                foreach (var (index, production) in _productionMap[B])
-                {
-                    var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(production, index, 0);
-                    if (!closure.Contains(closureItem))
-                    {
-                        closure.Add(closureItem);
-                        worklist.Enqueue(closureItem);
-                    }
-                }
-            }
-
-            return new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(closure);
-        }
-
-        /// <summary>
-        /// Compute ε-closure of the kernel/core items of any LR(1) item set --- this
-        /// is identical to ε-closure in the subset construction algorithm when translating
-        /// NFA to DFA.
-        /// </summary>
-        [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
-        [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> ClosureLr1(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> coreItems)
-        {
-            var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
-
-            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
-            while (worklist.Count != 0)
-            {
-                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();
-                // B is the next symbol (that must be a nonterminal symbol)
-                var B = item.GetNextSymbolAs<TNonterminalSymbol>();
-                if (B == null) continue;
-                // If item is a GOTO item of the form [A → α•Bβ, b], where B ∈ T,
-                // then find all its closure items [B → γ, a], where a ∈ FIRST(βb)
-                // and 'B → γ' is a production ∈ P.
-                //
-                //      or
-                //
-                // Expecting to see 'Bβ', where B ∈ T, followed by lookahead symbol 'b' of [A → α•Bβ, b]
-                // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
-                // symbol 'a' of [B → •γ, a], where a ∈ FIRST(βb) and 'B → γ' is a production ∈ P.
-                var beta = item.GetRemainingSymbolsAfterNextSymbol();
-
-                // Because 'merged' items can have lookahead sets with many terminal symbols we have to
-                // calculate the union of all FIRST(βb) for every b ∈ L, where L is the lookahead
-                // set of item [A → α•Bβ, L]
-                var lookaheads = item.Lookaheads.Aggregate(new Set<TTerminalSymbol>(), (l, b) => l.UnionWith(this.First(beta.ConcatItem(b))));
-                //var lookaheads = item.Lookaheads.Select(b => FIRST(beta.ConcatItem(b))).ToUnionSet();
-
-                foreach (var (index, production) in _productionMap[B])
-                {
-                    foreach (TTerminalSymbol a in lookaheads)
-                    {
-                        // [B → •γ, a]
-                        var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(production, index, 0, a);
-                        if (!closure.Contains(closureItem))
-                        {
-                            closure.Add(closureItem);
-                            worklist.Enqueue(closureItem);
-                        }
-                    }
-                }
-            }
-
-            // This merge operation will make every marked production of an LR(1) item unique within each LR(1) item set.
-            // This will simplify the merging of different LR(1) item sets into merged LALR(1) item sets, and it will also make
-            // every LR(1) item set a bit more lightweight, because LR(1) items (with identical marked productions) can be
-            // represented by a single LR(1) item with lookahead symbols defined by the union of the merged items.
-            var closureWithMergedItems =
-                from lookaheadsOfMarkedProduction in closure.ToLookup(x => x.MarkedProduction, x => x.Lookaheads)
-                let firstItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(
-                    markedProduction: lookaheadsOfMarkedProduction.Key,
-                    lookaheads: lookaheadsOfMarkedProduction.First())
-                select lookaheadsOfMarkedProduction.Skip(1).Aggregate(firstItem,
-                    (nextItem, lookaheads) => nextItem.WithUnionLookaheads(lookaheads));
-
-            return new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(closureWithMergedItems);
         }
 
         public override string ToString()

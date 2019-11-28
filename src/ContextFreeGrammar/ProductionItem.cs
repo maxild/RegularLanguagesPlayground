@@ -214,7 +214,6 @@ namespace ContextFreeGrammar
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private string DebuggerDisplay => ToString();
-        private static readonly IReadOnlySet<TTerminalSymbol> s_emptyLookaheads = new Set<TTerminalSymbol>(Enumerable.Empty<TTerminalSymbol>());
 
         public ProductionItem(
             Production<TNonterminalSymbol> production,
@@ -242,7 +241,7 @@ namespace ContextFreeGrammar
             IReadOnlySet<TTerminalSymbol> lookaheads)
         {
             MarkedProduction = markedProduction;
-            Lookaheads = lookaheads ?? s_emptyLookaheads;
+            Lookaheads = lookaheads ?? Set<TTerminalSymbol>.Empty;
         }
 
         /// <summary>
@@ -257,7 +256,7 @@ namespace ContextFreeGrammar
         /// </summary>
         /// <returns></returns>
         public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithNoLookahead() =>
-            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction, s_emptyLookaheads);
+            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction, Set<TTerminalSymbol>.Empty);
 
         /// <summary>
         /// Get the successor item of a shift/goto action created by 'shifting the dot'.
@@ -285,11 +284,17 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// Any item B → α•β where α is not ε (the empty string),
-        /// or the start rule S' → •S item (of the augmented grammar that
-        /// is the first production of index zero by convention). That is
-        /// the initial item S' → •S, and all items where the dot is not at the left end.
+        /// or the start S' → •S item (of the augmented grammar). That is
+        /// the initial item S' → •S, and all other items where the dot is not
+        /// at the left end are considered kernel items.
         /// </summary>
-        public bool IsCoreItem => MarkedProduction.IsCoreItem;
+        public bool IsKernelItem => MarkedProduction.IsKernelItem;
+
+        /// <summary>
+        /// Any item A → •β where the dot is at the beginning of the RHS of the production,
+        /// except the initial item S' → •S.
+        /// </summary>
+        public bool IsClosureItem => MarkedProduction.IsClosureItem;
 
         /// <summary>
         /// Is this item a completed item on the form A → α•, where the dot have been shifted
@@ -314,24 +319,31 @@ namespace ContextFreeGrammar
         public Symbol GetPrevSymbol() => MarkedProduction.GetPrevSymbol();
 
         /// <summary>
-        /// Get the symbol after the dot.
+        /// All kernel items (of any item set) have the same symbol before the dot.
+        /// If the item is a closure item the result is the empty symbol (ε).
         /// </summary>
-        public Symbol GetNextSymbol() => MarkedProduction.GetNextSymbol();
+        public Symbol SpellingSymbol => MarkedProduction.SpellingSymbol;
+
+        /// <summary>
+        /// The symbol after the dot. If the dot have been shifted all the way to the end of the RHS of
+        /// the production the result is the empty symbol (ε).
+        /// </summary>
+        public Symbol DotSymbol => MarkedProduction.DotSymbol;
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol => MarkedProduction.GetNextSymbol<TSymbol>();
+        public TSymbol GetDotSymbol<TSymbol>() where TSymbol : Symbol => MarkedProduction.GetDotSymbol<TSymbol>();
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
-        public TSymbol GetNextSymbolAs<TSymbol>() where TSymbol : Symbol => MarkedProduction.GetNextSymbolAs<TSymbol>();
+        public TSymbol TryGetDotSymbol<TSymbol>() where TSymbol : Symbol => MarkedProduction.TryGetDotSymbol<TSymbol>();
 
         /// <summary>
-        /// Get the remaining symbols after the dot.
+        /// Get the remaining symbols after the dot symbol.
         /// </summary>
-        public IEnumerable<Symbol> GetRemainingSymbolsAfterNextSymbol() => MarkedProduction.GetRemainingSymbolsAfterNextSymbol();
+        public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol() => MarkedProduction.GetRemainingSymbolsAfterDotSymbol();
 
         public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other)
         {

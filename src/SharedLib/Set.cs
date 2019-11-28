@@ -13,6 +13,8 @@ namespace AutomataLib
     [DebuggerTypeProxy(typeof(EnumerableDebugView<>)), DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class Set<T> : ISet<T>, IEquatable<Set<T>> where T : IEquatable<T>
     {
+        public static readonly IReadOnlySet<T> Empty = new Set<T>();
+
         private string DebuggerDisplay => Count > 0
             ? $"{this.ToVectorString()}, Count = {Count}"
             : $"Count = {Count}";

@@ -59,6 +59,14 @@ namespace AutomataLib
             return true;
         }
 
+        public int TryAdd(T item)
+        {
+            if (_dictionary.TryGetValue(item, out var index))
+                return index;
+            Add(item);
+            return _list.Count - 1;
+        }
+
         public bool AddRange(IEnumerable<T> other)
         {
             int c = _list.Count;

@@ -27,7 +27,7 @@ namespace ContextFreeGrammar
             where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
             where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         {
-            dfa.PrintItemsHelper(writer, itemSet => itemSet.CoreItems);
+            dfa.PrintItemsHelper(writer, itemSet => itemSet.KernelItems);
         }
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]

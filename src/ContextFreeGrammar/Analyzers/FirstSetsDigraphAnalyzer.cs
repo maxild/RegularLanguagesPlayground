@@ -11,7 +11,6 @@ namespace ContextFreeGrammar.Analyzers
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
     {
         private static readonly Set<TTerminalSymbol> s_eofSingleton = new Set<TTerminalSymbol>(new []{Symbol.Eof<TTerminalSymbol>()});
-        private static readonly Set<TTerminalSymbol> s_empty = new Set<TTerminalSymbol>();
 
         private readonly Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _firstMap;
 
@@ -29,7 +28,7 @@ namespace ContextFreeGrammar.Analyzers
                 return new Set<TTerminalSymbol>(new []{token});
             if (symbol.IsEof)
                 return s_eofSingleton;
-            return s_empty; // epsilon
+            return Set<TTerminalSymbol>.Empty; // epsilon
         }
 
         // We can collectively characterize all FIRST sets as the smallest sets

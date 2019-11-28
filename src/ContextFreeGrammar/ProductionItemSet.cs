@@ -21,25 +21,33 @@ namespace ContextFreeGrammar
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private string DebuggerDisplay => ClosureItems.Any()
-            ? string.Concat(CoreItems.ToVectorString(), ":", ClosureItems.ToVectorString())
-            : CoreItems.ToVectorString();
+            ? string.Concat(KernelItems.ToVectorString(), ":", ClosureItems.ToVectorString())
+            : KernelItems.ToVectorString();
 
         // core items are always non-empty (the core items identifies the LR(0) item set)
-        private readonly HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _coreItems;
+        private readonly HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _kernelItems;
         // closure items can be empty (and can BTW always be generated on the fly, but we store them to begin with)
         private readonly List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _closureItems;
 
         public ProductionItemSet(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> items)
         {
-            _coreItems = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
+            _kernelItems = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
             _closureItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
             foreach (var item in items)
             {
-                if (item.IsCoreItem)
-                    _coreItems.Add(item);
+                if (item.IsKernelItem)
+                    _kernelItems.Add(item);
                 else
                     _closureItems.Add(item);
             }
+        }
+
+        /// <summary>
+        /// Does this LR(k) item set contain a kernel item with a given CORE (dotted production).
+        /// </summary>
+        public bool ContainsKernelItem(MarkedProduction<TNonterminalSymbol> dottedProduction)
+        {
+            return KernelItems.Select(item => item.MarkedProduction).Contains(dottedProduction);
         }
 
         /// <summary>
@@ -47,16 +55,16 @@ namespace ContextFreeGrammar
         /// the LR(0) item set has a unique spelling property, that can be used to compute the sentential form
         /// during shift/reduce parsing.
         /// </summary>
-        public Symbol SpellingSymbol => CoreItems.First().GetPrevSymbol(); // all core items have the same grammar symbol to the left of the dot
+        public Symbol SpellingSymbol => KernelItems.First().SpellingSymbol; // all kernel items have the same grammar symbol to the left of the dot
 
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> Items => _coreItems.Concat(_closureItems);
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> Items => _kernelItems.Concat(_closureItems);
 
         /// <summary>
         /// The partially parsed rules for a state are called its core LR(0) items.
         /// If we also call S′ → .S a core item, we observe that every state in the
         /// DFA is completely determined by its subset of core items.
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> CoreItems => _coreItems;
+        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> KernelItems => _kernelItems;
 
         /// <summary>
         /// The closure items (obtained via ϵ-closure) do not determine the state of the LR(0) automaton,
@@ -83,6 +91,18 @@ namespace ContextFreeGrammar
         public bool IsReduceAction => ReduceItems.Any(item => item.ProductionIndex > 0);
 
         /// <summary>
+        /// Find all nonterminal labeled transitions out of this item set.
+        /// </summary>
+        public IEnumerable<TNonterminalSymbol> NonterminalTransitions =>
+            Items.Where(item => item.DotSymbol.IsNonTerminal).Select(item => item.GetDotSymbol<TNonterminalSymbol>());
+
+        /// <summary>
+        /// Find all terminal labeled transitions out of this item set.
+        /// </summary>
+        public IEnumerable<TTerminalSymbol> TerminalTransitions =>
+            Items.Where(item => item.DotSymbol.IsTerminal).Select(item => item.GetDotSymbol<TTerminalSymbol>());
+
+        /// <summary>
         /// Compute the successor goto items (i.e for non-terminal transitions) and/or shift items
         /// (i.e. for terminal transitions). This is the core items of the GOTO function in the dragon book.
         /// </summary>
@@ -90,7 +110,7 @@ namespace ContextFreeGrammar
         {
             return Items
                 .Where(item => !item.IsReduceItem)
-                .ToLookup(item => item.GetNextSymbol(), item => item.WithShiftedDot());
+                .ToLookup(item => item.DotSymbol, item => item.WithShiftedDot());
         }
 
         public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)
@@ -109,13 +129,13 @@ namespace ContextFreeGrammar
                     throw new InvalidOperationException("LR(k) item sets cannot be tested for equal lookahead sets only.");
                 case ProductionItemComparison.MarkedProductionAndLookaheads:
                 default:
-                    return _coreItems.SetEquals(other.CoreItems);
+                    return _kernelItems.SetEquals(other.KernelItems);
             }
         }
 
         private HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0CoreItems()
         {
-            return new HashSet<MarkedProduction<TNonterminalSymbol>>(_coreItems.Select(item => item.MarkedProduction));
+            return new HashSet<MarkedProduction<TNonterminalSymbol>>(_kernelItems.Select(item => item.MarkedProduction));
         }
 
         public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()
@@ -131,7 +151,7 @@ namespace ContextFreeGrammar
         public override int GetHashCode()
         {
             int hashCode = 17;
-            foreach (var item in CoreItems)
+            foreach (var item in KernelItems)
                 hashCode = 31 * hashCode + item.GetHashCode();
             return hashCode;
         }
@@ -139,8 +159,8 @@ namespace ContextFreeGrammar
         public override string ToString()
         {
             return ClosureItems.Any()
-                ? string.Concat(CoreItems.ToVectorString(), Environment.NewLine, ClosureItems.ToVectorString())
-                : CoreItems.ToVectorString();
+                ? string.Concat(KernelItems.ToVectorString(), Environment.NewLine, ClosureItems.ToVectorString())
+                : KernelItems.ToVectorString();
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
@@ -59,7 +60,8 @@ namespace CLI.TestDriver
                 .SetTerminalSymbols(Symbol.Ts('=', '*', 'a'))
                 .SetStartSymbol(Symbol.V("S'"))
                 .AndProductions(
-                    Symbol.V("S'").Derives(Symbol.V("S")), //Symbol.EofMarker),
+                    //Symbol.V("S'").Derives(Symbol.V("S"), Symbol.EofMarker),
+                    Symbol.V("S'").Derives(Symbol.V("S")),
                     Symbol.V("S").Derives(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
                     Symbol.V("S").Derives(Symbol.V("R")),
                     Symbol.V("L").Derives(Symbol.T('*'), Symbol.V("R")),
@@ -68,20 +70,20 @@ namespace CLI.TestDriver
                 );
 
             // characteristic automaton (LR(0) automaton)
-            var cga = grammar.GetLr0AutomatonDfa();
+            Dfa<ProductionItemSet<Nonterminal, Terminal>, Symbol> dfaLr0 = grammar.GetLr0AutomatonDfa();
 
-            SaveFile("GallierEx3_LR0Automaton.dot", DotLanguagePrinter.ToDotLanguage(cga, DotRankDirection.LeftRight, skipStateLabeling: true));
+            SaveFile("GallierEx3_LR0Automaton.dot", DotLanguagePrinter.ToDotLanguage(dfaLr0, DotRankDirection.LeftRight, skipStateLabeling: true));
 
             var analyzer = Analyzers.CreateErasableSymbolsAnalyzer(grammar);
 
-            (Set<Terminal>[] initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
+            (ImmutableArray<IReadOnlySet<Terminal>> initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
             SaveFile("GallierEx3_FirstGraph.dot",
                 DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
 
             var firstSymbolsAnalyzer = Analyzers.CreateFirstSymbolsAnalyzer(grammar);
 
-            (Set<Terminal>[] initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
+            (ImmutableArray<IReadOnlySet<Terminal>> initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
 
             SaveFile("GallierEx3_FollowGraph.dot",
                 DotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Variables[v].Name));
@@ -98,11 +100,22 @@ namespace CLI.TestDriver
             foreach (var conflict in lr0Parser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).CoreItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
             }
             writer.WriteLine();
 
             SaveFile("GallierEx3_Lr0ParsingTable.txt", writer.ToString());
+
+            ////
+
+            var vertices = LalrLookaheadSetsAlgorithm.GetGotoTransitionPairs(grammar, dfaLr0);
+
+            // Read (INITFOLLOW) sets
+            var (directReads, graphRead) = LalrLookaheadSetsAlgorithm.GetGraphReads(grammar, dfaLr0, vertices, analyzer);
+
+            SaveFile("GallierEx3_ReadGraph.dot",
+                DotLanguagePrinter.PrintGraph("DR", directReads, graphRead, v => vertices[v].ToString()));
+
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -134,13 +147,13 @@ namespace CLI.TestDriver
 
             var analyzer = Analyzers.CreateErasableSymbolsAnalyzer(grammar);
 
-            (Set<Terminal>[] initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
+            (ImmutableArray<IReadOnlySet<Terminal>> initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
             SaveFile("FirstGraph.dot", DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
 
             var firstSymbolsAnalyzer = Analyzers.CreateFirstSymbolsAnalyzer(grammar);
 
-            (Set<Terminal>[] initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
+            (ImmutableArray<IReadOnlySet<Terminal>> initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
 
             SaveFile("FollowGraph.dot", DotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Variables[v].Name));
         }

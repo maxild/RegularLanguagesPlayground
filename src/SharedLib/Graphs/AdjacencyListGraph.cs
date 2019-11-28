@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace AutomataLib.Graphs
 {
-    // TVertex = int, char, string
     public interface IGraph
     {
         int VertexCount { get; }
@@ -16,24 +15,13 @@ namespace AutomataLib.Graphs
 
         IEnumerable<(int,int)> Edges { get; }
 
-        IEnumerable<int> NeighboursOf(Index vertex);
+        IEnumerable<int> NeighborsOf(Index vertex);
     }
 
-    // C# 8 Range and Index (slicing and indexing syntactic sugar)
-    //public interface Ix<T> // Ix class in Haskell
-    //{
-    //    IEnumerable<T> Range
-    //}
-
-    // vertices are indexed [0,1,..,n[ (Ix class in haskell)
-    // edges are labeled? no
-    // directed by default? yes
-    // TODO: Use the vocabolary of CLRS book (vertex, vertices, edge, edges, inDegree, outDegree, etc...)
-    // That is we cannot use Move, Transition for edge in DFA/NFA models
     public class AdjacencyListGraph : IGraph
     {
         // array of adjacency lists
-        private readonly int[][] _arrayOfNeighbours;
+        private readonly int[][] _arrayOfNeighbors;
 
         // TODO: Could be Range as type of first arg (keep naming of vertices out of the Graph type..make naming abstraction)
         public AdjacencyListGraph(int numberOfVertices, IEnumerable<(int,int)> edges)
@@ -47,14 +35,14 @@ namespace AutomataLib.Graphs
                 adjList[edge.Item1].Add(edge.Item2); // TODO: avoid duplicates (parallel edges)
             }
 
-            _arrayOfNeighbours = new int[numberOfVertices][];
+            _arrayOfNeighbors = new int[numberOfVertices][];
             for (int i = 0; i < numberOfVertices; i++)
-                _arrayOfNeighbours[i] = adjList[i].ToArray(); // could be sorted, and use BinarySearch in ContainsEdge
+                _arrayOfNeighbors[i] = adjList[i].ToArray(); // could be sorted, and use BinarySearch in ContainsEdge
         }
 
-        public int VertexCount => _arrayOfNeighbours.Length;
+        public int VertexCount => _arrayOfNeighbors.Length;
 
-        public int EdgeCount => _arrayOfNeighbours.Sum(al => al.Length);
+        public int EdgeCount => _arrayOfNeighbors.Sum(al => al.Length);
 
         public IEnumerable<int> Vertices => Enumerable.Range(0, VertexCount);
 
@@ -62,15 +50,15 @@ namespace AutomataLib.Graphs
         {
             get
             {
-                for (int i = 0; i < _arrayOfNeighbours.Length; i += 1)
-                    for (int j = 0; j < _arrayOfNeighbours[i].Length; j += 1)
-                        yield return (i, _arrayOfNeighbours[i][j]);
+                for (int i = 0; i < _arrayOfNeighbors.Length; i += 1)
+                    for (int j = 0; j < _arrayOfNeighbors[i].Length; j += 1)
+                        yield return (i, _arrayOfNeighbors[i][j]);
             }
         }
 
-        public IEnumerable<int> NeighboursOf(Index vertex)
+        public IEnumerable<int> NeighborsOf(Index vertex)
         {
-            return _arrayOfNeighbours[vertex];
+            return _arrayOfNeighbors[vertex];
         }
     }
 
@@ -94,7 +82,7 @@ namespace AutomataLib.Graphs
             {
                 var curr = stack.Pop();
                 visited[curr] = true;
-                foreach (var succ in graph.NeighboursOf(curr))
+                foreach (var succ in graph.NeighborsOf(curr))
                 {
                     if (!visited[succ])
                     {

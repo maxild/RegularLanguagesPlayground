@@ -37,6 +37,9 @@ namespace UnitTests
             //          LA sets (union over 'lookback' relation of CGA=LR(0)-automaton)
             grammar.ShouldNotBeNull();
 
+
+            // TODO: Assert the results in the notes
+
         }
     }
 }

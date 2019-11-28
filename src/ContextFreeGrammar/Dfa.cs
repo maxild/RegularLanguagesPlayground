@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AutomataLib;
@@ -69,11 +70,17 @@ namespace ContextFreeGrammar
             return _acceptStates.Contains(state);
         }
 
+        /// <summary>
+        /// States 0,...,MaxState (inclusive the dead state = 0)
+        /// </summary>
         public IEnumerable<int> GetStates()
         {
             return Enumerable.Range(0, MaxState + 1);  // 0, 1, 2,..., maxState
         }
 
+        /// <summary>
+        /// States 1,...,MaxState (exclusive the dead state = 0)
+        /// </summary>
         public IEnumerable<int> GetTrimmedStates()
         {
             // We do not show the dead state
@@ -118,7 +125,12 @@ namespace ContextFreeGrammar
             }
         }
 
-        int NextState(int s, TAlphabet label)
+        public int TransitionFunction((int, TAlphabet) pair)
+        {
+            return _nextState[pair.Item1, _alphabetToIndex[pair.Item2]];
+        }
+
+        public int TransitionFunction(int s, TAlphabet label)
         {
             return _nextState[s, _alphabetToIndex[label]];
         }
@@ -128,7 +140,7 @@ namespace ContextFreeGrammar
             int s = state;
             foreach (var c in input)
             {
-                s = NextState(s, c);
+                s = TransitionFunction(s, c);
             }
             return s;
         }
@@ -144,6 +156,19 @@ namespace ContextFreeGrammar
             return _originalStates[originalIndex];
         }
 
+        /// <summary>
+        /// Get the index state of some underlying state defined by a predicate.
+        /// </summary>
+        public int IndexOfUnderlyingState(Func<TState, bool> predicate)
+        {
+            // Linear O(n) search is the only option, but augmented kernel/reduce item should be contained in state 2
+            int state = -1;
+            for (int originalIndex = 0; originalIndex < _originalStates.Length; originalIndex += 1)
+                if (predicate(_originalStates[originalIndex]))
+                    state = originalIndex + 1; // dead state occupies index zero in matrix, but not in _originalStates array
+            return state;
+        }
+
         public string GetStateLabel(int state, string sep)
         {
             int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
@@ -153,8 +178,8 @@ namespace ContextFreeGrammar
             {
                 // LR(0) items separated by '\l', and core and closure items are separated by a newline
                 return itemSet.ClosureItems.Any()
-                ? string.Join(sep, itemSet.CoreItems) + "\\n" + sep + string.Join(sep, itemSet.ClosureItems) + sep
-                : string.Join(sep, itemSet.CoreItems) + sep;
+                ? string.Join(sep, itemSet.KernelItems) + "\\n" + sep + string.Join(sep, itemSet.ClosureItems) + sep
+                : string.Join(sep, itemSet.KernelItems) + sep;
             }
             if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem<Nonterminal, Terminal>> itemSet2)
             {

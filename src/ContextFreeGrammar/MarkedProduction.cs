@@ -8,6 +8,9 @@ using JetBrains.Annotations;
 
 namespace ContextFreeGrammar
 {
+    /// <summary>
+    /// CORE of an LR(k) item. That is the LR(0) item part, where the lookahead part is dropped.
+    /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct MarkedProduction<TNonterminalSymbol> : IEquatable<MarkedProduction<TNonterminalSymbol>>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
@@ -23,6 +26,10 @@ namespace ContextFreeGrammar
             if (production == null)
             {
                 throw new ArgumentNullException(nameof(production));
+            }
+            if (markerPosition < 0)
+            {
+                throw new ArgumentException("Invalid dot position --- The marker position cannot be less than zero.");
             }
             if (markerPosition > production.Length)
             {
@@ -47,30 +54,41 @@ namespace ContextFreeGrammar
         public MarkedProduction<TNonterminalSymbol> WithShiftedDot()
             => new MarkedProduction<TNonterminalSymbol>(Production, ProductionIndex, MarkerPosition + 1);
 
-        /// <summary>
-        /// Any item B → α•β where α is not ε (the empty string),
-        /// or the start rule S' → •S item (of the augmented grammar that
-        /// is the first production of index zero by convention). That is
-        /// the initial item S' → •S, and all items where the dot is not at the left end.
-        /// </summary>
-        public bool IsCoreItem => MarkerPosition > 0 || ProductionIndex == 0;
+
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> AsLr0Item<TTerminalSymbol>()
+            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+                => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(this, Set<TTerminalSymbol>.Empty);
 
         /// <summary>
-        /// Is this item a completed item on the form A → α•, where the dot have been shifted
+        /// Any item B → α•β where α is not ε (the empty string),
+        /// or the start S' → •S item (of the augmented grammar). That is
+        /// the initial item S' → •S, and all other items, where the dot is not
+        /// at the beginning of the RHS are considered kernel items.
+        /// </summary>
+        public bool IsKernelItem => MarkerPosition > 0 || ProductionIndex == 0;
+
+        /// <summary>
+        /// Any item A → •β where the dot is at the beginning of the RHS of the production,
+        /// except the initial item S' → •S.
+        /// </summary>
+        public bool IsClosureItem => !IsKernelItem;
+
+        /// <summary>
+        /// Is this item a completed item (aka final item) on the form A → α•, where the dot have been shifted
         /// all the way to the end of the production (a completed item is an accepting state,
         /// where we have recognized a handle)
         /// </summary>
-        public bool IsReduceItem => MarkerPosition == Production.Tail.Count;
+        public bool IsReduceItem => MarkerPosition == Production.Tail.Count; // DotSymbol == Symbol.Epsilon
 
         /// <summary>
         /// B → α•Xβ (where X is a nonterminal symbol)
         /// </summary>
-        public bool IsGotoItem => MarkerPosition < Production.Tail.Count && Production.Tail[MarkerPosition].IsNonTerminal;
+        public bool IsGotoItem => DotSymbol.IsNonTerminal; // IsNonterminalTransition
 
         /// <summary>
         /// B → α•aβ (where a is a terminal symbol)
         /// </summary>
-        public bool IsShiftItem => MarkerPosition < Production.Tail.Count && Production.Tail[MarkerPosition].IsTerminal;
+        public bool IsShiftItem => DotSymbol.IsTerminal; // IsTerminalTransition
 
         /// <summary>
         /// Get the symbol before the dot.
@@ -79,34 +97,40 @@ namespace ContextFreeGrammar
         public Symbol GetPrevSymbol() => MarkerPosition > 0 ? Production.Tail[MarkerPosition - 1] : Symbol.Epsilon;
 
         /// <summary>
-        /// Get the symbol after the dot.
+        /// All kernel items (of any item set) have the same symbol before the dot.
+        /// If the item is a closure item the result is the empty symbol (ε).
         /// </summary>
-        [Pure]
-        public Symbol GetNextSymbol() => MarkerPosition < Production.Tail.Count ? Production.Tail[MarkerPosition] : Symbol.Epsilon;
+        public Symbol SpellingSymbol => GetPrevSymbol();
+
+        /// <summary>
+        /// The symbol after the dot. If the dot have been shifted all the way to the end of the RHS of
+        /// the production the result is the empty symbol (ε).
+        /// </summary>
+        public Symbol DotSymbol => MarkerPosition < Production.Tail.Count ? Production.Tail[MarkerPosition] : Symbol.Epsilon;
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
         [Pure]
-        public TSymbol GetNextSymbol<TSymbol>() where TSymbol : Symbol
+        public TSymbol GetDotSymbol<TSymbol>() where TSymbol : Symbol
         {
-            return (TSymbol) GetNextSymbol();
+            return (TSymbol) DotSymbol;
         }
 
         /// <summary>
         /// Get the symbol after the dot.
         /// </summary>
         [Pure]
-        public TSymbol GetNextSymbolAs<TSymbol>() where TSymbol : Symbol
+        public TSymbol TryGetDotSymbol<TSymbol>() where TSymbol : Symbol
         {
-            return GetNextSymbol() as TSymbol;
+            return DotSymbol as TSymbol;
         }
 
         /// <summary>
-        /// Get the remaining symbols after the dot.
+        /// Get the remaining symbols after the dot symbol.
         /// </summary>
         [Pure]
-        public IEnumerable<Symbol> GetRemainingSymbolsAfterNextSymbol()
+        public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol()
         {
             for (int i = MarkerPosition + 1; i < Production.Length; i++)
             {
