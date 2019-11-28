@@ -100,7 +100,7 @@ namespace CLI.TestDriver
             foreach (var conflict in lr0Parser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).KernelItems.ToVectorString()} (kernel items)");
             }
             writer.WriteLine();
 
@@ -115,6 +115,13 @@ namespace CLI.TestDriver
 
             SaveFile("GallierEx3_ReadGraph.dot",
                 DotLanguagePrinter.PrintGraph("DR", directReads, graphRead, v => vertices[v].ToString()));
+
+            // TODO: Solve/Traverse GraphRead
+
+            var graphLaFollow = LalrLookaheadSetsAlgorithm.GetGraphLaFollow(grammar, dfaLr0, vertices, analyzer);
+
+            SaveFile("GallierEx3_LaFollowGraph.dot",
+                DotLanguagePrinter.PrintGraph("INITFOLLOW", directReads, graphLaFollow, v => vertices[v].ToString()));
 
         }
 
@@ -469,7 +476,7 @@ namespace CLI.TestDriver
                     Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
                     Symbol.V("T").Derives(Symbol.T('a')),
                     // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
-                    // because state 4 contains the following core items {T → a•, T → a•[E]}
+                    // because state 4 contains the following kernel items {T → a•, T → a•[E]}
                     Symbol.V("T").Derives(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
                 );
 
@@ -504,7 +511,7 @@ namespace CLI.TestDriver
                     Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
                     Symbol.V("E").Derives(Symbol.V("T")),
                     // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
-                    // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
+                    // possible symbol (in LR(0) table), because state 5 contains the following kernel items {T → a•, V → a•}
                     Symbol.V("E").Derives(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
                     Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
                     Symbol.V("T").Derives(Symbol.T('a')),

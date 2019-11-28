@@ -143,13 +143,13 @@ namespace ContextFreeGrammar.Analyzers
             {
                 ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
                 // For each successor item pair (X, { [A → αX•β, b], where the item [A → α•Xβ, b] is in the predecessor item set}),
-                // where [A → αX•β, b] is a core/kernel successor item on some grammar symbol X in V, where V := N U T
-                foreach (var coreSuccessorItems in sourceState.GetTargetItems())
+                // where [A → αX•β, b] is a kernel successor item on some grammar symbol X in V, where V := N U T
+                foreach (var kernelSuccessorItems in sourceState.GetTargetItems())
                 {
                     // For each transition grammar symbol (label on the transition/edge in the graph)
-                    var X = coreSuccessorItems.Key; // can be either terminal (goto) or nonterminal (shift/read)
-                    // Get the closure of all the core/kernel successor items A → αX•β that we can move/transition to in the graph
-                    ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> targetState = Closure(grammar, coreSuccessorItems);
+                    var X = kernelSuccessorItems.Key; // can be either terminal (goto) or nonterminal (shift/read)
+                    // Get the closure of all the kernel successor items A → αX•β that we can move/transition to in the graph
+                    ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> targetState = Closure(grammar, kernelSuccessorItems);
                     transitions.Add(Transition.Move(sourceState, X, targetState));
                     if (!states.Contains(targetState))
                     {
@@ -163,7 +163,7 @@ namespace ContextFreeGrammar.Analyzers
         }
 
         /// <summary>
-        /// Compute ε-closure of the kernel/core items of any LR(1) item set --- this
+        /// Compute ε-closure of the kernel items of any LR(1) item set --- this
         /// is identical to ε-closure in the subset construction algorithm when translating
         /// NFA to DFA.
         /// </summary>
@@ -171,13 +171,13 @@ namespace ContextFreeGrammar.Analyzers
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private static ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> Closure<TNonterminalSymbol, TTerminalSymbol>(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> coreItems)
+            IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> kernelItems)
             where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
             where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         {
-            var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
+            var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(kernelItems);
 
-            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(coreItems);
+            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(kernelItems);
             while (worklist.Count != 0)
             {
                 ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();

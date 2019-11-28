@@ -254,7 +254,7 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// Compute LALR(1) parsing table (by 'brute force' algorithm based on merging LR(1) item sets with identical
-        /// core items in the LR(1) automaton).
+        /// kernel items in the LR(1) automaton).
         /// </summary>
         public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalr1ParsingTable()
         {
@@ -371,8 +371,8 @@ namespace ContextFreeGrammar
 
         // NOTE: It is common for LR(1) item sets to have identical first components (i.e. identical LR(0) items),
         //       and only differ w.r.t different lookahead symbols (the second component). In construction of LALR(1) we
-        //       will look for different LR(1) items having the same (core) LR(0) items, and merge these into new union
-        //       states (i.e. new one set of items). Since the GOTO (successor) function only depends on the core LR(0) items
+        //       will look for different LR(1) items having the same (kernel) LR(0) items, and merge these into new union
+        //       states (i.e. new one set of items). Since the GOTO (successor) function only depends on the kernel LR(0) items
         //       of any LR(1) items, it is easy to merge the transitions of the LR(1) automaton into a new simpler LALR automaton.
         //       On the other hand the ACTION table will change, and it is possible to introduce conflicts when merging.
         private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> mergedStates,
@@ -423,7 +423,7 @@ namespace ContextFreeGrammar
 
                     if (blocks[i].Count > 1)
                     {
-                        // Core items are identical and therefore both core and closure items can be merged
+                        // Kernel items are identical and therefore both kernel and closure items can be merged
                         // into a single item set with union lookahead sets. Create hash table with
                         // keys defined by marked productions (LR(0) items), and values defined by
                         // the union of the corresponding LR(1) items' lookahead sets.

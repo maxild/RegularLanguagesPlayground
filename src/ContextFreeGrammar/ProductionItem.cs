@@ -6,7 +6,7 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    // TODO: Kernel items (rename IsCore to IsKernel) are the only mandatory items. Closure items should be lazy.
+    // TODO: Kernel items (rename Iskernel to IsKernel) are the only mandatory items. Closure items should be lazy.
     // TODO: Could be renamed to LRItem
 
     #region docs
@@ -43,20 +43,20 @@ namespace ContextFreeGrammar
     // Two strings δ and γ are equivalent if and only if they have the same valid items.
     // The valid item sets are obtained through the following computations:
     //
-    // The function Kernel(γX) yields the core items (aka kernel items) reached by a transition on symbol X from the
+    // The function Kernel(γX) yields the kernel items (aka kernel items) reached by a transition on symbol X from the
     // state Valid(γ):
     //
     //      Kernel(ε) = {S′ → •S$}                                      (base case for kernel items)
     //      Kernel(γX) = {A → αX•β | A → α•Xβ ∈ Valid(γ)}              (induction/transition step for kernel items)
     //
-    //      Valid(γ) = Kernel(γ) ∪ Closure(Valid(γ)).                  (closure of item set: from core items to closure items)
+    //      Valid(γ) = Kernel(γ) ∪ Closure(Valid(γ)).                  (closure of item set: from kernel items to closure items)
     //
-    // where the function Closure(I) yields the result of adding closure items to the core items of a LR(0) item set I.
+    // where the function Closure(I) yields the result of adding closure items to the kernel items of a LR(0) item set I.
     //
     //      Closure(I) = {B → •ω | A → α•Bβ ∈ I}
     //
-    // NOTE: Since states are uniquely determined by their sets of kernel/core items, the test to see if a new state have
-    // been found does not require that the Closure function be applied to the core items first.
+    // NOTE: Since states are uniquely determined by their sets of kernel items, the test to see if a new state have
+    // been found does not require that the Closure function be applied to the kernel items first.
     //
     // LR(0) Automaton
     // ===============

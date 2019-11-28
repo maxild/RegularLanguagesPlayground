@@ -139,7 +139,7 @@ namespace UnitTests
                     Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
                     Symbol.V("T").Derives(Symbol.T('a')),
                     // Adding this rule we have a shift/reduce conflict {shift 7, reduce 4} on '[' in state 4,
-                    // because state 4 contains the following core items {T → a•, T → a•[E]}
+                    // because state 4 contains the following kernel items {T → a•, T → a•[E]}
                     Symbol.V("T").Derives(Symbol.T('a'), Symbol.T('['), Symbol.V("E"), Symbol.T(']'))
                 );
 
@@ -160,7 +160,7 @@ namespace UnitTests
             foreach (var conflict in lr0Parser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {lr0Parser.GetItems(conflict.State).KernelItems.ToVectorString()} (kernel items)");
             }
             writer.WriteLine();
             writer.WriteLine();
@@ -196,7 +196,7 @@ namespace UnitTests
                     Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
                     Symbol.V("E").Derives(Symbol.V("T")),
                     // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
-                    // possible symbol (in LR(0) table), because state 5 contains the following core items {T → a•, V → a•}
+                    // possible symbol (in LR(0) table), because state 5 contains the following kernel items {T → a•, V → a•}
                     Symbol.V("E").Derives(Symbol.V("V"), Symbol.T('='), Symbol.V("E")),
                     Symbol.V("T").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
                     Symbol.V("T").Derives(Symbol.T('a')),
@@ -227,7 +227,7 @@ namespace UnitTests
             foreach (var conflict in slrParser.Conflicts)
             {
                 writer.WriteLine(conflict);
-                writer.WriteLine($"In state {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
+                writer.WriteLine($"In state {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (kernel items)");
             }
             writer.WriteLine();
             writer.WriteLine();
@@ -262,7 +262,7 @@ namespace UnitTests
             var writer = new TestWriter();
 
             var lr0Dfa = grammar.GetLr0AutomatonDfa();
-            lr0Dfa.PrintCoreItems(writer);
+            lr0Dfa.PrintKernelItems(writer);
 
             grammar.PrintFirstAndFollowSets(writer);
 
@@ -277,12 +277,12 @@ namespace UnitTests
 
             // This will print
             //      State 2: {shift 6, reduce 5} on '='
-            //      State 2: {S → L•=R, R → L•} (core items)
+            //      State 2: {S → L•=R, R → L•} (kernel items)
             // The correct choice of the parser is to shift, because no right sentential form begins with....TODO
             // Therefore....TODO
             var conflict = slrParser.Conflicts.Single();
             writer.WriteLine(conflict);
-            writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
+            writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (kernel items)");
             //  ╔════════╤══════════════╤══════════════╤══════════╤══════════════════════════════════╗
             //  ║ SeqNo  │    Stack     │   Symbols    │  Input   │              Action              ║
             //  ╠════════╪══════════════╪══════════════╪══════════╪══════════════════════════════════╣
@@ -408,7 +408,7 @@ namespace UnitTests
             {
                 writer.WriteLine(conflict);
                 // TODO: Show lookahead sets of items
-                writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (core items)");
+                writer.WriteLine($"State {conflict.State}: {slrParser.GetItems(conflict.State).KernelItems.ToVectorString()} (kernel items)");
             }
 
             // The grammar is LALR(1)

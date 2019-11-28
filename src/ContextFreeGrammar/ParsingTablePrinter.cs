@@ -20,7 +20,7 @@ namespace ContextFreeGrammar
             dfa.PrintItemsHelper(writer, itemSet => itemSet.Items);
         }
 
-        public static void PrintCoreItems<TNonterminalSymbol, TTerminalSymbol>(
+        public static void PrintKernelItems<TNonterminalSymbol, TTerminalSymbol>(
             this Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfa,
             TextWriter writer
             )
@@ -50,10 +50,10 @@ namespace ContextFreeGrammar
                 string stateIndex = $"s{state - 1}:".PadRight(maximalStateIndex.Length);
                 writer.Write(stateIndex);
                 writer.WriteLine(items.First());
-                foreach (var coreItem in items.Skip(1))
+                foreach (var kernelItem in items.Skip(1))
                 {
                     writer.Write(new string(' ', maximalStateIndex.Length));
-                    writer.WriteLine(coreItem);
+                    writer.WriteLine(kernelItem);
                 }
             }
         }

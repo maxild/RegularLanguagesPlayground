@@ -144,7 +144,7 @@ namespace ContextFreeGrammar
                     // subset T
                     var subsetTargetState = new Set<TState>();
 
-                    // Core Items: For all s in S, add all non-epsilon transitions (s, label) → t to T
+                    // kernel items: For all s in S, add all non-epsilon transitions (s, label) → t to T
                     foreach (TState s in subsetSourceState)
                     {
                         subsetTargetState.AddRange(Delta(Transition.FromPair(s, label)));

@@ -7,16 +7,18 @@ namespace ContextFreeGrammar
 {
     public class Production<TNonterminalSymbol> where TNonterminalSymbol : Symbol
     {
+        private readonly Symbol[] _tail;
+
         public Production(TNonterminalSymbol head, IEnumerable<Symbol> tail)
         {
             Head = head ?? throw new ArgumentNullException(nameof(head));
-            var rhs = (tail ?? Enumerable.Empty<Symbol>()).ToList();
-            if (rhs.Count > 1 && rhs.Any(symbol => symbol.IsEpsilon))
+            var rhs = (tail ?? Enumerable.Empty<Symbol>()).ToArray();
+            if (rhs.Length > 1 && rhs.Any(symbol => symbol.IsEpsilon))
                 throw new ArgumentException($"{Symbol.Epsilon}-productions cannot have more than one symbol.");
-            if (rhs.Count == 1 && rhs[0].IsEpsilon)
-                Tail = new List<Symbol>();
+            if (rhs.Length == 1 && rhs[0].IsEpsilon)
+                _tail = Array.Empty<Symbol>();
             else
-                Tail = rhs;
+                _tail = rhs;
         }
 
         /// <summary>
@@ -27,7 +29,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// RHS list of grammar symbols (note that ε-production has empty Tail of Length zero).
         /// </summary>
-        public IReadOnlyList<Symbol> Tail { get; }
+        public IReadOnlyList<Symbol> Tail => _tail;
 
         public TSymbol TailAs<TSymbol>(int i) where TSymbol : Symbol
         {
@@ -45,6 +47,28 @@ namespace ContextFreeGrammar
         public Symbol FirstSymbol => Tail.Count > 0 ? Tail[0] : Symbol.Epsilon;
 
         public Symbol LastSymbol => Tail.Count > 0 ? Tail[Tail.Count - 1] : Symbol.Epsilon;
+
+        /// <summary>
+        /// Get the symbols after the marker position in normal order.
+        /// </summary>
+        public IEnumerable<Symbol> GetSymbolsAfterMarkerPosition(int markerPosition)
+        {
+            // slicing in c# 8
+            //return _tail[(markerPosition+1)..];
+            for (int i = markerPosition + 1; i < Tail.Count; i += 1)
+                yield return Tail[i];
+        }
+
+        /// <summary>
+        /// Get the symbols in reverse order before the marker position
+        /// </summary>
+        public IEnumerable<Symbol> GetSymbolsBeforeMarkerPosition(int markerPosition)
+        {
+            // slicing in c# 8
+            //return _tail[..(markerPosition-1)];
+            for (int i = markerPosition - 1; i >= 0; i -= 1)
+                yield return Tail[i];
+        }
 
         public override string ToString()
         {

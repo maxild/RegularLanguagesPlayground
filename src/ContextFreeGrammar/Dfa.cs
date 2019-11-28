@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using AutomataLib;
 
@@ -14,7 +15,7 @@ namespace ContextFreeGrammar
         private readonly Dictionary<TAlphabet, int> _alphabetToIndex;
         private readonly TAlphabet[] _indexToAlphabet;
 
-        private readonly int[,] _nextState;
+        private readonly int[,] _nextState; // adjacency matrix with dead state at index zero
         private readonly HashSet<int> _acceptStates;
 
         public Dfa(
@@ -125,6 +126,40 @@ namespace ContextFreeGrammar
             }
         }
 
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public IEnumerable<int> PRED(int state, TAlphabet label)
+        {
+            // Highly inefficient
+            var predStates = new HashSet<int>();
+            int j = _alphabetToIndex[label];
+            for (int i = 1; i <= MaxState; i += 1)
+                if (_nextState[i, j] == state)
+                    predStates.Add(i);
+            return predStates;
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public IEnumerable<int> PRED(IEnumerable<int> states, TAlphabet label)
+        {
+            var predecessorStates = new HashSet<int>();
+            foreach (int state in states)
+            {
+                predecessorStates.UnionWith(PRED(state, label));
+            }
+            return predecessorStates;
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public IEnumerable<int> PRED(int s, IEnumerable<TAlphabet> input)
+        {
+            IEnumerable<int> states = s.AsSingletonEnumerable();
+            foreach (var c in input)
+            {
+                states = PRED(states, c);
+            }
+            return states;
+        }
+
         public int TransitionFunction((int, TAlphabet) pair)
         {
             return _nextState[pair.Item1, _alphabetToIndex[pair.Item2]];
@@ -176,7 +211,7 @@ namespace ContextFreeGrammar
             // HACK: we special case two type of canonical LR(0) item sets to make graphviz images prettier
             if (_originalStates[originalIndex] is ProductionItemSet<Nonterminal, Terminal> itemSet)
             {
-                // LR(0) items separated by '\l', and core and closure items are separated by a newline
+                // LR(0) items separated by '\l', and kernel and closure items are separated by a newline
                 return itemSet.ClosureItems.Any()
                 ? string.Join(sep, itemSet.KernelItems) + "\\n" + sep + string.Join(sep, itemSet.ClosureItems) + sep
                 : string.Join(sep, itemSet.KernelItems) + sep;

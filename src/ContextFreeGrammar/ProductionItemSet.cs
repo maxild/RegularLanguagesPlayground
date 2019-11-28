@@ -24,7 +24,7 @@ namespace ContextFreeGrammar
             ? string.Concat(KernelItems.ToVectorString(), ":", ClosureItems.ToVectorString())
             : KernelItems.ToVectorString();
 
-        // core items are always non-empty (the core items identifies the LR(0) item set)
+        // kernel items are always non-empty (the kernel items identifies the LR(0) item set)
         private readonly HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _kernelItems;
         // closure items can be empty (and can BTW always be generated on the fly, but we store them to begin with)
         private readonly List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _closureItems;
@@ -60,9 +60,9 @@ namespace ContextFreeGrammar
         public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> Items => _kernelItems.Concat(_closureItems);
 
         /// <summary>
-        /// The partially parsed rules for a state are called its core LR(0) items.
-        /// If we also call S′ → .S a core item, we observe that every state in the
-        /// DFA is completely determined by its subset of core items.
+        /// The partially parsed rules for a state are called its kernel LR(0) items.
+        /// If we also call S′ → .S a kernel item, we observe that every state in the
+        /// DFA is completely determined by its subset of kernel items.
         /// </summary>
         public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> KernelItems => _kernelItems;
 
@@ -75,8 +75,8 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// Reduce items (not including the first production S' → S of the augmented grammar). If grammar has no
-        /// ε-productions, then all (completed) reduce items are core items, but the single item of an ε-production
-        /// is both a reduce item and and a closure item (it can never be a core item).
+        /// ε-productions, then all (completed) reduce items are kernel items, but the single item of an ε-production
+        /// is both a reduce item and and a closure item (it can never be a kernel item).
         /// </summary>
         public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => Items.Where(item => item.IsReduceItem);
 
@@ -104,7 +104,7 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// Compute the successor goto items (i.e for non-terminal transitions) and/or shift items
-        /// (i.e. for terminal transitions). This is the core items of the GOTO function in the dragon book.
+        /// (i.e. for terminal transitions). This is the kernel items of the GOTO function in the dragon book.
         /// </summary>
         public ILookup<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetTargetItems()
         {
@@ -124,7 +124,7 @@ namespace ContextFreeGrammar
             switch (comparison)
             {
                 case ProductionItemComparison.MarkedProductionOnly:
-                    return AsLr0CoreItems().SetEquals(other.AsLr0CoreItems());
+                    return AsLr0KernelItems().SetEquals(other.AsLr0KernelItems());
                 case ProductionItemComparison.LookaheadsOnly:
                     throw new InvalidOperationException("LR(k) item sets cannot be tested for equal lookahead sets only.");
                 case ProductionItemComparison.MarkedProductionAndLookaheads:
@@ -133,7 +133,7 @@ namespace ContextFreeGrammar
             }
         }
 
-        private HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0CoreItems()
+        private HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0KernelItems()
         {
             return new HashSet<MarkedProduction<TNonterminalSymbol>>(_kernelItems.Select(item => item.MarkedProduction));
         }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using AutomataLib;
@@ -68,8 +70,8 @@ namespace ContextFreeGrammar.Analyzers
             // p = 1,...,N
             foreach (int p in dfaLr0.GetTrimmedStates())
                 // any items of the form [B → β•Aγ] contained by the underlying item set of the state p
-            foreach (var A in dfaLr0.GetUnderlyingState(p).NonterminalTransitions)
-                vertices.Add((p, A));
+                foreach (var A in dfaLr0.GetUnderlyingState(p).NonterminalTransitions)
+                    vertices.Add((p, A));
 
             return vertices;
         }
@@ -78,10 +80,12 @@ namespace ContextFreeGrammar.Analyzers
         /// Vertices are defined by all nonterminal ('goto') transitions in the LR(0) automaton denoted by a pairs on the form (p,A).
         /// We are trying to solve for the set-valued Read(p,A) function defined by
         ///      Read(p,A) = {a ∈ T | S *=> αAβav => αAav, α ∈ V∗, β ∈ V+, β +=> ε, GOTO(q0,α) = p}, i.e. β=X1..Xn, where E(Xi)=true, for all i
-        ///                = DR(p,A) ∪ { Read(r,C) : (p,A) reads+ (p,C) }
+        ///                = DR(p,A) ∪ { Read(r,C) | (p,A) reads+ (p,C) }
         ///                = ∪ { DR(r,C) : (p,A) reads* (p,C) }
-        /// That is all singleton terminal symbols that can follow any nonterminal ('goto') transition (p,A). Remember a
-        /// nonterminal ('goto') transition is always the final part of any reduction to A (when returning from a final item A → ω•).
+        ///
+        ///      Read(p,A) = DR(p,A) U ∪{ Read(r,C) | (p,A) reads (r,C) }
+        ///
+        /// That is all singleton terminal symbols that can be read before any phrase including A is reduced.
         ///
         /// direct reads (init sets)
         ///      DR(p,A) = {a ∈ T | GOTO(p,Aa) is defined }
@@ -98,8 +102,8 @@ namespace ContextFreeGrammar.Analyzers
             Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
             IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
             IErasableSymbolsAnalyzer analyzer)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         {
             // TODO: Move everywhere (maybe an invariant of grammar itself...If (!IsAugmented) MakeAugmented
             if (!grammar.IsAugmented)
@@ -164,5 +168,131 @@ namespace ContextFreeGrammar.Analyzers
 
             return (ImmutableArray<IReadOnlySet<TTerminalSymbol>>.CastUp(DR.ToImmutableArray()), graph);
         }
+
+        /// <summary>
+        /// Vertices are defined by all nonterminal ('goto') transitions in the LR(0) automaton denoted by a pairs on the form (p,A).
+        /// We are trying to define (state-dependent, generalized) follow sets for all nonterminal transitions defined by
+        ///      Follow(p,A) = {a ∈ T | S' *=> αAav, α ∈ V∗, v ∈ T* and GOTO(q0,α) = p},
+        ///                  = Read(p,A) ∪ { Follow(p',B) | (p,A) includes+ (p',B) }
+        ///                  = ∪ { Read(p',B) | (p,A) includes* (p',B) }
+        ///
+        ///      Follow(p,A) = Read(p,A) U ∪{ Follow(p',B) | (p,A) includes (p',B) }
+        ///
+        /// That is all singleton terminal symbols that can follow A in a sentential form whose prefix α (preceding A)
+        /// accesses the state p. These are the terminals that can be shifted/read in the LR(0) automaton after the
+        /// "goto transition" on nonterminal A has been performed from p.
+        ///
+        /// Remember a nonterminal ('goto') transition is always the final part of any reduction to A (when returning from a
+        /// final item A → ω•). That is the parser must read A in state p, after returning from some state q (containing the final
+        /// item [A → ω•]), and the next input symbol (aka the lookahead symbol) must be a symbol in Follow(p,A) in order for
+        /// the parse to be valid (i.e. terminate successfully).
+        ///
+        /// direct follow sets (aka init sets)
+        ///      INITFOLLOW(p,A) = Read(p,A)   (computed in previous step)
+        /// indirect contributions via superset relation 'includes' (edges in digraph)
+        ///      (p,A) includes (p',B)
+        ///           iff
+        ///      Follow(p,A) ⊇ Follow(p',B)
+        ///           iff
+        ///      B → βAγ, γ *=> ε and p' ∈ PRED(p,β)
+        /// where
+        ///      PRED(p,β) = { q | GOTO(q,β) = p },   i.e. the successor (set-valued) function used to spell-backtrack (lookback) in
+        ///                                           the LR(0) automaton). The set of successor states q from where β accesses p.
+        /// </summary>
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public static IGraph GetGraphLaFollow<TNonterminalSymbol, TTerminalSymbol>(
+            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+            Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
+            IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
+            //ImmutableArray<IReadOnlySet<TTerminalSymbol>> initFollowSets,
+            IErasableSymbolsAnalyzer analyzer)
+            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        {
+            // includes relation defines the edges in the digraph
+            var includes = new HashSet<(int, int)>(); // no parallel edges
+
+            // B → βAγ
+            // Analyser grammar: Find alle LHS med nonterminal A, hvor suffix efter A er nullable
+            // Det medfoerer at Tail traverseres bagfra
+            //      if Tail[n] er nonterminal
+            //          edge
+            //          Hvis Tail[n] er non-nullable break
+            //      else
+            //          break
+
+            // we can skip S' -> S because only (1,S) is possible and (1,S) is
+            // not a superset of any other pair, because it is the overall accepting
+            // nonterminal transition going to the final accept state of the entire parse.
+            foreach (var production in grammar.Productions.Skip(1))
+            {
+                var B = production.Head;
+                // B → Y1Y2...Yn
+                // TODO: ret follow til saadan ogsaa...better performance, because erasable does not have to be extended
+                for (int i = production.Tail.Count - 1; i >= 0; i -= 1)
+                {
+                    var A = production.TailAs<TNonterminalSymbol>(i);
+                    if (A == null) break;
+                    var revBeta = production.GetSymbolsBeforeMarkerPosition(i).ToArray(); // TODO: Slice, dont't copy
+                    // We have found B → βAγ, γ *=> ε
+
+                    // TODO: It would be better to investigate the grammar, and build a marked production [B → β•Aγ]
+                    //       and look it up in the Dfa. This would better resolve the correct gotoTransitionLabeledA
+                    // TODO: I am not sure if the item [B → β•Aγ] will identify one or more item set (state), but if it is present
+                    //       in 2 or more state then β accesses both states from the start state, and therefore both are valid subsets.
+                    var gotoTransitionsLabeledA = vertices.Where(pair => A.Equals(pair.Item2)).Select(p => p.Item1).ToArray(); // TODO
+
+                    //  For all p(i)
+                    foreach (int state in gotoTransitionsLabeledA)
+                    {
+                        var superset = vertices.IndexOf((state, A));
+                        Debug.Assert(superset >= 0);
+                        // Find the set of predecessor states from where β accesses p(i)
+                        // BUG: When β is _not_ the empty string, we use PRED to determine if superset is valid state-nonterminal pair
+                        IEnumerable<int> predecessorStates = dfaLr0.PRED(state, revBeta);
+                        // For all pred in PRED(p(i), rev(β))
+                        foreach (int predecessorState in predecessorStates)
+                        {
+                            var subset = vertices.IndexOf((predecessorState, B));
+                            // BUG: When β is the empty string, PRED will succeed for all states, but we can't be sure that the subset is a valid state-nonterminal pair
+                            if (subset < 0) continue;
+                            // (p(i),A) includes (pred,B)
+                            includes.Add((superset, subset));
+                        }
+                    }
+
+                    // γ *=> ε condition
+                    if (!analyzer.Erasable(A)) break;
+                }
+            }
+
+            return new AdjacencyListGraph(vertices.Count, includes);
+        }
+
+        // The LALR(1) lookahead sets are computed as
+        //      LA(q, A → ω) = ∪{ Follow(p,A) | (q, A → ω) lookback (p,A) }
+        // where
+        //      (q, A → ω) lookback (p,A)
+        //          iff
+        //      p---ω--->q
+        //          iff
+        //      GOTO(p,ω) = q
+        //          iff
+        //      p ∈ PRED(q,ω)
+        // The closure item [A → •ω] in p imply that p must contain a kernel item on the form [B → α•Aβ],
+        // and therefore the relation makes sense.
+        public static void GetLaUnion()
+        {
+
+        }
+
+
+        // TODO: Move to analyzer
+        // Relational formulation:
+        // t ∈ LA(q, A → ω)  iff  (q, A → ω) lookback (p,A) includes* (p',B) reads* (r,C) directly-reads t
+        //
+        // (r,C) directly-reads t  iff  t ∈ DR(r,C)
+
+
     }
 }

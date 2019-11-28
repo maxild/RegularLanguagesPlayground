@@ -132,10 +132,7 @@ namespace ContextFreeGrammar
         [Pure]
         public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol()
         {
-            for (int i = MarkerPosition + 1; i < Production.Length; i++)
-            {
-                yield return Production.Tail[i];
-            }
+            return Production.GetSymbolsAfterMarkerPosition(MarkerPosition);
         }
 
         [Pure]
