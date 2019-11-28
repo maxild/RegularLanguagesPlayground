@@ -204,10 +204,9 @@ namespace ContextFreeGrammar.Analyzers
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
             Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
             IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
-            //ImmutableArray<IReadOnlySet<TTerminalSymbol>> initFollowSets,
             IErasableSymbolsAnalyzer analyzer)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         {
             // includes relation defines the edges in the digraph
             var includes = new HashSet<(int, int)>(); // no parallel edges
@@ -270,28 +269,55 @@ namespace ContextFreeGrammar.Analyzers
         }
 
         // The LALR(1) lookahead sets are computed as
-        //      LA(q, A → ω) = ∪{ Follow(p,A) | (q, A → ω) lookback (p,A) }
+        //      LA(q, A → β) = ∪{ Follow(p,A) | (q, A → β) lookback (p,A) }
         // where
-        //      (q, A → ω) lookback (p,A)
+        //      (q, A → β) lookback (p,A)
         //          iff
-        //      p---ω--->q
+        //      p---β--->q
         //          iff
-        //      GOTO(p,ω) = q
+        //      GOTO(p,β) = q
         //          iff
-        //      p ∈ PRED(q,ω)
-        // The closure item [A → •ω] in p imply that p must contain a kernel item on the form [B → α•Aβ],
+        //      p ∈ PRED(q,β)
+        // The closure item [A → •β] in p imply that p must contain a kernel item on the form [B → α•Aβ],
         // and therefore the relation makes sense.
-        public static void GetLaUnion()
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        public static Dictionary<(int, MarkedProduction<TNonterminalSymbol>), Set<TTerminalSymbol>> GetLaUnion<TNonterminalSymbol, TTerminalSymbol>(
+            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+            Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
+            IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
+            IReadOnlyList<IReadOnlySet<TTerminalSymbol>> followSets)
+                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         {
+            var lookaheadSets = new Dictionary<(int, MarkedProduction<TNonterminalSymbol>), Set<TTerminalSymbol>>();
 
+            // final item sets
+            foreach (int reduceState in dfaLr0.GetAcceptStates())
+            {
+                var reduceItemSet = dfaLr0.GetUnderlyingState(reduceState);
+                foreach (var reduceItem in reduceItemSet.ReduceItems)
+                {
+                    var A = reduceItem.Production.Head;
+                    var revBeta = reduceItem.GetRemainingSymbolsBeforeDotSymbol();
+                    var predStates = dfaLr0.PRED(reduceState, revBeta);
+                    foreach (int predState in predStates)
+                    {
+                        var key = (reduceState, reduceItem.MarkedProduction);
+                        lookaheadSets.TryAdd(key, new Set<TTerminalSymbol>());
+                        var index = vertices.IndexOf((predState, A));
+                        // TODO: Why????
+                        if (index >= 0)
+                            lookaheadSets[key].AddRange(followSets[index]);
+                    }
+                }
+            }
+
+            // TODO: Covariance and immutable/readonly
+            return lookaheadSets;
         }
 
 
         // TODO: Move to analyzer
-        // Relational formulation:
-        // t ∈ LA(q, A → ω)  iff  (q, A → ω) lookback (p,A) includes* (p',B) reads* (r,C) directly-reads t
-        //
-        // (r,C) directly-reads t  iff  t ∈ DR(r,C)
 
 
     }

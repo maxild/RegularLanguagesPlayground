@@ -341,7 +341,12 @@ namespace ContextFreeGrammar
         public TSymbol TryGetDotSymbol<TSymbol>() where TSymbol : Symbol => MarkedProduction.TryGetDotSymbol<TSymbol>();
 
         /// <summary>
-        /// Get the remaining symbols after the dot symbol.
+        /// Get the remaining symbols before the dot symbol in reverse order.
+        /// </summary>
+        public IEnumerable<Symbol> GetRemainingSymbolsBeforeDotSymbol() => MarkedProduction.GetRemainingSymbolsBeforeDotSymbol();
+
+        /// <summary>
+        /// Get the remaining symbols after the dot symbol in normal order.
         /// </summary>
         public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol() => MarkedProduction.GetRemainingSymbolsAfterDotSymbol();
 

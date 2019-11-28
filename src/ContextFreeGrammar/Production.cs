@@ -53,18 +53,18 @@ namespace ContextFreeGrammar
         /// </summary>
         public IEnumerable<Symbol> GetSymbolsAfterMarkerPosition(int markerPosition)
         {
-            // slicing in c# 8
+            // TODO: slicing in c# 8 throws, but are allocation free
             //return _tail[(markerPosition+1)..];
             for (int i = markerPosition + 1; i < Tail.Count; i += 1)
                 yield return Tail[i];
         }
 
         /// <summary>
-        /// Get the symbols in reverse order before the marker position
+        /// Get the symbols before the marker position in reverse order.
         /// </summary>
         public IEnumerable<Symbol> GetSymbolsBeforeMarkerPosition(int markerPosition)
         {
-            // slicing in c# 8
+            // TODO: slicing in c# 8 throws, but are allocation free
             //return _tail[..(markerPosition-1)];
             for (int i = markerPosition - 1; i >= 0; i -= 1)
                 yield return Tail[i];

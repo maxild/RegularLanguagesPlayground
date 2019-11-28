@@ -1,7 +1,6 @@
 using AutomataLib;
 using ContextFreeGrammar;
 using ContextFreeGrammar.Analyzers;
-using Shouldly;
 using Xunit;
 
 namespace UnitTests
@@ -31,15 +30,13 @@ namespace UnitTests
                     Symbol.V("R").Derives(Symbol.V("L"))
                 );
 
-            // TODO: Implement the digraph algorithm for computing
-            //          Read (INITFOLLOW) (traverse over Graph_Read using DR sets)
-            //          Follow (traverse over Graph_LA using INITFOLLOW sets)
-            //          LA sets (union over 'lookback' relation of CGA=LR(0)-automaton)
-            grammar.ShouldNotBeNull();
+            var sut = new Lr0AutomatonDigraphAnalyzer<Nonterminal, Terminal>(grammar, grammar.GetLr0AutomatonDfa(),
+                Analyzers.CreateErasableSymbolsAnalyzer(grammar));
 
+            // TODO: Unit test de 2 grafer og init sets
 
-            // TODO: Assert the results in the notes
-
+            // BUG: Den virker ikke
+            sut.Lookaheads(2, 0).ShouldSetEqual(Symbol.EofMarker);
         }
     }
 }

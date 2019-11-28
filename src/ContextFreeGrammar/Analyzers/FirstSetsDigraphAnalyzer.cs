@@ -50,7 +50,7 @@ namespace ContextFreeGrammar.Analyzers
         {
             var (initFirstSets, graph) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
-            var firstSets = DigraphAlgorithm.Traverse(grammar, graph, initFirstSets);
+            var firstSets = DigraphAlgorithm.Traverse(graph, initFirstSets);
 
             var firstMap = grammar.Variables.ToDictionary(v => v, v => firstSets[grammar.Variables.IndexOf(v)]);
 

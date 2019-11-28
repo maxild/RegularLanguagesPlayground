@@ -53,7 +53,7 @@ namespace UnitTests
             // INITFIRST(F)
             initSets[3].ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
 
-            var closureSets = DigraphAlgorithm.Traverse(Grammar, graph, new[]
+            var closureSets = DigraphAlgorithm.Traverse(graph, new[]
             {
                 // trick to inspect closure (unions)
                 new Set<string> {"S"},
@@ -63,13 +63,13 @@ namespace UnitTests
             });
 
             // FIRST(S) = INITFIRST(S) ∪ INITFIRST(E) ∪ INITFIRST(T) ∪ INITFIRST(F)
-            closureSets[0].ShouldSetEqual(new[] { "S", "E", "T", "F" });
+            closureSets[0].ShouldSetEqual("S", "E", "T", "F");
             // FIRST(E) = INITFIRST(E) ∪ INITFIRST(T) ∪ INITFIRST(F)
-            closureSets[1].ShouldSetEqual(new[] { "E", "T", "F" });
+            closureSets[1].ShouldSetEqual("E", "T", "F");
             // FIRST(T) = INITFIRST(T) ∪ INITFIRST(F)
-            closureSets[2].ShouldSetEqual(new[] { "T", "F" });
+            closureSets[2].ShouldSetEqual("T", "F");
             // FIRST(F) = INITFIRST(F)
-            closureSets[3].ShouldSetEqual(new[] { "F" });
+            closureSets[3].ShouldSetEqual("F");
         }
 
         [Fact]
@@ -88,7 +88,7 @@ namespace UnitTests
             // INITFOLLOW(F)
             initSets[3].ShouldBeEmpty();
 
-            var closureSets = DigraphAlgorithm.Traverse(Grammar, graph, new[]
+            var closureSets = DigraphAlgorithm.Traverse(graph, new[]
             {
                 // trick to inspect closure (unions)
                 new Set<string> {"S"},
@@ -98,13 +98,13 @@ namespace UnitTests
             });
 
             // FOLLOW(S) = INITFOLLOW(S)
-            closureSets[0].ShouldSetEqual(new [] {"S"});
+            closureSets[0].ShouldSetEqual("S");
             // FOLLOW(E) = INITFOLLOW(S) ∪ INITFOLLOW(E)
-            closureSets[1].ShouldSetEqual(new [] {"S", "E"});
+            closureSets[1].ShouldSetEqual("S", "E");
             // FOLLOW(T) = INITFOLLOW(S) ∪ INITFOLLOW(E) ∪ INITFOLLOW(T) ∪ INITFOLLOW(F)
-            closureSets[2].ShouldSetEqual(new [] {"S", "E", "T", "F"});
+            closureSets[2].ShouldSetEqual("S", "E", "T", "F");
             // FOLLOW(F) = INITFOLLOW(S) ∪ INITFOLLOW(E) ∪ INITFOLLOW(T) ∪ INITFOLLOW(F)
-            closureSets[3].ShouldSetEqual(new [] {"S", "E", "T", "F"});
+            closureSets[3].ShouldSetEqual("S", "E", "T", "F");
         }
     }
 }

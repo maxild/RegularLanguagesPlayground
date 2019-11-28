@@ -127,13 +127,16 @@ namespace ContextFreeGrammar
         }
 
         /// <summary>
-        /// Get the remaining symbols after the dot symbol.
+        /// Get the remaining symbols before the dot symbol in reverse order.
         /// </summary>
         [Pure]
-        public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol()
-        {
-            return Production.GetSymbolsAfterMarkerPosition(MarkerPosition);
-        }
+        public IEnumerable<Symbol> GetRemainingSymbolsBeforeDotSymbol() => Production.GetSymbolsBeforeMarkerPosition(MarkerPosition);
+
+        /// <summary>
+        /// Get the remaining symbols after the dot symbol in normal order.
+        /// </summary>
+        [Pure]
+        public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol() => Production.GetSymbolsAfterMarkerPosition(MarkerPosition);
 
         [Pure]
         public bool Equals(MarkedProduction<TNonterminalSymbol> other)

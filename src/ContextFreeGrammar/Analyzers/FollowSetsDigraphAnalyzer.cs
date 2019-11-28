@@ -32,7 +32,7 @@ namespace ContextFreeGrammar.Analyzers
         {
             var (initFollowSets, graph) = DigraphAlgorithm.GetFollowGraph(grammar, analyzer);
 
-            var followSets = DigraphAlgorithm.Traverse(grammar, graph, initFollowSets);
+            var followSets = DigraphAlgorithm.Traverse(graph, initFollowSets);
 
             var followMap = grammar.Variables.ToDictionary(v => v, v => followSets[grammar.Variables.IndexOf(v)]);
 

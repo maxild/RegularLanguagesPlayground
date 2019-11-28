@@ -16,7 +16,7 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            GallierLookaheadLR_Example3();
+            //GallierLookaheadLR_Example3();
             //DigraphMethods();
 
             //DragonBookEx4_54();
@@ -27,7 +27,7 @@ namespace CLI.TestDriver
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             //ExprGrammarCh4DragonBook();
             //GallierToyExampleLr0();
-            //GallierToyExampleLr1();
+            GallierToyExampleLr1();
             //GallierExprGrammarLr0();
             //CourseExercise();
 

@@ -142,17 +142,12 @@ namespace ContextFreeGrammar.Analyzers
         }
 
         // TODO: This simple DFS traversal can be optimized using Component Graph (SCCs)
-        public static Set<TResult>[] Traverse<TNonterminalSymbol, TTerminalSymbol, TResult>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IGraph graph,
-            IReadOnlyList<IReadOnlySet<TResult>> initSets)
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-        where TResult : IEquatable<TResult>
+        public static Set<TResult>[] Traverse<TResult>(IGraph graph, IReadOnlyList<IReadOnlySet<TResult>> initSets)
+            where TResult : IEquatable<TResult>
         {
-            int count = grammar.Variables.Count;
+            int count = initSets.Count;
 
-            Debug.Assert(count == initSets.Count);
+            Debug.Assert(count == graph.VertexCount);
 
             // copy result (typically terminals) from init sets to the set-valued functions before traversing
             var f = new Set<TResult>[count];

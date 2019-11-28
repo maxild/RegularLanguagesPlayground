@@ -8,8 +8,21 @@ namespace UnitTests
 {
     public static class ShouldExtensions
     {
-        [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
-        public static void ShouldSetEqual<T>(this IEnumerable<T> actual, IEnumerable<T> expected) where T : IEquatable<T>
+        public static void ShouldSetEqual<T>(this IEnumerable<T> actual, params T[] expected)
+            where T : IEquatable<T>
+        {
+            AssertSetEqual(actual, expected);
+        }
+
+        public static void ShouldSetEqual<T>(this IEnumerable<T> actual, IEnumerable<T> expected)
+            where T : IEquatable<T>
+        {
+            AssertSetEqual(actual, expected);
+        }
+
+    [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
+    private static void AssertSetEqual<T>(this IEnumerable<T> actual, IEnumerable<T> expected)
+            where T : IEquatable<T>
         {
             var actualProxy = GetProxy(actual);
             if (actualProxy.SetEquals == null)
