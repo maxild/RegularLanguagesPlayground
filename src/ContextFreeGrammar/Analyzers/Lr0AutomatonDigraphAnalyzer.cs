@@ -9,8 +9,7 @@ namespace ContextFreeGrammar.Analyzers
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
-        private readonly Grammar<TNonterminalSymbol, TTerminalSymbol> _grammar;
-        private readonly Dictionary<(int, MarkedProduction<TNonterminalSymbol>), Set<TTerminalSymbol>> _lookaheadSets;
+        private readonly Dictionary<(int, int), Set<TTerminalSymbol>> _lookaheadSets;
 
         public Lr0AutomatonDigraphAnalyzer(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
@@ -18,7 +17,6 @@ namespace ContextFreeGrammar.Analyzers
             IErasableSymbolsAnalyzer analyzer)
         {
             _lookaheadSets = ComputeLookaheadSets(grammar, dfaLr0, analyzer);
-            _grammar = grammar;
         }
 
         // Relational formulation:
@@ -26,7 +24,7 @@ namespace ContextFreeGrammar.Analyzers
         //
         // (r,C) directly-reads t  iff  t ∈ DR(r,C)
 
-        private static Dictionary<(int, MarkedProduction<TNonterminalSymbol>), Set<TTerminalSymbol>> ComputeLookaheadSets(
+        private static Dictionary<(int, int), Set<TTerminalSymbol>> ComputeLookaheadSets(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
             Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
             IErasableSymbolsAnalyzer analyzer)
@@ -49,13 +47,19 @@ namespace ContextFreeGrammar.Analyzers
             return lookaheadSets;
         }
 
-        public IEnumerable<TTerminalSymbol> Lookaheads(int reduceState, int productionIndex)
+        /// <summary>
+        /// Get the set of valid LALR(1) lookahead symbols, if reducing by the given production in the given state of the LR(0) automaton (DFA).
+        /// </summary>
+        /// <param name="stateIndex">index according to LR(0) automaton (DFA).</param>
+        /// <param name="productionIndex">The index of the production to use for the reduction.</param>
+        /// <returns>The set of LALR(1) lookahead symbols when reducing by the given production in the given state.</returns>
+        public IReadOnlySet<TTerminalSymbol> Lookaheads(int stateIndex, int productionIndex)
         {
-            var production = _grammar.Productions[productionIndex];
-            var reduceItem = new MarkedProduction<TNonterminalSymbol>(production, productionIndex, production.Tail.Count);
-            return _lookaheadSets.TryGetValue((reduceState, reduceItem), out Set<TTerminalSymbol> lookaheads)
+            return _lookaheadSets.TryGetValue((stateIndex, productionIndex), out Set<TTerminalSymbol> lookaheads)
                 ? lookaheads
                 : Set<TTerminalSymbol>.Empty;
         }
+
+        public int CountOfLookaheads => _lookaheadSets.Count;
     }
 }

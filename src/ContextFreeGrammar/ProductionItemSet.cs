@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -15,14 +16,15 @@ namespace ContextFreeGrammar
     /// Thus each state except the initial state has a unique grammar symbol associated with it.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>
-        //, IReadOnlySet<ProductionItem> TODO: Do we need IReadOnlySet support?
+    public class ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>, IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>
         where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
     {
         private string DebuggerDisplay => ClosureItems.Any()
             ? string.Concat(KernelItems.ToVectorString(), ":", ClosureItems.ToVectorString())
             : KernelItems.ToVectorString();
+
+        private readonly bool _anyLookaheads; // are comparisons of items and marked productions the same thing?
 
         // kernel items are always non-empty (the kernel items identifies the LR(0) item set)
         private readonly HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _kernelItems;
@@ -39,15 +41,8 @@ namespace ContextFreeGrammar
                     _kernelItems.Add(item);
                 else
                     _closureItems.Add(item);
+                _anyLookaheads = _anyLookaheads || item.Lookaheads.Count > 0;
             }
-        }
-
-        /// <summary>
-        /// Does this LR(k) item set contain a kernel item with a given CORE (dotted production).
-        /// </summary>
-        public bool ContainsKernelItem(MarkedProduction<TNonterminalSymbol> dottedProduction)
-        {
-            return KernelItems.Select(item => item.MarkedProduction).Contains(dottedProduction);
         }
 
         /// <summary>
@@ -115,32 +110,50 @@ namespace ContextFreeGrammar
 
         public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)
         {
-            return Equals(other, ProductionItemComparison.MarkedProductionAndLookaheads);
+            return other != null && _kernelItems.SetEquals(other.KernelItems);
         }
 
-        public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other, ProductionItemComparison comparison)
+        /// <summary>
+        /// Does this LR(k) item set have kernel items which CORE equals the given marked productions?
+        /// </summary>
+        public bool CoreOfKernelEquals(IEnumerable<MarkedProduction<TNonterminalSymbol>> other)
         {
-            if (other == null) return false;
-            switch (comparison)
+            return CoreOfKernelEquals(other.Select(dottedProduction => dottedProduction.AsLr0Item<TTerminalSymbol>()));
+        }
+
+
+        /// <summary>
+        /// Does this LR(k) item set have kernel items which CORE equals the given marked productions?
+        /// </summary>
+        public bool CoreOfKernelEquals(params MarkedProduction<TNonterminalSymbol>[] other)
+        {
+            return CoreOfKernelEquals(other.Select(dottedProduction => dottedProduction.AsLr0Item<TTerminalSymbol>()));
+        }
+
+        /// <summary>
+        /// Are the CORE of the kernel items of the two item sets the same?
+        /// </summary>
+        public bool CoreOfKernelEquals(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> otherItemSet)
+        {
+            // we filter out closure items in the otherItemSet, because this way we can compare ProductionItemSet instances
+            return _anyLookaheads
+                ? AsLr0KernelItems().SetEquals(otherItemSet.Where(item => item.IsKernelItem).Select(item => item.MarkedProduction))
+                : _kernelItems.SetEquals(otherItemSet.Where(item => item.IsKernelItem));
+
+            HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0KernelItems()
             {
-                case ProductionItemComparison.MarkedProductionOnly:
-                    return AsLr0KernelItems().SetEquals(other.AsLr0KernelItems());
-                case ProductionItemComparison.LookaheadsOnly:
-                    throw new InvalidOperationException("LR(k) item sets cannot be tested for equal lookahead sets only.");
-                case ProductionItemComparison.MarkedProductionAndLookaheads:
-                default:
-                    return _kernelItems.SetEquals(other.KernelItems);
+                return new HashSet<MarkedProduction<TNonterminalSymbol>>(_kernelItems.Select(item => item.MarkedProduction));
             }
         }
 
-        private HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0KernelItems()
+        /// <summary>
+        /// Does this LR(k) item set contain a kernel item with a given CORE (dotted production).
+        /// </summary>
+        public bool CoreOfKernelContains(MarkedProduction<TNonterminalSymbol> dottedProduction)
         {
-            return new HashSet<MarkedProduction<TNonterminalSymbol>>(_kernelItems.Select(item => item.MarkedProduction));
-        }
-
-        public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()
-        {
-            return Items.GetEnumerator();
+            return _anyLookaheads
+                ? KernelItems.Select(item => item.MarkedProduction).Contains(dottedProduction)
+                : _kernelItems.Contains(dottedProduction.AsLr0Item<TTerminalSymbol>());
         }
 
         public override bool Equals(object obj)
@@ -161,6 +174,16 @@ namespace ContextFreeGrammar
             return ClosureItems.Any()
                 ? string.Concat(KernelItems.ToVectorString(), Environment.NewLine, ClosureItems.ToVectorString())
                 : KernelItems.ToVectorString();
+        }
+
+        public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()
+        {
+            return Items.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

@@ -16,7 +16,7 @@ namespace CLI.TestDriver
     {
         public static void Main()
         {
-            //GallierLookaheadLR_Example3();
+            GallierLookaheadLR_Example3();
             //DigraphMethods();
 
             //DragonBookEx4_54();
@@ -27,7 +27,7 @@ namespace CLI.TestDriver
             //DanglingElseWhenParsing_iEtiEtSeS_ImpliesShiftReduceConflictAfterParsing_iEtiEtS_InState8();
             //ExprGrammarCh4DragonBook();
             //GallierToyExampleLr0();
-            GallierToyExampleLr1();
+            //GallierToyExampleLr1();
             //GallierExprGrammarLr0();
             //CourseExercise();
 
@@ -56,12 +56,12 @@ namespace CLI.TestDriver
             var grammar = new GrammarBuilder()
                 .SetAnalyzer(Analyzers.CreateDigraphAlgorithmAnalyzer)
                 .SetNonterminalSymbols(Symbol.Vs("S'", "S", "R", "L"))
-                //.SetTerminalSymbols(Symbol.Ts('=', '*', 'a').WithEofMarker()) // augmented grammar with terminals T U {$}
-                .SetTerminalSymbols(Symbol.Ts('=', '*', 'a'))
+                .SetTerminalSymbols(Symbol.Ts('=', '*', 'a').WithEofMarker()) // augmented grammar with terminals T U {$}
+                //.SetTerminalSymbols(Symbol.Ts('=', '*', 'a'))
                 .SetStartSymbol(Symbol.V("S'"))
                 .AndProductions(
-                    //Symbol.V("S'").Derives(Symbol.V("S"), Symbol.EofMarker),
-                    Symbol.V("S'").Derives(Symbol.V("S")),
+                    Symbol.V("S'").Derives(Symbol.V("S"), Symbol.EofMarker),
+                    //Symbol.V("S'").Derives(Symbol.V("S")),
                     Symbol.V("S").Derives(Symbol.V("L"), Symbol.T('='), Symbol.V("R")),
                     Symbol.V("S").Derives(Symbol.V("R")),
                     Symbol.V("L").Derives(Symbol.T('*'), Symbol.V("R")),

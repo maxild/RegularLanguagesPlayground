@@ -45,7 +45,7 @@ namespace AutomataLib
             return added;
         }
 
-        public bool AddRange(IEnumerable<T> other)
+        bool AddRangeHelper(IEnumerable<T> other)
         {
             int c = _inner.Count;
             _inner.UnionWith(other);
@@ -55,10 +55,30 @@ namespace AutomataLib
             return added;
         }
 
-        public Set<T> UnionWith(IEnumerable<T> other)
+        public bool AddRange(IEnumerable<T> other)
+        {
+            return AddRangeHelper(other);
+        }
+
+        public bool AddRange(params T[] other)
+        {
+            return AddRangeHelper(other);
+        }
+
+        Set<T> UnionWithHelper(IEnumerable<T> other)
         {
             AddRange(other);
             return this;
+        }
+
+        public Set<T> UnionWith(IEnumerable<T> other)
+        {
+            return UnionWithHelper(other);
+        }
+
+        public Set<T> UnionWith(params T[] other)
+        {
+            return UnionWithHelper(other);
         }
 
         public bool IsProperSubsetOf(IEnumerable<T> other)

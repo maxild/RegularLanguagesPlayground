@@ -46,7 +46,7 @@ namespace ContextFreeGrammar
 
         public Symbol FirstSymbol => Tail.Count > 0 ? Tail[0] : Symbol.Epsilon;
 
-        public Symbol LastSymbol => Tail.Count > 0 ? Tail[Tail.Count - 1] : Symbol.Epsilon;
+        public Symbol LastSymbol => Tail.Count > 0 ? Tail[^1] : Symbol.Epsilon;
 
         /// <summary>
         /// Get the symbols after the marker position in normal order.

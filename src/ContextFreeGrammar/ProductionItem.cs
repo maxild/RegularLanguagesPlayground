@@ -360,7 +360,7 @@ namespace ContextFreeGrammar
             switch (comparison)
             {
                 case ProductionItemComparison.MarkedProductionOnly:
-                    return MarkedProduction.Equals(other.MarkedProduction);
+                    return MarkedProduction.Equals(other.MarkedProduction); // CORE is the same
                 case ProductionItemComparison.LookaheadsOnly:
                     return Lookaheads.SetEquals(other.Lookaheads);
                 case ProductionItemComparison.MarkedProductionAndLookaheads:

@@ -126,11 +126,14 @@ namespace ContextFreeGrammar
             }
         }
 
+        /// <summary>
+        /// Get the set of possible predecessor states from where some label accesses the given state.
+        /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IEnumerable<int> PRED(int state, TAlphabet label)
+        public IReadOnlySet<int> PRED(int state, TAlphabet label)
         {
             // Highly inefficient
-            var predStates = new HashSet<int>();
+            var predStates = new Set<int>();
             int j = _alphabetToIndex[label];
             for (int i = 1; i <= MaxState; i += 1)
                 if (_nextState[i, j] == state)
@@ -138,10 +141,13 @@ namespace ContextFreeGrammar
             return predStates;
         }
 
+        /// <summary>
+        /// Get the set of possible predecessor states from where some label accesses the given states.
+        /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IEnumerable<int> PRED(IEnumerable<int> states, TAlphabet label)
+        public IReadOnlySet<int> PRED(IEnumerable<int> states, TAlphabet label)
         {
-            var predecessorStates = new HashSet<int>();
+            var predecessorStates = new Set<int>();
             foreach (int state in states)
             {
                 predecessorStates.UnionWith(PRED(state, label));
@@ -149,11 +155,14 @@ namespace ContextFreeGrammar
             return predecessorStates;
         }
 
+        /// <summary>
+        /// Get the set of possible predecessor states from where some (reversed) input accesses the given state.
+        /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IEnumerable<int> PRED(int s, IEnumerable<TAlphabet> input)
+        public IReadOnlySet<int> PRED(int state, IEnumerable<TAlphabet> reversedInput)
         {
-            IEnumerable<int> states = s.AsSingletonEnumerable();
-            foreach (var c in input)
+            IReadOnlySet<int> states = new Set<int>(state.AsSingletonEnumerable());
+            foreach (var c in reversedInput)
             {
                 states = PRED(states, c);
             }
@@ -225,4 +234,33 @@ namespace ContextFreeGrammar
             return _originalStates[originalIndex].ToString();
         }
     }
+
+    //public static class DfaLr0Extensions
+    //{
+    //    /// <summary>
+    //    /// Find all LR(k) item sets (i.e. underlying states) with a given CORE LR(0) item.
+    //    /// </summary>
+    //    public static IEnumerable<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> URCORE<TNonterminalSymbol, TTerminalSymbol>(
+    //        this Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
+    //        MarkedProduction<TNonterminalSymbol> dottedProduction)
+    //            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    //            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    //    {
+    //        // TODO: Finder bare den foerste!!!!
+    //        int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelContains(dottedProduction));
+
+    //    }
+
+    //    /// <summary>
+    //    /// Find all integer states with a given CORE LR(0) item.
+    //    /// </summary>
+    //    public static IEnumerable<int> URCORE2<TNonterminalSymbol, TTerminalSymbol>(
+    //        this Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0, MarkedProduction<TNonterminalSymbol> dottedProduction)
+    //        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    //        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    //    {
+    //        int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelContains(dottedProduction));
+
+    //    }
+    //}
 }

@@ -108,11 +108,12 @@ namespace ContextFreeGrammar
             new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, 0);
 
         /// <summary>
-        /// This is the augmented accept dotted production [S' → S•].
+        /// This is the augmented accept dotted production [S' → S•] (or [S' → S$•] if eof marker is used).
         /// This is also the CORE of the unique accept item (augmented final item) of the LR(k) automaton.
         /// </summary>
+        // BUG: Is this reduce item defined by S' → S•$ or S' → S$• if the grammar is augmented with eof marker???
         public MarkedProduction<TNonterminalSymbol> AugmentedAcceptItem =>
-            new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, 1);
+            new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length);
 
         // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
         // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
@@ -395,7 +396,7 @@ namespace ContextFreeGrammar
                 for (int j = 0; j < i; j += 1)
                 {
                     var lower = states[j];
-                    if (state.Equals(lower, ProductionItemComparison.MarkedProductionOnly))
+                    if (state.CoreOfKernelEquals(lower))
                     {
                         // add to lower indexed block, and mark this
                         // index as added to lower indexed block.

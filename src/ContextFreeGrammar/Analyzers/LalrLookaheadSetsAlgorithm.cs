@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -62,7 +61,7 @@ namespace ContextFreeGrammar.Analyzers
             if (!grammar.IsAugmentedWithEofMarker)
             {
                 // TODO: Not DRY
-                int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.ContainsKernelItem(grammar.AugmentedStartItem));
+                int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelEquals(grammar.AugmentedStartItem));
                 var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<TNonterminalSymbol>());
                 vertices.Add(acceptTransition);
             }
@@ -117,12 +116,12 @@ namespace ContextFreeGrammar.Analyzers
             for (int i = 0; i < vertices.Count; i += 1)
                 DR[i] = new Set<TTerminalSymbol>();
 
-            // Ensure that for the state p whose kernel item is [S' → S•], we have
+            // Ensure that for the state p whose kernel item is [S' → •S], we have
             //       DR(p, S) = {$},
             // _even_ if the grammar haven't been augmented with an eof marker.
             if (!grammar.IsAugmentedWithEofMarker)
             {
-                int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.ContainsKernelItem(grammar.AugmentedStartItem));
+                int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelEquals(grammar.AugmentedStartItem));
                 var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<TNonterminalSymbol>());
                 var indexOfAcceptTransition = vertices.IndexOf(acceptTransition);
                 DR[indexOfAcceptTransition].Add(Symbol.Eof<TTerminalSymbol>());
@@ -220,7 +219,7 @@ namespace ContextFreeGrammar.Analyzers
             //      else
             //          break
 
-            // we can skip S' -> S because only (1,S) is possible and (1,S) is
+            // We can skip S' -> S because only (1,S) is possible and (1,S) is
             // not a superset of any other pair, because it is the overall accepting
             // nonterminal transition going to the final accept state of the entire parse.
             foreach (var production in grammar.Productions.Skip(1))
@@ -280,8 +279,23 @@ namespace ContextFreeGrammar.Analyzers
         //      p ∈ PRED(q,β)
         // The closure item [A → •β] in p imply that p must contain a kernel item on the form [B → α•Aβ],
         // and therefore the relation makes sense.
+
+        /// <summary>
+        /// The LALR(1) lookahead sets are computed as
+        ///      LA(q, A → β) = ∪{ Follow(p,A) | (q, A → β) lookback (p,A) }
+        /// where
+        ///      (q, A → β) lookback (p,A)
+        ///          iff
+        ///      p---β--->q
+        ///          iff
+        ///      GOTO(p,β) = q
+        ///          iff
+        ///      p ∈ PRED(q,β)
+        /// The closure item [A → •β] in p imply that p must contain a kernel item on the form [B → α•Aβ],
+        /// and therefore the relation makes sense.
+        /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static Dictionary<(int, MarkedProduction<TNonterminalSymbol>), Set<TTerminalSymbol>> GetLaUnion<TNonterminalSymbol, TTerminalSymbol>(
+        public static Dictionary<(int stateIndex, int productionIndex), Set<TTerminalSymbol>> GetLaUnion<TNonterminalSymbol, TTerminalSymbol>(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
             Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
             IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
@@ -289,25 +303,45 @@ namespace ContextFreeGrammar.Analyzers
                 where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
                 where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
         {
-            var lookaheadSets = new Dictionary<(int, MarkedProduction<TNonterminalSymbol>), Set<TTerminalSymbol>>();
+            // TODO: Move centrally
+            if (!grammar.IsAugmented)
+                throw new ArgumentException("The grammar need to be augmented with S' → S starter unit production.");
 
-            // final item sets
+            var lookaheadSets = new Dictionary<(int, int), Set<TTerminalSymbol>>();
+
             foreach (int reduceState in dfaLr0.GetAcceptStates())
             {
                 var reduceItemSet = dfaLr0.GetUnderlyingState(reduceState);
+                // For all A → β• final items
                 foreach (var reduceItem in reduceItemSet.ReduceItems)
                 {
-                    var A = reduceItem.Production.Head;
-                    var revBeta = reduceItem.GetRemainingSymbolsBeforeDotSymbol();
-                    var predStates = dfaLr0.PRED(reduceState, revBeta);
-                    foreach (int predState in predStates)
+                    var key = (reduceState, reduceItem.ProductionIndex);
+                    lookaheadSets.TryAdd(key, new Set<TTerminalSymbol>());
+
+                    // S' → S• (or S' → S•$, or S' → S$•) need special treatment, because the DFA has no transition (_, S')
+                    // on S'. We can safely define it as (1, S) with regards to the eof marker follower symbol
+                    if (reduceItem.Production.Head.Equals(grammar.StartSymbol))
                     {
-                        var key = (reduceState, reduceItem.MarkedProduction);
-                        lookaheadSets.TryAdd(key, new Set<TTerminalSymbol>());
-                        var index = vertices.IndexOf((predState, A));
-                        // TODO: Why????
-                        if (index >= 0)
+                        // S
+                        var startSymbol = reduceItem.Production.TailAs<TNonterminalSymbol>(0);
+                        Debug.Assert(dfaLr0.StartState == 1);
+                        // (1,S)-index
+                        var index = vertices.IndexOf((dfaLr0.StartState, startSymbol));
+                        // FOLLOW(1,S) = {$}
+                        Debug.Assert(followSets[index].SetEquals(Symbol.Eof<TTerminalSymbol>().AsSingletonEnumerable()));
+                        lookaheadSets[key].AddRange(followSets[index]);
+                    }
+                    else
+                    {
+                        var A = reduceItem.Production.Head;
+                        var revBeta = reduceItem.GetRemainingSymbolsBeforeDotSymbol();
+                        // for all possible predecessor states (at least one)
+                        var predStates = dfaLr0.PRED(reduceState, revBeta);
+                        foreach (int predState in predStates)
+                        {
+                            var index = vertices.IndexOf((predState, A));
                             lookaheadSets[key].AddRange(followSets[index]);
+                        }
                     }
                 }
             }
@@ -315,10 +349,5 @@ namespace ContextFreeGrammar.Analyzers
             // TODO: Covariance and immutable/readonly
             return lookaheadSets;
         }
-
-
-        // TODO: Move to analyzer
-
-
     }
 }
