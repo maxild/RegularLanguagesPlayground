@@ -77,14 +77,6 @@ namespace ContextFreeGrammar.Analyzers
                 .Select(_ => new Set<TTerminalSymbol>()) // empty sets
                 .ToImmutableArray();
 
-            // TODO: This is a requirement of the parsing table of shift-reduce parser (dragon book analyzer automates this)
-            // We only need to place Eof ('$' in the dragon book) in INITFOLLOW(S) if the grammar haven't
-            // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
-            // NOTE: If $ should be part of the Follow sets are up to the grammar specifikation, it must satisfy
-            //       grammar.IsAugmentedWithEofMarker by its definition
-            //if (!grammar.IsAugmentedWithEofMarker)
-            //    initSets[0].Add(Symbol.Eof<TTerminalSymbol>());
-
             // indirect contributions: superset relations between nonterminals
             var contains_the_follow_set_of = new HashSet<(int, int)>(); // parallel edges
 
@@ -104,10 +96,10 @@ namespace ContextFreeGrammar.Analyzers
 
             // Directly Follow (direct contributions)
             // INITFOLLOW
-            // INITFOLLOW(A) = { FIRST(X) | B −→ αAXβ ∈ P }, where α, β ∈ Vocabolary, and FIRST sets do not contain epsilon
+            // INITFOLLOW(A) = { FIRST(X) | B −→ αAXβ ∈ P }, where α, β ∈ V*, and FIRST sets do not contain epsilon
             //
             // Indirect (recursive) contributions
-            //    B −→ αA
+            //    B −→ αAβ, where β *=> ε and B ≠ A
             // implies
             //    FOLLOW(B) ⊆ FOLLOW(A)
             // and we define the relation

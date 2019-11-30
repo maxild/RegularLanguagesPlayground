@@ -110,10 +110,12 @@ namespace ContextFreeGrammar
         /// <summary>
         /// This is the augmented accept dotted production [S' → S•] (or [S' → S•$] if eof marker is used).
         /// This is also the CORE of the unique accept item (augmented final item) of the LR(k) automaton.
+        /// Whenever we reduce by this rule, we know we are finished. That is, if the <see cref="AugmentedAcceptItem"/>
+        /// is the current state, and the input buffer is empty, the parser will accept the input.
         /// </summary>
         /// <remarks>
         /// By convention we never shift passed the eof marker. That is the final accepting state of the parser
-        /// is S' → S•$, and not S' → S$•.
+        /// is always S' → S•$, and not S' → S$•.
         /// </remarks>
         public MarkedProduction<TNonterminalSymbol> AugmentedAcceptItem => Productions[0].LastSymbol.IsEof
             ? new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length - 1)

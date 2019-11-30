@@ -85,8 +85,8 @@ namespace ContextFreeGrammar.Analyzers
         public static bool Erasable(this IErasableSymbolsAnalyzer analyzer, IEnumerable<Symbol> symbols)
         {
             // Nullable(X) = Nullable(Y1) Λ ... Λ Nullable(Yn), for X → Y1 Y2...Yn
-            // Nullable(ε) = false
-            return symbols.All(analyzer.Erasable); // All (&&-Monoid) is false by default
+            // Nullable(ε) = true
+            return symbols.All(analyzer.Erasable); // All (&&-Monoid) is true by default, because true is the unit
         }
 
         // TODO: Insert into symbols overload
