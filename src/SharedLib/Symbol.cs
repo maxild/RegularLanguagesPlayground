@@ -22,11 +22,81 @@ namespace AutomataLib
     /// </summary>
     public abstract class Symbol : IEquatable<Symbol>, IComparable<Symbol>
     {
+        /// <summary>
+        /// The name of the variable in the BNF (non-terminal), or the name of the token (i.e. name of some abstract
+        /// input symbol, aka lexical unit, identified by the lexer). Both interpretations of name (for variable or terminal)
+        /// are what the parser processes during derivations/reductions of the grammar.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>
+        /// Is the symbol a terminal symbol that is either part of language described by the grammar or
+        /// is it the reserved <see cref="EofMarker"/> symbol. In other words, is the symbol part of the
+        /// input language of the parser.
+        /// </summary>
+        /// <remarks>
+        /// In textbooks the extended terminal symbols is defined by the set T' = T ∪ {$}, that contain
+        /// all terminal symbols and the reserved eof marker symbol.
+        /// If <see cref="IsExtendedTerminal"/> is equal to <c>true</c>, then we can safely downcast the symbol to
+        /// the <see cref="Terminal"/> subclass. That is all <see cref="Terminal"/> derived symbols have
+        /// <see cref="IsExtendedTerminal"/> equal to <c>true</c>.
+        /// </remarks>
+        public abstract bool IsExtendedTerminal { get; }
+
+        /// <summary>
+        /// Is the symbol a terminal symbol that is part of language described by the grammar.
+        /// </summary>
+        /// <remarks>
+        /// All <see cref="Terminal"/> derived symbols have <see cref="IsTerminal"/> equal to <c>true</c>.
+        /// </remarks>
+        public abstract bool IsTerminal { get; }
+
+        /// <summary>
+        /// Is the symbol a variable used in the language specification (BNF, EBNF or similar) to describe
+        /// one or more rewrite rules. A nonterminal also describes an internal node in the derivation (parse) tree
+        /// produced by the parser. Therefore is plays a role in when transforming the parse tree into an abstract
+        /// syntax tree, because it governs semantic actions.
+        /// </summary>
+        public abstract bool IsNonterminal { get; }
+
+        /// <summary>
+        /// Is the symbol the empty symbol.
+        /// </summary>
+        /// <remarks>
+        /// This is not exactly the same as the empty string. We often use this special value
+        /// when a function cannot return a symbol, because the symbol does not exist. An example
+        /// is returning the dot symbol of a final (reduce) item.
+        /// </remarks>
+        public abstract bool IsEpsilon { get; }
+
+        /// <summary>
+        /// Is the symbol the end of input.
+        /// </summary>
+        /// <remarks>
+        /// The lexer will return this symbol to indicate end of input to the parser.
+        /// </remarks>
+        public abstract bool IsEof { get; }
+
+        /// <summary>
+        /// Reserved symbol for the empty string.
+        /// </summary>
         public static readonly Symbol Epsilon = new Eps();
 
         /// <summary>
-        /// reserved (terminal) symbol -- many texts will not call this a terminal symbol.
+        /// Reserved (terminal) symbol for end of input.
         /// </summary>
+        /// <remarks>
+        /// Many texts on parsing and compiling will not agree that the eof marker ($) is a terminal symbol.
+        /// In a way this is correct, because the language (per se) cannot contain this token. But in a way 'end
+        /// of input' must be communicated from the lexer to the parser some way, and the most elegant (pure)
+        /// way, is to extend the input alphabet T with this reserved token: T' = T ∪ {$}.
+        /// Any valid grammar will only contain a single production containing the eof marker. This special
+        /// production rule is by convention the first production of the grammar. This production
+        /// S' → S$ give rise to two kernel items [S' → •S$], the initial item (state 1 in our implementation), and [S' → S•$], the final
+        /// accepting item (state 2 in our implementation). This way the special S' → S$ rule is added to the grammar to allow
+        /// the parser to accept the input in a deterministic way. That is a bottom-up (left) parser will only accept the input
+        /// if the next input token is eof ($) after reducing by the final accept item [S' → S•$].
+        /// </remarks>
         public static readonly Terminal EofMarker = new EndOfFileMarker();
 
         public static TTerminalSymbol Eof<TTerminalSymbol>()
@@ -65,26 +135,24 @@ namespace AutomataLib
             {
             }
 
+            public override bool IsExtendedTerminal => false;
+
             public override bool IsTerminal => false;
 
-            public override bool IsNonTerminal => false;
+            public override bool IsNonterminal => false;
 
-            /// <summary>
-            /// Base case for nullable, but nullable is something to discover by solving
-            /// recursive equations of set variables (fix point iteration, discovery algorithm).
-            /// </summary>
-            /// <returns>true iff terminal symbol is nullable (e.g. empty string)</returns>
             public override bool IsEpsilon => true;
 
             public override bool IsEof => false;
         }
 
-        class EndOfFileMarker : Terminal // TODO: maybe not a Terminal?
+        class EndOfFileMarker : Terminal
         {
-            // TODO: Cannot use 'eof', because of Terminal limitation to single characters
             public EndOfFileMarker() : base('$')
             {
             }
+
+            public override bool IsTerminal => false;
 
             public override bool IsEof => true;
         }
@@ -102,21 +170,6 @@ namespace AutomataLib
         {
             return Name;
         }
-
-        /// <summary>
-        /// The name of the variable in the BNF (non-terminal), or the name of the token (i.e. name of some abstract
-        /// input symbol, aka lexical unit, identified by the lexer). Both interpretations of name (for variable or terminal)
-        /// are what the parser processes during derivations/reductions of the grammar.
-        /// </summary>
-        public string Name { get; }
-
-        public abstract bool IsTerminal { get;}
-
-        public abstract bool IsNonTerminal { get; }
-
-        public abstract bool IsEpsilon { get; }
-
-        public abstract bool IsEof { get; }
 
         public bool Equals(Symbol other)
         {
@@ -174,9 +227,11 @@ namespace AutomataLib
         {
         }
 
+        public override bool IsExtendedTerminal => false;
+
         public override bool IsTerminal => false;
 
-        public override bool IsNonTerminal => true;
+        public override bool IsNonterminal => true;
 
         public override bool IsEpsilon => false;
 
@@ -207,9 +262,11 @@ namespace AutomataLib
         {
         }
 
+        public override bool IsExtendedTerminal => true;
+
         public override bool IsTerminal => true;
 
-        public override bool IsNonTerminal => false;
+        public override bool IsNonterminal => false;
 
         public override bool IsEpsilon => false;
 

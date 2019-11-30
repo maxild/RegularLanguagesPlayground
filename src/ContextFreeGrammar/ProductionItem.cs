@@ -316,13 +316,12 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Get the symbol before the dot.
         /// </summary>
-        public Symbol GetPrevSymbol() => MarkedProduction.GetPrevSymbol();
-
-        /// <summary>
+        /// <remarks>
         /// All kernel items (of any item set) have the same symbol before the dot.
-        /// If the item is a closure item the result is the empty symbol (ε).
-        /// </summary>
-        public Symbol SpellingSymbol => MarkedProduction.SpellingSymbol;
+        /// If the item is a closure item, or the initial kernel item S' → •S (S' → •S$),
+        /// the result is the empty symbol <see cref="Symbol.Epsilon"/>.
+        /// </remarks>
+        public Symbol BeforeDotSpellingSymbol => MarkedProduction.BeforeDotSpellingSymbol;
 
         /// <summary>
         /// The symbol after the dot. If the dot have been shifted all the way to the end of the RHS of

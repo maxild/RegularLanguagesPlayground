@@ -50,7 +50,7 @@ namespace ContextFreeGrammar
         /// the LR(0) item set has a unique spelling property, that can be used to compute the sentential form
         /// during shift/reduce parsing.
         /// </summary>
-        public Symbol SpellingSymbol => KernelItems.First().SpellingSymbol; // all kernel items have the same grammar symbol to the left of the dot
+        public Symbol SpellingSymbol => KernelItems.First().BeforeDotSpellingSymbol; // all kernel items have the same grammar symbol to the left of the dot
 
         public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> Items => _kernelItems.Concat(_closureItems);
 
@@ -89,7 +89,7 @@ namespace ContextFreeGrammar
         /// Find all nonterminal labeled transitions out of this item set.
         /// </summary>
         public IEnumerable<TNonterminalSymbol> NonterminalTransitions =>
-            Items.Where(item => item.DotSymbol.IsNonTerminal).Select(item => item.GetDotSymbol<TNonterminalSymbol>());
+            Items.Where(item => item.DotSymbol.IsNonterminal).Select(item => item.GetDotSymbol<TNonterminalSymbol>());
 
         /// <summary>
         /// Find all terminal labeled transitions out of this item set.

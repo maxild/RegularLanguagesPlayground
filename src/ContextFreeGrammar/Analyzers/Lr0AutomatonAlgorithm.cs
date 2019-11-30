@@ -142,6 +142,7 @@ namespace ContextFreeGrammar.Analyzers
                 Closure(grammar, new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(grammar.Productions[0], 0, 0).AsSingletonEnumerable());
 
             // states (aka LR(0) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
+            // when adding states to the DFA we transform the states to 1,2,...,N (because the dead state is state 0)
             var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
             var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
 

@@ -55,17 +55,6 @@ namespace ContextFreeGrammar.Analyzers
             // This is the bijective mapping between integer values and (p,A)-pairs.
             var vertices = new InsertionOrderedSet<(int, TNonterminalSymbol)>();
 
-            // Ensure that for the state p whose kernel item is [S' → S•], we have
-            //       DR(p, S) = {$},
-            // _even_ if the grammar haven't been augmented with an eof marker.
-            if (!grammar.IsAugmentedWithEofMarker)
-            {
-                // TODO: Not DRY
-                int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelEquals(grammar.AugmentedStartItem));
-                var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<TNonterminalSymbol>());
-                vertices.Add(acceptTransition);
-            }
-
             // p = 1,...,N
             foreach (int p in dfaLr0.GetTrimmedStates())
                 // any items of the form [B → β•Aγ] contained by the underlying item set of the state p
@@ -121,6 +110,8 @@ namespace ContextFreeGrammar.Analyzers
             // _even_ if the grammar haven't been augmented with an eof marker.
             if (!grammar.IsAugmentedWithEofMarker)
             {
+                // NOTE: If S' → S$ is not defined by the grammar then the dot symbol of the [S' → S•] item is the empty symbol,
+                // and we therefore have to add eof marker 'manually' here.
                 int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelEquals(grammar.AugmentedStartItem));
                 var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<TNonterminalSymbol>());
                 var indexOfAcceptTransition = vertices.IndexOf(acceptTransition);
@@ -142,7 +133,7 @@ namespace ContextFreeGrammar.Analyzers
 
                     foreach (var symbol in successorItemSet.Items.Where(item => !item.DotSymbol.IsEpsilon).Select(item => item.DotSymbol))
                     {
-                        if (symbol.IsNonTerminal)
+                        if (symbol.IsNonterminal)
                         {
                             if (analyzer.Erasable(symbol))
                             {
@@ -155,8 +146,15 @@ namespace ContextFreeGrammar.Analyzers
                         }
                         else
                         {
+                            // NOTE: If S' → S$ is defined then even though the LR(0) automaton (DFA) does
+                            // not define [S' → S•$] --$--> [S' → S$•] (by convention) we accept it here.
+                            // That is GOTO(2,$) is not defined, but DR(1,S) = {$} is ensured by the code
+                            // below, because .
+                            Debug.Assert(symbol.IsExtendedTerminal);
+                            Debug.Assert(symbol.IsTerminal || symbol.IsEof);
+
                             // direct read: GOTO(p,Aa) is defined
-                            var a = (TTerminalSymbol)symbol;
+                            var a = (TTerminalSymbol)symbol; // DR(1,s) = {$} here for grammar without eof marker (by convention)
                             DR[indexOfPair].Add(a);
                         }
                     }

@@ -86,7 +86,7 @@ namespace ContextFreeGrammar
             (Productions[0].LastSymbol.IsEof
                 ? Productions[0].Tail.Count == 2
                 : Productions[0].Tail.Count == 1) &&
-            Productions[0].Tail[0].IsNonTerminal &&
+            Productions[0].Tail[0].IsNonterminal &&
             Productions.Skip(1).All(p => !p.Head.Equals(StartSymbol)) &&
             Productions.All(p => !p.Tail.Contains(StartSymbol));
 
@@ -108,27 +108,37 @@ namespace ContextFreeGrammar
             new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, 0);
 
         /// <summary>
-        /// This is the augmented accept dotted production [S' → S•] (or [S' → S$•] if eof marker is used).
+        /// This is the augmented accept dotted production [S' → S•] (or [S' → S•$] if eof marker is used).
         /// This is also the CORE of the unique accept item (augmented final item) of the LR(k) automaton.
         /// </summary>
-        // BUG: Is this reduce item defined by S' → S•$ or S' → S$• if the grammar is augmented with eof marker???
-        public MarkedProduction<TNonterminalSymbol> AugmentedAcceptItem =>
-            new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length);
+        /// <remarks>
+        /// By convention we never shift passed the eof marker. That is the final accepting state of the parser
+        /// is S' → S•$, and not S' → S$•.
+        /// </remarks>
+        public MarkedProduction<TNonterminalSymbol> AugmentedAcceptItem => Productions[0].LastSymbol.IsEof
+            ? new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length - 1)
+            : new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length);
 
         // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
         // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
         public bool IsReduced => true;
 
         /// <summary>
-        /// Nonterminal grammar symbols (aka grammar variables).
+        /// The set of nonterminal symbols (aka variables) used to define the grammar. The variables
+        /// are defined in the order defined by the sequence of variables passed to the
+        /// <see cref="Grammar{TNonterminalSymbol, TTerminalSymbol}"/> constructor.
         /// </summary>
         public IReadOnlyOrderedSet<TNonterminalSymbol> Variables { get; }
 
         public IEnumerable<Symbol> NonTerminalSymbols => Variables;
 
         /// <summary>
-        /// Terminal grammar symbols, not including ε (the empty string)
+        /// The set of input symbols used to define the grammar.
         /// </summary>
+        /// <remarks>
+        /// If the grammar is augmented with an eof marker symbol, the <see cref="Symbol.EofMarker"/> is
+        /// included in the <see cref="Terminals"/> set.
+        /// </remarks>
         public IReadOnlySet<TTerminalSymbol> Terminals { get; }
 
         public IEnumerable<Symbol> TerminalSymbols => Terminals;
@@ -150,9 +160,7 @@ namespace ContextFreeGrammar
         /// List of production rules for any given variable (nonterminal symbol).
         /// When A → α | β | ... | ω, then ProductionsFor[A] = α, β,..., ω.
         /// </summary>
-        //public IReadOnlyDictionary<Nonterminal, IReadOnlyList<(int, Production<TNonterminalSymbol>)>> ProductionsFor { get; }
         public IReadOnlyDictionary<TNonterminalSymbol, IReadOnlyList<(int, Production<TNonterminalSymbol>)>> ProductionsFor { get; }
-
 
         public TNonterminalSymbol StartSymbol { get; }
 
@@ -361,7 +369,7 @@ namespace ContextFreeGrammar
                     // NOTE: Only if the grammar is augmented with S' → S$ (i.e. EOF marker added
                     // to augmented rule) then we can be sure that the accept action item set has
                     // the EOF marked symbol ($) as the spelling property.
-                    //      Debug.Assert(itemSet.SpellingSymbol.Equals(Symbol.Eof<TTerminalSymbol>()));
+                    //      Debug.Assert(itemSet.BeforeDotSpellingSymbol.Equals(Symbol.Eof<TTerminalSymbol>()));
                     actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(indexMap[itemSet],
                         Symbol.Eof<TTerminalSymbol>(), LrAction.Accept));
                 }

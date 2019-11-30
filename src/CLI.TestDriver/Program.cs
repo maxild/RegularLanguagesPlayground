@@ -116,8 +116,6 @@ namespace CLI.TestDriver
             SaveFile("GallierEx3_ReadGraph.dot",
                 DotLanguagePrinter.PrintGraph("DR", directReads, graphRead, v => vertices[v].ToString()));
 
-            // TODO: Solve/Traverse GraphRead
-
             var graphLaFollow = LalrLookaheadSetsAlgorithm.GetGraphLaFollow(grammar, dfaLr0, vertices, analyzer);
 
             SaveFile("GallierEx3_LaFollowGraph.dot",

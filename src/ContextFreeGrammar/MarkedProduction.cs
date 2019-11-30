@@ -76,31 +76,38 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Is this item a completed item (aka final item) on the form A → α•, where the dot have been shifted
         /// all the way to the end of the production (a completed item is an accepting state,
-        /// where we have recognized a handle)
+        /// where we have recognized a handle). The item S' → S•$ is also a final item, because we want the states
+        /// of the LR(0) automaton to be (numbered) the same way for both S' → S and S' → S$.
         /// </summary>
-        public bool IsReduceItem => MarkerPosition == Production.Tail.Count; // DotSymbol == Symbol.Epsilon
+        ///  <remarks>
+        /// For any reduce item the <see cref="DotSymbol"/> will be either <see cref="Symbol.Epsilon"/> or <see cref="Symbol.EofMarker"/>.
+        /// For all 'semantic' reductions the <see cref="DotSymbol"/> will be <see cref="Symbol.Epsilon"/>, and for the augmented reduce item
+        /// the <see cref="DotSymbol"/> will be <see cref="Symbol.EofMarker"/> by convention. Therefore one cannot use <see cref="DotSymbol"/>
+        /// to test for the final item property, and all such tests should be based on <see cref="IsReduceItem"/>.
+        /// </remarks>
+        public bool IsReduceItem => MarkerPosition == Production.Tail.Count ||
+                                    // S' → S•$ is the only final item, where the dot have not been shifted all the way to the end
+                                    ProductionIndex == 0 && Production.Tail[^1].IsEof && MarkerPosition == Production.Tail.Count - 1;
 
         /// <summary>
-        /// B → α•Xβ (where X is a nonterminal symbol)
+        /// B → α•Xβ (where X is a nonterminal symbol).
         /// </summary>
-        public bool IsGotoItem => DotSymbol.IsNonTerminal; // IsNonterminalTransition
+        public bool IsGotoItem => DotSymbol.IsNonterminal;
 
         /// <summary>
-        /// B → α•aβ (where a is a terminal symbol)
+        /// B → α•aβ (where a is a terminal symbol -- that is not the <see cref="Symbol.EofMarker"/> symbol).
         /// </summary>
-        public bool IsShiftItem => DotSymbol.IsTerminal; // IsTerminalTransition
+        public bool IsShiftItem => DotSymbol.IsTerminal;
 
         /// <summary>
         /// Get the symbol before the dot.
         /// </summary>
-        [Pure]
-        public Symbol GetPrevSymbol() => MarkerPosition > 0 ? Production.Tail[MarkerPosition - 1] : Symbol.Epsilon;
-
-        /// <summary>
+        /// <remarks>
         /// All kernel items (of any item set) have the same symbol before the dot.
-        /// If the item is a closure item the result is the empty symbol (ε).
-        /// </summary>
-        public Symbol SpellingSymbol => GetPrevSymbol();
+        /// If the item is a closure item, or the initial kernel item S' → •S (S' → •S$),
+        /// the result is the empty symbol <see cref="Symbol.Epsilon"/>.
+        /// </remarks>
+        public Symbol BeforeDotSpellingSymbol => MarkerPosition > 0 ? Production.Tail[MarkerPosition - 1] : Symbol.Epsilon;
 
         /// <summary>
         /// The symbol after the dot. If the dot have been shifted all the way to the end of the RHS of
