@@ -8,7 +8,6 @@ namespace ContextFreeGrammar.Analyzers
 {
     public static class Lr1AutomatonAlgorithm
     {
-        // TODO: Make it DRY between LR(0) and LR(1)...compare with method above
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonNfa<TNonterminalSymbol, TTerminalSymbol>(
             Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
@@ -106,12 +105,12 @@ namespace ContextFreeGrammar.Analyzers
         }
 
         public static Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
+            IEnumerable<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions)
             where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
             where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         {
-            var (states, transitions) = ComputeLr1AutomatonData(grammar);
-
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
             // NOTE: This DFA representation always need to have a so called dead state (0),

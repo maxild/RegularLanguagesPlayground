@@ -106,12 +106,14 @@ namespace ContextFreeGrammar.Analyzers
         /// right sentential form where the substring β can be found).
         /// </summary>
         public static Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol>
-            GetLr0AutomatonDfa<TNonterminalSymbol, TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+            GetLr0AutomatonDfa<TNonterminalSymbol, TTerminalSymbol>(
+                Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+                IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
+                IEnumerable<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions
+                )
             where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
             where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
         {
-            var (states, transitions) = ComputeLr0AutomatonData(grammar);
-
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
             // NOTE: This DFA representation always need to have a so called dead state (0),

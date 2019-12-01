@@ -398,7 +398,7 @@ namespace UnitTests
             // LALR(1)
             //
 
-            var lalr1Parser = grammar.ComputeLalr1ParsingTable();
+            var lalr1Parser = grammar.ComputeLalrParsingTable();
 
             WriteLine("LALR(1) Parsing Table");
             lalr1Parser.PrintParsingTable(writer);

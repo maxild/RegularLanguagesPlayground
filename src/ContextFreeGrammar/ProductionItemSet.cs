@@ -45,6 +45,9 @@ namespace ContextFreeGrammar
             }
         }
 
+        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> ReduceBy(int productionIndex) =>
+            _kernelItems.Single(item => item.IsReduceItem && item.ProductionIndex == productionIndex);
+
         /// <summary>
         /// Because all transitions entering any given state in the DFA for the LR(0) automaton have the same label,
         /// the LR(0) item set has a unique spelling property, that can be used to compute the sentential form
@@ -68,12 +71,27 @@ namespace ContextFreeGrammar
         /// </summary>
         public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ClosureItems => _closureItems;
 
+        private ProductionItem<TNonterminalSymbol, TTerminalSymbol>[] _reduceItems;
+
         /// <summary>
-        /// Reduce items (not including the first production S' → S of the augmented grammar). If grammar has no
-        /// ε-productions, then all (completed) reduce items are kernel items, but the single item of an ε-production
-        /// is both a reduce item and and a closure item (it can never be a kernel item).
+        /// The ordered list of reduce items, where a reduce item comes first, if it is based on a
+        /// production that comes first in the grammar specification.
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => Items.Where(item => item.IsReduceItem);
+        /// <remarks>
+        /// If grammar has no ε-productions, then all (completed) reduce items are kernel items,
+        /// because the single item of an ε-production is both a reduce item and and a closure item
+        /// (it can never be a kernel item).
+        /// </remarks>
+        public IReadOnlyList<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => _reduceItems ??= GetReduceItems();
+
+        ProductionItem<TNonterminalSymbol, TTerminalSymbol>[] GetReduceItems()
+        {
+            // In case of reduce-reduce conflicts we order by production index (standard conflict resolution)
+            var reduceItems = Items.Where(item => item.IsReduceItem).ToArray();
+            return reduceItems.Length <= 1
+                ? reduceItems // this is the typical case
+                : reduceItems.OrderBy(item => item.ProductionIndex).ToArray();
+        }
 
         /// <summary>
         /// Does this the item set contain the the augmented reduce item (S' → S•)?

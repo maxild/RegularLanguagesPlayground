@@ -17,10 +17,12 @@ namespace ContextFreeGrammar
     //      A → X1X2...Xn
     //
     // and the parser decides to "reduce" this to the left hand side of the production, i.e., pop the string X1X2...Xn
-    // off the stack and push A instead. a shift action means that the parser is waiting to see more of the input before
-    // it decides that a match has been found; a reduce action means that a match has been found.
+    // off the stack and push A instead. A shift action means that the parser is waiting to see more of the input before
+    // it decides that a match has been found. A reduce action means that a match has been found. A goto action is a nonterminal
+    // transition that happens after each reduction (except when the reduction is the initial S' –> S rule where the parser
+    // only checks for end-of-input before it accepts the input).
     //
-    // There are two types of conflicts we might encounter: shift-reduce and reduce-reduce:
+    // There are two types of conflicts: shift-reduce and reduce-reduce:
     //
     //  1. Shift-reduce conflict. This occurs when the parser is faced with a choice of a shift action and a reduce action.
     //     (Yacc’s default action in the case of a shift-reduce conflict is to choose the shift action.)
@@ -82,7 +84,7 @@ namespace ContextFreeGrammar
     {
         private readonly Grammar<TNonterminalSymbol, TTerminalSymbol> _grammar;
 
-        // NOTE: This a sort of an adjacency matrix implementation of the two tables (ACTION and GOTO)
+        // NOTE: This is sort of an adjacency matrix implementation of the two tables (ACTION and GOTO)
         //       where symbols (terminals and nonterminals) are translated to indices via hash tables
         //       (dictionaries), and we explicit values for error transitions, that are given by
         //              GOTO table errors = 0 value of type 'int'
@@ -99,7 +101,7 @@ namespace ContextFreeGrammar
         private readonly int _maxState;
         private readonly int[,] _gotoTable;
         private readonly LrAction[,] _actionTable;
-        // Conflicts arise from ambiguities in the grammar.
+
         private readonly Dictionary<(int, TTerminalSymbol), LrConflict<TTerminalSymbol>> _conflictTable =
             new Dictionary<(int, TTerminalSymbol), LrConflict<TTerminalSymbol>>();
 
@@ -112,6 +114,8 @@ namespace ContextFreeGrammar
             IEnumerable<LrGotoEntry<TNonterminalSymbol>> gotoTableEntries
             )
         {
+            // TODO: states are numbered 0,1,...,N-1 when using ordered states set....Why not use DFA ordering 1,...,N in the parse tables???
+
             _grammar = grammar;
             _originalStates = originalStates;
             _maxState = originalStates.Count - 1;
@@ -121,23 +125,17 @@ namespace ContextFreeGrammar
             var indexToNonterminal = nonterminalSymbols.ToArray();
             _nonterminalToIndex= new Dictionary<TNonterminalSymbol, int>();
             for (int i = 0; i < indexToNonterminal.Length; i++)
-            {
                 _nonterminalToIndex[indexToNonterminal[i]] = i;
-            }
 
             // Grammar tokens (terminals)
             var indexToTerminal = terminalSymbols.ToArray();
             _terminalToIndex= new Dictionary<TTerminalSymbol, int>();
             for (int i = 0; i < indexToTerminal.Length; i++)
-            {
                 _terminalToIndex[indexToTerminal[i]] = i;
-            }
 
             // If EOF ($) is not defined as a valid token then we define it
             if (!_terminalToIndex.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-            {
                 _terminalToIndex[Symbol.Eof<TTerminalSymbol>()] = indexToTerminal.Length;
-            }
 
             _actionTable = new LrAction[_maxState + 1, _terminalToIndex.Count];
 
@@ -152,11 +150,20 @@ namespace ContextFreeGrammar
             {
                 var symbolIndex = _terminalToIndex[entry.TerminalSymbol];
 
-                // error is the default action, and not an error will therefore indicate a conflict
+                // error is the default action, and not an error is a conflict -- (i, j) occupied
                 if (!_actionTable[entry.State, symbolIndex].IsError)
                 {
-                    // Only reduce actions can cause conflicts, when all shift actions are inserted first
+                    // Idiomatic Conflict Resolution (Yacc, Happy etc. all choose this strategy for resolving conflicts):
+                    //     * shift on shift-reduce conflicts, and
+                    //     * reduce using the production that comes first, textually, in the input grammar specification
+
+                    // Only reduce actions can cause conflicts, when all shift actions are inserted first,
+                    // because shift-shift conflicts are impossible in the LR(k) automaton.
                     Debug.Assert(entry.Action.IsReduce);
+
+                    // The reduce action in the table is has the lowest production index
+                    Debug.Assert(!_actionTable[entry.State, symbolIndex].IsReduce ||
+                                 entry.Action.ReduceToProductionIndex > _actionTable[entry.State, symbolIndex].ReduceToProductionIndex);
 
                     // report diagnostic for the found shift/reduce or reduce/reduce conflict
                     if (_conflictTable.ContainsKey((entry.State, entry.TerminalSymbol)))
@@ -178,13 +185,6 @@ namespace ContextFreeGrammar
                                 entry.Action                            // reduce action
                             }));
                     }
-
-                    // choose the shift action (for any shift/reduce conflicts), or choose the reduce action
-                    // with the lowest index (for any reduce/reduce conflicts), by ignoring to put the reduce action in
-                    // the table (Yacc, Happy etc. all choose this strategy for resolving conflicts)
-
-                    // TODO: remove this line that will make reduce items win over shift items
-                    //_actionTable[entry.State, symbolIndex] = entry.Action; // BUG line must be out commented
                 }
                 else
                 {

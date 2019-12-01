@@ -206,11 +206,17 @@ namespace ContextFreeGrammar
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonDfa() =>
-            Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this);
+        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonDfa()
+        {
+            var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
+            return Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this, states, transitions);
+        }
 
-        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa() =>
-            Lr1AutomatonAlgorithm.GetLr1AutomatonDfa(this);
+        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa()
+        {
+            var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
+            return Lr1AutomatonAlgorithm.GetLr1AutomatonDfa(this, states, transitions);
+        }
 
         /// <summary>
         /// Compute LR(0) parsing table.
@@ -221,7 +227,7 @@ namespace ContextFreeGrammar
 
             // LR(0)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
-                _ => Terminals.UnionEofMarker());
+                (_,__) => Terminals.UnionEofMarker());
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -238,7 +244,7 @@ namespace ContextFreeGrammar
 
             // SLR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
-                reduceItem => Follow(reduceItem.Production.Head));
+                (_, productionIndex) => Follow(Productions[productionIndex].Head));
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -255,7 +261,7 @@ namespace ContextFreeGrammar
 
             // LR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
-                reduceItem => reduceItem.Lookaheads);
+                (stateIndex, productionIndex) => states[stateIndex].ReduceBy(productionIndex).Lookaheads);
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
@@ -267,7 +273,7 @@ namespace ContextFreeGrammar
         /// Compute LALR(1) parsing table (by 'brute force' algorithm based on merging LR(1) item sets with identical
         /// kernel items in the LR(1) automaton).
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalr1ParsingTable()
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalrParsingTable()
         {
             var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
@@ -276,11 +282,32 @@ namespace ContextFreeGrammar
 
             // LALR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(mergedStates, mergedTransitions,
-                reduceItem => reduceItem.Lookaheads);
+                (stateIndex, productionIndex) => mergedStates[stateIndex].ReduceBy(productionIndex).Lookaheads);
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
             return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, mergedStates, Variables, Terminals,
+                actionTableEntries, gotoTableEntries);
+        }
+
+        /// <summary>
+        /// Compute LALR(1) parsing table (by efficient digraph algorithm that simulates the valid lookahead sets in the LR(0) automaton).
+        /// </summary>
+        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeEfficientLalr1ParsingTable()
+        {
+            var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
+
+            var dfaLr0 = Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this, states, transitions);
+
+            var analyzer = new Lr0AutomatonDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol>(this, dfaLr0, _analyzer);
+
+            // LALR(1)
+            var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
+                (stateIndex, productionIndex) => analyzer.Lookaheads(stateIndex, productionIndex));
+
+            // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
+            // are given by {0,1,...,N-1}.
+            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -290,38 +317,34 @@ namespace ContextFreeGrammar
         /// <param name="states">The canonical LR(0) collection of LR(0) item sets.</param>
         /// <param name="transitions">The transitions of the LR(0) automaton (GOTO successor function in dragon book)</param>
         /// <param name="reduceOnTerminalSymbols">
-        /// Lambda to compute the set of valid (follow, lookahead) terminal symbols of a completed (reduce) item --- the parser
+        /// Lambda to compute the set of valid lookahead terminal symbols of a completed (reduce) item --- the parser
         /// will perform a reduction of the recognized handle of the reduce item, if the lookahead token belongs to the computed set.
+        /// The lambda will compute the lookahead set based on the state of the LR(k) automaton, and the production index of the reduction.
         /// </param>
         /// <returns>The entries of the ACTION and GOTO tables of a shift-reduce parser.</returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private (IEnumerable<LrActionEntry<TTerminalSymbol>>, IEnumerable<LrGotoEntry<TNonterminalSymbol>>) ComputeParsingTableData(
             IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
             List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions,
-            Func<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, IEnumerable<TTerminalSymbol>> reduceOnTerminalSymbols
+            Func<int, int, IEnumerable<TTerminalSymbol>> reduceOnTerminalSymbols
             )
         {
             var actionTableEntries = new List<LrActionEntry<TTerminalSymbol>>();
             var gotoTableEntries = new List<LrGotoEntry<TNonterminalSymbol>>();
 
-            // renaming all LR(k) item sets to integer states
-            var indexMap = new Dictionary<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, int>(capacity: states.Count);
-            int stateIndex = 0;
-            foreach (ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> state in states)
-            {
-                indexMap.Add(state, stateIndex);
-                stateIndex += 1;
-            }
-
             // NOTE: Important that shift/goto actions are inserted (configured) before
             //       reduce actions in the action table (conflict resolution).
 
-            // Shift and Goto actions (directly from the transitions of the LR(0) automaton).
-            // TODO: My guess is these are the same across all LR methods????!!!!????
+            // Shift and Goto actions (directly from the transitions of the LR(k) automaton).
+            // In case of LR(0) automaton, the shift/goto actions are not up for debate. Only the
+            // reduce actions can be configured differently depending on the method:
+            //          LR(0)     -- reduce for all lookahead symbols (i.e. no lookahead)
+            //          SLR(1)    -- reduce for LA(A → β•) = Follow(β)
+            //          LALR(1)   -- reduce for LA(q, A → β•) = LA(q,A) = U { Follow(p,A) | in all 'lookback' states (p,A) of (q, A → β•) }
             foreach (var move in transitions)
             {
-                int source = indexMap[move.SourceState];
-                int target = indexMap[move.TargetState];
+                int source = states.IndexOf(move.SourceState);
+                int target = states.IndexOf(move.TargetState);
 
                 if (move.Label.IsTerminal)
                 {
@@ -341,26 +364,25 @@ namespace ContextFreeGrammar
                 }
             }
 
-            // Reduce actions differ between different LR methods (SLR strategy uses FOLLOW(A) below)
-            // TODO: My guess is these differ between different LR methods????!!!!????
+            int stateIndex = 0; // states variable is an ordered set and therefore we can simulate the index without doing any lookup
             foreach (ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> itemSet in states)
             {
-                // If [A → α•, L] is in LR(k) item set, then set action[s, a] to 'reduce A → α•' (where A is not S')
-                //      for all a ∈ T ∪ {$}         (LR(0) table of no lookahead)
-                //      for all a ∈ FOLLOW(A)       (SLR(1) table with follow set condition)
-                //      for all a ∈ L               (LR(1) table with lookahead set condition)
+                //  Reduce actions differ between different LR methods
+                //      If a ∈ LA(s, A → α•), then set action[s, a] to 'reduce A → α•' (where A is not S')
+                //          for all a ∈ T ∪ {$}            (LR(0) table of no lookahead)
+                //          for all a ∈ FOLLOW(A)           (SLR(1) table with Follow set condition)
+                //          for all a ∈ LA(q, A → α•)       (LALR(1) table with LR(0)-LA-Union-Pred-StateTerminal-Follow set condition)
+                //          for all a ∈ L of [A → α•, L]    (LR(1) table with LR(1)-item-set-lookahead set condition)
                 if (itemSet.IsReduceAction)
                 {
-                    // choose reductions with lowest index in reduce/reduce conflict resolution
-                    foreach (ProductionItem<TNonterminalSymbol, TTerminalSymbol> reduceItem in
-                        itemSet.ReduceItems.OrderBy(item => item.ProductionIndex))
+                    // We order by production index, because we reduce with the production that comes first in
+                    // the grammar specification in case of any reduce/reduce conflicts (standard conflict resolution).
+                    foreach (var reduceItem in itemSet.ReduceItems)
                     {
-                        var state = indexMap[itemSet];
-                        // LR(0), SLR(1) and LR(1) grammar rules are supported here
-                        foreach (var terminal in reduceOnTerminalSymbols(reduceItem))
+                        foreach (var terminal in reduceOnTerminalSymbols(stateIndex, reduceItem.ProductionIndex))
                         {
                             var reduceAction = LrAction.Reduce(reduceItem.ProductionIndex);
-                            actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(state, terminal, reduceAction));
+                            actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(stateIndex, terminal, reduceAction));
                         }
                     }
                 }
@@ -368,18 +390,17 @@ namespace ContextFreeGrammar
                 // If S' → S• is in LR(0) item set, then set action[s, $] to accept
                 if (itemSet.IsAcceptAction)
                 {
-                    // NOTE: Only if the grammar is augmented with S' → S$ (i.e. EOF marker added
-                    // to augmented rule) then we can be sure that the accept action item set has
-                    // the EOF marked symbol ($) as the spelling property.
-                    //      Debug.Assert(itemSet.BeforeDotSpellingSymbol.Equals(Symbol.Eof<TTerminalSymbol>()));
-                    actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(indexMap[itemSet],
+                    actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(stateIndex,
                         Symbol.Eof<TTerminalSymbol>(), LrAction.Accept));
                 }
+
+                stateIndex += 1;
             }
 
             return (actionTableEntries, gotoTableEntries);
         }
 
+        // NOTE: This is the definition of LALR(1) lookahead sets, but as an algorithm is highly inefficient.
         // NOTE: It is common for LR(1) item sets to have identical first components (i.e. identical LR(0) items),
         //       and only differ w.r.t different lookahead symbols (the second component). In construction of LALR(1) we
         //       will look for different LR(1) items having the same (kernel) LR(0) items, and merge these into new union

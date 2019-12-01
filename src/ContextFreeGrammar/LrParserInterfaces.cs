@@ -33,7 +33,7 @@ namespace ContextFreeGrammar
         /// Get the new state to push to the stack after the top of the stack handle have been reduced.
         /// </summary>
         /// <param name="state">
-        /// The state of top of the stack after popping a handle off the stack (i.e. the state of the LR(0) automaton just
+        /// The state of top of the stack after popping a handle off the stack (i.e. the state of the LR(k) automaton just
         /// before entering the state of the beginning of the recognized handle substring).
         /// </param>
         /// <param name="variable">
@@ -43,10 +43,10 @@ namespace ContextFreeGrammar
         int Goto(int state, TNonterminalSymbol variable);
 
         /// <summary>
-        /// Get the LR(0) item set (of the canonical LR(0) collection) behind some integer state.
+        /// Get the LR(k) item set (of the canonical LR(k) collection) behind some integer state.
         /// </summary>
         /// <param name="state">The integer state.</param>
-        /// <returns>The LR(0) item set (aka items).</returns>
+        /// <returns>The LR(k) item set (aka items).</returns>
         ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> GetItems(int state);
 
         /// <summary>
@@ -88,6 +88,6 @@ namespace ContextFreeGrammar
         /// Get the sequence of states 0,1,2,...,maxState
         /// </summary>
         /// <returns></returns>
-        IEnumerable<int> GetStates();
+        IEnumerable<int> GetStates(); // TODO: States should be equivalent to DFA states
     }
 }
