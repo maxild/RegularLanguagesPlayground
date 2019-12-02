@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using YyNameSpace; // Can we change this to CsLexerRepl.Lexers?
+using CsLexerRepl.Lexers;
 
 namespace CsLexerRepl
 {
@@ -12,10 +12,13 @@ namespace CsLexerRepl
             if (args.Length > 0)
             {
                 input = new StreamReader(new FileStream(args[0], FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 8192));
-                Yylex yy = new Yylex(input);
-                Yytoken t;
-                while ((t = yy.yylex()) != null)
+                var lexer = new SampleLexer(input);
+                while (true)
+                {
+                    var t = lexer.GetNextToken();
+                    if (t.Symbol == Symbol.EOF) break;
                     Console.WriteLine(t);
+                }
             }
             else
             {
@@ -27,10 +30,13 @@ namespace CsLexerRepl
                     var s = Console.ReadLine() ?? string.Empty;
                     if (s == "q") break;
                     input = new StringReader(s);
-                    Yylex yy = new Yylex(input);
-                    Yytoken t;
-                    while ((t = yy.yylex()) != null)
+                    var lexer = new SampleLexer(input);
+                    while (true)
+                    {
+                        var t = lexer.GetNextToken();
+                        if (t.Symbol == Symbol.EOF) break;
                         Console.WriteLine(t);
+                    }
                 }
             }
 

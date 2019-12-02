@@ -12,7 +12,7 @@ class Utility {
 }
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
-enum Token
+enum Symbol
 {
     UNKNOWN = 0,
     // Simple tokens
@@ -47,42 +47,38 @@ enum Token
     TEXT,
     TEXT_UNCLOSED,
     NUMBER,
-    IDENTIFIER
+    IDENTIFIER,
+    // Reserved terminal symbols
+    EPSILON,
+    EOF
 }
 
-class Yytoken
+interface ILexer
 {
-    internal Yytoken(
-        Token token,
+    Token GetNextToken();
+}
+
+// default name is Yytoken, but changed to Token with %class directive
+class Token
+{
+    public static readonly Token EPSILON = new Token(Symbol.EPSILON, string.Empty, 0, 0, 0);
+    public static readonly Token EOF = new Token(Symbol.EOF, string.Empty, 0, 0, 0);
+
+    internal Token(
+        Symbol symbol,
         string text,
         int line,
         int charBegin,
         int charEnd)
     {
-        Index = (int)token - 1; // TODO: Change this later...
+        Symbol = symbol;
         Text = text;
         Line = line;
         CharBegin = charBegin;
         CharEnd = charEnd;
     }
 
-    internal Yytoken(
-        int index,
-        string text,
-        int line,
-        int charBegin,
-        int charEnd)
-    {
-        Index = index;
-        Text = text;
-        Line = line;
-        CharBegin = charBegin;
-        CharEnd = charEnd;
-    }
-
-    public int Index { get; }
-
-    public string Id => Enum.GetName(typeof(Token), Index + 1) ?? "UNKNOWN";
+    public Symbol Symbol { get; }
 
     /// <summary>
     /// The lexeme (text value) recognized by the lexer.
@@ -95,7 +91,7 @@ class Yytoken
 
     public override string ToString()
     {
-        return "Token (#" + Index + "," + Id + "): " + Text  + " (Line " + Line + ")";
+        return "Token (" + Symbol + "): " + Text  + " (Line " + Line + ")";
     }
 }
 
@@ -109,10 +105,20 @@ class Yytoken
 %char
 %state COMMENT
 
+%namespace CsLexerRepl.Lexers
+%class SampleLexer
+%implements ILexer
+%function GetNextToken
+%type Token
+
+%eofval{
+return Token.EOF;
+%eofval}
+
 ALPHA=[A-Za-z]
 DIGIT=[0-9]
 BACKSLASH=(\\)
-NEWLINE=((\r\n)|\n)
+NEWLINE=((\r\n?)|\n)
 NON_NEWLINE_WHITE_SPACE_CHAR=[\ \t\b\012]
 WHITE_SPACE_CHAR=[{NEWLINE}\ \t\b\012]
 STRING_TEXT=(\\\"|[^{NEWLINE}\"]|\\{WHITE_SPACE_CHAR}+\\)*
@@ -120,33 +126,33 @@ COMMENT_TEXT=([^*/\r\n]|[^*\r\n]"/"[^*\r\n]|[^/\r\n]"*"[^/\r\n]|"*"[^/\r\n]|"/"[
 
 %%
 
-<YYINITIAL> "," { return (new Yytoken(Token.COMMA,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> ":" { return (new Yytoken(Token.COLON,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> ";" { return (new Yytoken(Token.SEMICOLON,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "(" { return (new Yytoken(Token.LEFT_PARAN,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> ")" { return (new Yytoken(Token.RIGHT_PARAN,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "[" { return (new Yytoken(Token.LEFT_SQUARE_BRACKET,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "]" { return (new Yytoken(Token.RIGHT_SQUARE_BRACKET,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "{" { return (new Yytoken(Token.LEFT_CURLY_BRACE,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "}" { return (new Yytoken(Token.RIGHT_CURLY_BRACE,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "." { return (new Yytoken(Token.PERIOD,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "+" { return (new Yytoken(Token.PLUS,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "-" { return (new Yytoken(Token.MINUS,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "*" { return (new Yytoken(Token.ASTERISK,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "/" { return (new Yytoken(Token.SLASH,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> {BACKSLASH} { return (new Yytoken(Token.BACKSLASH,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "=" { return (new Yytoken(Token.ASSIGNMENT,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "==" { return (new Yytoken(Token.EQUAL,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "<>" { return (new Yytoken(Token.NOT_EQUAL,yytext(),yyline,yychar,yychar+2)); }
-<YYINITIAL> "<"  { return (new Yytoken(Token.LT,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "<=" { return (new Yytoken(Token.LTE,yytext(),yyline,yychar,yychar+2)); }
-<YYINITIAL> ">"  { return (new Yytoken(Token.GT,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> ">=" { return (new Yytoken(Token.GTE,yytext(),yyline,yychar,yychar+2)); }
-<YYINITIAL> "&"  { return (new Yytoken(Token.AMPERSAND,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "&&"  { return (new Yytoken(Token.AND,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "|"  { return (new Yytoken(Token.PIPE,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> "||"  { return (new Yytoken(Token.OR,yytext(),yyline,yychar,yychar+1)); }
-<YYINITIAL> ":=" { return (new Yytoken(Token.PASCAL_ASSIGNMENT,yytext(),yyline,yychar,yychar+2)); }
+<YYINITIAL> "," { return (new Token(Symbol.COMMA,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> ":" { return (new Token(Symbol.COLON,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> ";" { return (new Token(Symbol.SEMICOLON,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "(" { return (new Token(Symbol.LEFT_PARAN,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> ")" { return (new Token(Symbol.RIGHT_PARAN,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "[" { return (new Token(Symbol.LEFT_SQUARE_BRACKET,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "]" { return (new Token(Symbol.RIGHT_SQUARE_BRACKET,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "{" { return (new Token(Symbol.LEFT_CURLY_BRACE,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "}" { return (new Token(Symbol.RIGHT_CURLY_BRACE,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "." { return (new Token(Symbol.PERIOD,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "+" { return (new Token(Symbol.PLUS,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "-" { return (new Token(Symbol.MINUS,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "*" { return (new Token(Symbol.ASTERISK,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "/" { return (new Token(Symbol.SLASH,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> {BACKSLASH} { return (new Token(Symbol.BACKSLASH,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "=" { return (new Token(Symbol.ASSIGNMENT,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "==" { return (new Token(Symbol.EQUAL,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "<>" { return (new Token(Symbol.NOT_EQUAL,yytext(),yyline,yychar,yychar+2)); }
+<YYINITIAL> "<"  { return (new Token(Symbol.LT,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "<=" { return (new Token(Symbol.LTE,yytext(),yyline,yychar,yychar+2)); }
+<YYINITIAL> ">"  { return (new Token(Symbol.GT,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> ">=" { return (new Token(Symbol.GTE,yytext(),yyline,yychar,yychar+2)); }
+<YYINITIAL> "&"  { return (new Token(Symbol.AMPERSAND,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "&&"  { return (new Token(Symbol.AND,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "|"  { return (new Token(Symbol.PIPE,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> "||"  { return (new Token(Symbol.OR,yytext(),yyline,yychar,yychar+1)); }
+<YYINITIAL> ":=" { return (new Token(Symbol.PASCAL_ASSIGNMENT,yytext(),yyline,yychar,yychar+2)); }
 
 <YYINITIAL> {NON_NEWLINE_WHITE_SPACE_CHAR}+ { return null; }
 
@@ -170,22 +176,22 @@ COMMENT_TEXT=([^*/\r\n]|[^*\r\n]"/"[^*\r\n]|[^/\r\n]"*"[^/\r\n]|"*"[^/\r\n]|"/"[
 <YYINITIAL> \"{STRING_TEXT}\" {
     string str =  yytext().Substring(1,yytext().Length - 2);
     Utility.Assert(str.Length == yytext().Length - 2);
-    return (new Yytoken(Token.TEXT,str,yyline,yychar,yychar + str.Length));
+    return (new Token(Symbol.TEXT,str,yyline,yychar,yychar + str.Length));
 }
 
 <YYINITIAL> \"{STRING_TEXT} {
     string str =  yytext().Substring(1,yytext().Length - 1);
     Console.WriteLine("Error: Unclosed string.");
     Utility.Assert(str.Length == yytext().Length - 1);
-    return (new Yytoken(Token.TEXT_UNCLOSED,str,yyline,yychar,yychar + str.Length));
+    return (new Token(Symbol.TEXT_UNCLOSED,str,yyline,yychar,yychar + str.Length));
 }
 
 <YYINITIAL> {DIGIT}+ {
-    return (new Yytoken(Token.NUMBER,yytext(),yyline,yychar,yychar + yytext().Length));
+    return (new Token(Symbol.NUMBER,yytext(),yyline,yychar,yychar + yytext().Length));
 }
 
 <YYINITIAL> {ALPHA}({ALPHA}|{DIGIT}|_)* {
-    return (new Yytoken(Token.IDENTIFIER,yytext(),yyline,yychar,yychar + yytext().Length));
+    return (new Token(Symbol.IDENTIFIER,yytext(),yyline,yychar,yychar + yytext().Length));
 }
 
 <YYINITIAL,COMMENT> . {
@@ -204,5 +210,5 @@ COMMENT_TEXT=([^*/\r\n]|[^*\r\n]"/"[^*\r\n]|[^/\r\n]"*"[^/\r\n]|"*"[^/\r\n]|"/"[
     sb.Append(">");
     Console.WriteLine(sb.ToString());
     Console.WriteLine("Error: Illegal character.");
-    return new Yytoken(Token.UNKNOWN,yytext(),yyline,yychar,yychar + yytext().Length);
+    return new Token(Symbol.UNKNOWN,yytext(),yyline,yychar,yychar + yytext().Length);
 }
