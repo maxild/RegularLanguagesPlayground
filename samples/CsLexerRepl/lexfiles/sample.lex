@@ -110,10 +110,8 @@ class Token
 %implements ILexer
 %function GetNextToken
 %type Token
-
-%eofval{
-return Token.EOF;
-%eofval}
+%eof Token<Sym>.EOF
+%epsilon Token<Sym>.EPSILON
 
 ALPHA=[A-Za-z]
 DIGIT=[0-9]
@@ -154,13 +152,13 @@ COMMENT_TEXT=([^*/\r\n]|[^*\r\n]"/"[^*\r\n]|[^/\r\n]"*"[^/\r\n]|"*"[^/\r\n]|"/"[
 <YYINITIAL> "||"  { return (new Token(Symbol.OR,yytext(),yyline,yychar,yychar+1)); }
 <YYINITIAL> ":=" { return (new Token(Symbol.PASCAL_ASSIGNMENT,yytext(),yyline,yychar,yychar+2)); }
 
-<YYINITIAL> {NON_NEWLINE_WHITE_SPACE_CHAR}+ { return null; }
+<YYINITIAL> {NON_NEWLINE_WHITE_SPACE_CHAR}+ { return Token.EPSILON; }
 
-<YYINITIAL,COMMENT> [(\r\n?|\n)] { return null; }
+<YYINITIAL,COMMENT> [(\r\n?|\n)] { return Token.EPSILON; }
 
-<YYINITIAL> "/*" { yybegin(COMMENT); comment_count = comment_count + 1; return null; }
+<YYINITIAL> "/*" { yybegin(COMMENT); comment_count = comment_count + 1; Token.EPSILON; }
 
-<COMMENT> "/*" { comment_count = comment_count + 1; return null; }
+<COMMENT> "/*" { comment_count = comment_count + 1; Token.EPSILON }
 <COMMENT> "*/" {
     comment_count = comment_count - 1;
     Utility.Assert(comment_count >= 0);
@@ -168,10 +166,10 @@ COMMENT_TEXT=([^*/\r\n]|[^*\r\n]"/"[^*\r\n]|[^/\r\n]"*"[^/\r\n]|"*"[^/\r\n]|"/"[
     {
         yybegin(YYINITIAL);
     }
-    return null;
+    return Token.EPSILON;
 }
 
-<COMMENT> {COMMENT_TEXT} { return null; }
+<COMMENT> {COMMENT_TEXT} { return Token.EPSILON; }
 
 <YYINITIAL> \"{STRING_TEXT}\" {
     string str =  yytext().Substring(1,yytext().Length - 2);

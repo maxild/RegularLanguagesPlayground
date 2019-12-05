@@ -353,6 +353,7 @@ namespace CLI.TestDriver.Parsers
             // S → E$ (clever start symbol that enforces $-end-of-string convention)
             Regex ParseS()
             {
+                // S → E  { $$ = $1 }
                 var regex = ParseE();
                 Match(DOLLAR);
                 return regex;
@@ -364,6 +365,9 @@ namespace CLI.TestDriver.Parsers
                 // Is input in FIRST(E)
                 if (input == OP || input == LETTER_a || input == LETTER_b || input == EPS)
                 {
+                    // The rules before left-factorization shows what we are trying to synthesize:
+                    //     E → E + T    { $$ = new Alt($1, $2); }
+                    //       | T        { $$ = $1; }
                     var regex = ParseT();
                     return ParseEP(regex);
                 }
@@ -376,6 +380,7 @@ namespace CLI.TestDriver.Parsers
 
             // optional part of E (union expression, if any SUM terminal is found)
             // E' → +TE' | epsilon
+            // NOTE: The production E' → +TE' is missing its left operand of the union, so we pass the left operand to E'
             Regex ParseEP(Regex lhs)
             {
                 // Is input in FIRST(E')
@@ -404,6 +409,9 @@ namespace CLI.TestDriver.Parsers
                 // Is input in FIRST(T)
                 if (input == OP || input == LETTER_a || input == LETTER_b || input == EPS)
                 {
+                    // The rules before left-factorization shows what we are trying to synthesize:
+                    //  T → TF  { $$ = new Seq($1, $2); }
+                    //    | F   { $$ = $1; }
                     var lhs = ParseF();
                     return ParseTP(lhs);
                 }
@@ -414,8 +422,8 @@ namespace CLI.TestDriver.Parsers
                 }
             }
 
-            // optional part of T (product expression, if any terminal to be concatenated is found)
             // T' → FT' | epsilon
+            // NOTE: The production T' → FT' is missing its left operand of the concatenation, so we pass the left operand to T'
             Regex ParseTP(Regex lhs)
             {
                 // Is input in FIRST(TP)
@@ -457,10 +465,13 @@ namespace CLI.TestDriver.Parsers
                 }
             }
 
-            // optional part of Factor
             // F' → *F' | epsilon
+            // NOTE: The production F' → *F' is missing its single/left operand of kleene star, so we pass the left operand to F'
             Regex ParseFP(Regex lhs)
             {
+                // The rules before left-factorization shows what we are trying to synthesize:
+                // F → F*   { $$ = new Star($1); }
+                //   | P    { $$ = $1; }
                 if (input == STAR)
                 {
                     // TODO: a** == a*
@@ -481,7 +492,10 @@ namespace CLI.TestDriver.Parsers
                 }
             }
 
-            // P → (E) | a | b | 'ep'
+            // P → (E)   { $$ = ParseE(); }
+            //   | a     { $$ = new Sym($1); }
+            //   | b     { $$ = new Sym($1); }
+            //   | 'ep'  { $$ = new Eps(); }
             Regex ParseP()
             {
                 if (input == OP)
