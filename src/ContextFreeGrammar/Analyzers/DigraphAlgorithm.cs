@@ -15,17 +15,15 @@ namespace ContextFreeGrammar.Analyzers
     public static class DigraphAlgorithm
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (ImmutableArray<IReadOnlySet<TTerminalSymbol>> INITFIRST, IGraph Graph) GetFirstGraph<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IErasableSymbolsAnalyzer analyzer)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFIRST, IGraph Graph) GetFirstGraph<TTokenKind>(
+            Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer) where TTokenKind : Enum
         {
             // direct contributions: initial first sets (INITFIRST)
             //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
             //for (int i = 0; i < initSets.Length; i += 1)
             //    initSets[i] = new Set<TTerminalSymbol>();
             var initSets = Enumerable.Range(0, grammar.Variables.Count)
-                .Select(_ => new Set<TTerminalSymbol>()) // empty sets
+                .Select(_ => new Set<Terminal<TTokenKind>>()) // empty sets
                 .ToImmutableArray();
 
             // indirect contributions: superset relations between nonterminals
@@ -39,12 +37,12 @@ namespace ContextFreeGrammar.Analyzers
                 foreach (var Yi in production.Tail)
                 {
                     // direct contribution: A → αaβ, where α *=> ε and a ∈ T
-                    if (Yi is TTerminalSymbol a)
+                    if (Yi is Terminal<TTokenKind> a)
                         initSets[Aix].Add(a); // we break below when seeing terminal symbol
 
                     // indirect (recursive) contribution (ignoring self-loops):
                     //       A → αBβ, where α *=> ε and B ∈ N, and B ≠ A
-                    if (Yi is TNonterminalSymbol B)
+                    if (Yi is Nonterminal B)
                     {
                         var Bix = grammar.Variables.IndexOf(B);
                         if (Aix != Bix)
@@ -59,23 +57,30 @@ namespace ContextFreeGrammar.Analyzers
 
             var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_first_set_of);
 
-            return (ImmutableArray<IReadOnlySet<TTerminalSymbol>>.CastUp(initSets), graph);
+            return (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>>.CastUp(initSets), graph);
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (ImmutableArray<IReadOnlySet<TTerminalSymbol>> INITFOLLOW, IGraph Graph) GetFollowGraph<TNonterminalSymbol,
-            TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFOLLOW, IGraph Graph) GetFollowGraph<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            IFirstSymbolsAnalyzer<TTokenKind> analyzer
+            ) where TTokenKind : Enum
         {
             // direct contributions: initial follow sets (INITFOLLOW)
             //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
             //for (int i = 0; i < initSets.Length; i += 1)
             //    initSets[i] = new Set<TTerminalSymbol>();
             var initSets = Enumerable.Range(0, grammar.Variables.Count)
-                .Select(_ => new Set<TTerminalSymbol>()) // empty sets
+                .Select(_ => new Set<Terminal<TTokenKind>>()) // empty sets
                 .ToImmutableArray();
+
+            // Ensure that INITFOLLOW(S) = {$}, _even_ if the grammar
+            // haven't been augmented with an eof marker.
+            if (!grammar.IsAugmentedWithEofMarker)
+            {
+                int indexOfS = grammar.Variables.IndexOf(grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>());
+                initSets[indexOfS].Add(Symbol.Eof<TTokenKind>());
+            }
 
             // indirect contributions: superset relations between nonterminals
             var contains_the_follow_set_of = new HashSet<(int, int)>(); // parallel edges
@@ -113,7 +118,7 @@ namespace ContextFreeGrammar.Analyzers
                 for (int i = 0; i < production.Length; i += 1)
                 {
                     // for each Yi that is a nonterminal symbol
-                    var Yi = production.TailAs<TNonterminalSymbol>(i);
+                    var Yi = production.TailAs<Nonterminal>(i);
                     if (Yi == null) continue;
                     // Look at the current tail
                     var beta = production.Tail.Skip(i + 1).ToArray();
@@ -130,7 +135,7 @@ namespace ContextFreeGrammar.Analyzers
 
             var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_follow_set_of);
 
-            return (ImmutableArray<IReadOnlySet<TTerminalSymbol>>.CastUp(initSets), graph);
+            return (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>>.CastUp(initSets), graph);
         }
 
         // TODO: This simple DFS traversal can be optimized using Component Graph (SCCs)

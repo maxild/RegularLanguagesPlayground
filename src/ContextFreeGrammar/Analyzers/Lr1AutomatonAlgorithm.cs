@@ -9,10 +9,8 @@ namespace ContextFreeGrammar.Analyzers
     public static class Lr1AutomatonAlgorithm
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonNfa<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
-                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        public static LrItemNfa<TTokenKind> GetLr1AutomatonNfa<TTokenKind>(Grammar<TTokenKind> grammar)
+            where TTokenKind : Enum
         {
             if (!grammar.IsAugmented)
             {
@@ -28,14 +26,14 @@ namespace ContextFreeGrammar.Analyzers
             //
 
             // The start state is [S' → •S, $]
-            var startItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(grammar.Productions[0], 0, 0, Symbol.Eof<TTerminalSymbol>());
+            var startItem = new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0, Symbol.Eof<TTokenKind>());
 
-            var transitions = new List<Transition<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>>();
-            var acceptItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
+            var transitions = new List<Transition<Symbol, ProductionItem<TTokenKind>>>();
+            var acceptItems = new List<ProductionItem<TTokenKind>>();
 
-            var states = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(startItem.AsSingletonEnumerable());
+            var states = new HashSet<ProductionItem<TTokenKind>>(startItem.AsSingletonEnumerable());
 
-            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
+            var worklist = new Queue<ProductionItem<TTokenKind>>();
             worklist.Enqueue(startItem);
 
             // (a) For every terminal a ∈ T, if [A → α•aβ, b] is a marked production, then
@@ -53,7 +51,7 @@ namespace ContextFreeGrammar.Analyzers
                 // (a) [A → α•aβ, b] --a--> [A → αa•β, b]
                 if (item.IsShiftItem)
                 {
-                    Symbol a = item.GetDotSymbol<Terminal>();
+                    Symbol a = item.GetDotSymbol<Terminal<TTokenKind>>();
                     var shiftToItem = item.WithShiftedDot();
                     if (states.Add(shiftToItem))
                     {
@@ -65,7 +63,7 @@ namespace ContextFreeGrammar.Analyzers
                 // (b) [A → α•Bβ, b] (with new CLOSURE function, because of lookahead)
                 if (item.IsGotoItem)
                 {
-                    var B = item.GetDotSymbol<TNonterminalSymbol>();
+                    var B = item.GetDotSymbol<Nonterminal>();
                     var gotoItem = item.WithShiftedDot();
                     if (states.Add(gotoItem))
                     {
@@ -80,16 +78,16 @@ namespace ContextFreeGrammar.Analyzers
                         // is the same as expecting to see any grammar symbols 'γ' followed by lookahead
                         // symbol 'a' of [B → γ, a], where a ∈ FIRST(βb) and 'B → γ' is a production ∈ P.
                         Symbol b = item.Lookaheads.Single();
-                        foreach (TTerminalSymbol a in grammar.First(item.GetRemainingSymbolsAfterDotSymbol().ConcatItem(b)))
+                        foreach (Terminal<TTokenKind> a in grammar.First(item.GetRemainingSymbolsAfterDotSymbol().ConcatItem(b)))
                         {
                             // [B → γ, a]
-                            var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(productionOfB, index, 0, a);
+                            var closureItem = new ProductionItem<TTokenKind>(productionOfB, index, 0, a);
                             if (states.Add(closureItem))
                             {
                                 worklist.Enqueue(closureItem);
                             }
                             transitions.Add(
-                                Transition.EpsilonMove<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(item, closureItem));
+                                Transition.EpsilonMove<Symbol, ProductionItem<TTokenKind>>(item, closureItem));
                         }
                     }
                 }
@@ -101,46 +99,44 @@ namespace ContextFreeGrammar.Analyzers
                 }
             }
 
-            return new Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol>(transitions, startItem, acceptItems);
+            return new LrItemNfa<TTokenKind>(transitions, startItem, acceptItems);
         }
 
-        public static Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
-            IEnumerable<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions)
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        public static LrItemsDfa<TTokenKind> GetLr1AutomatonDfa<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
+            IEnumerable<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
+            ) where TTokenKind : Enum
         {
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
             // NOTE: This DFA representation always need to have a so called dead state (0),
             // and {1,2,...,N} are therefore the integer values of the actual states.
-            return new Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol>(states, grammar.Symbols,
+            return new LrItemsDfa<TTokenKind>(states, grammar.Symbols,
                 transitions, states[0], acceptStates);
         }
 
         // NOTE: LR(1) items have merged lookahead sets in order for LR(1) item sets (i.e. states) to have the minimal number of LR(1) items
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static (
-            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
-            List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions
+            IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
+            List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
             )
-            ComputeLr1AutomatonData<TNonterminalSymbol, TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            ComputeLr1AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : Enum
         {
-            ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> startItemSet =
-                Closure(grammar, new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(grammar.Productions[0], 0, 0,
-                    Symbol.Eof<TTerminalSymbol>()).AsSingletonEnumerable());
+            ProductionItemSet<TTokenKind> startItemSet =
+                Closure(grammar,
+                    new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0, Symbol.Eof<TTokenKind>())
+                        .AsSingletonEnumerable());
 
             // states (aka LR(k) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
-            var states = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
-            var transitions = new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
+            var states = new InsertionOrderedSet<ProductionItemSet<TTokenKind>>(startItemSet.AsSingletonEnumerable());
+            var transitions = new List<Transition<Symbol, ProductionItemSet<TTokenKind>>>();
 
-            var worklist = new Queue<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>(startItemSet.AsSingletonEnumerable());
+            var worklist = new Queue<ProductionItemSet<TTokenKind>>(startItemSet.AsSingletonEnumerable());
             while (worklist.Count > 0)
             {
-                ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> sourceState = worklist.Dequeue();
+                ProductionItemSet<TTokenKind> sourceState = worklist.Dequeue();
                 // For each successor item pair (X, { [A → αX•β, b], where the item [A → α•Xβ, b] is in the predecessor item set}),
                 // where [A → αX•β, b] is a kernel successor item on some grammar symbol X in V, where V := N U T
                 foreach (var kernelSuccessorItems in sourceState.GetTargetItems())
@@ -148,7 +144,7 @@ namespace ContextFreeGrammar.Analyzers
                     // For each transition grammar symbol (label on the transition/edge in the graph)
                     var X = kernelSuccessorItems.Key; // can be either terminal (goto) or nonterminal (shift/read)
                     // Get the closure of all the kernel successor items A → αX•β that we can move/transition to in the graph
-                    ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> targetState = Closure(grammar, kernelSuccessorItems);
+                    ProductionItemSet<TTokenKind> targetState = Closure(grammar, kernelSuccessorItems);
                     transitions.Add(Transition.Move(sourceState, X, targetState));
                     if (!states.Contains(targetState))
                     {
@@ -168,20 +164,19 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private static ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> Closure<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> kernelItems)
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        private static ProductionItemSet<TTokenKind> Closure<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            IEnumerable<ProductionItem<TTokenKind>> kernelItems
+            ) where TTokenKind : Enum
         {
-            var closure = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(kernelItems);
+            var closure = new HashSet<ProductionItem<TTokenKind>>(kernelItems);
 
-            var worklist = new Queue<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>(kernelItems);
+            var worklist = new Queue<ProductionItem<TTokenKind>>(kernelItems);
             while (worklist.Count != 0)
             {
-                ProductionItem<TNonterminalSymbol, TTerminalSymbol> item = worklist.Dequeue();
+                ProductionItem<TTokenKind> item = worklist.Dequeue();
                 // B is the next symbol (that must be a nonterminal symbol)
-                var B = item.TryGetDotSymbol<TNonterminalSymbol>();
+                var B = item.TryGetDotSymbol<Nonterminal>();
                 if (B == null) continue;
                 // If item is a GOTO item of the form [A → α•Bβ, b], where B ∈ T,
                 // then find all its closure items [B → γ, a], where a ∈ FIRST(βb)
@@ -197,15 +192,16 @@ namespace ContextFreeGrammar.Analyzers
                 // Because 'merged' items can have lookahead sets with many terminal symbols we have to
                 // calculate the union of all FIRST(βb) for every b ∈ L, where L is the lookahead
                 // set of item [A → α•Bβ, L]
-                var lookaheads = item.Lookaheads.Aggregate(new Set<TTerminalSymbol>(), (l, b) => l.UnionWith(grammar.First(beta.ConcatItem(b))));
+                var lookaheads = item.Lookaheads.Aggregate(new Set<Terminal<TTokenKind>>(),
+                    (l, b) => l.UnionWith(grammar.First(beta.ConcatItem(b))));
                 //var lookaheads = item.Lookaheads.Select(b => FIRST(beta.ConcatItem(b))).ToUnionSet();
 
                 foreach (var (index, production) in grammar.ProductionsFor[B])
                 {
-                    foreach (TTerminalSymbol a in lookaheads)
+                    foreach (Terminal<TTokenKind> a in lookaheads)
                     {
                         // [B → •γ, a]
-                        var closureItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(production, index, 0, a);
+                        var closureItem = new ProductionItem<TTokenKind>(production, index, 0, a);
                         if (!closure.Contains(closureItem))
                         {
                             closure.Add(closureItem);
@@ -221,13 +217,13 @@ namespace ContextFreeGrammar.Analyzers
             // represented by a single LR(1) item with lookahead symbols defined by the union of the merged items.
             var closureWithMergedItems =
                 from lookaheadsOfMarkedProduction in closure.ToLookup(x => x.MarkedProduction, x => x.Lookaheads)
-                let firstItem = new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(
+                let firstItem = new ProductionItem<TTokenKind>(
                     markedProduction: lookaheadsOfMarkedProduction.Key,
                     lookaheads: lookaheadsOfMarkedProduction.First())
                 select lookaheadsOfMarkedProduction.Skip(1).Aggregate(firstItem,
                     (nextItem, lookaheads) => nextItem.WithUnionLookaheads(lookaheads));
 
-            return new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(closureWithMergedItems);
+            return new ProductionItemSet<TTokenKind>(closureWithMergedItems);
         }
     }
 }

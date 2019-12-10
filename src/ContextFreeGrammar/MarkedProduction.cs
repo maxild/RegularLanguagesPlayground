@@ -12,14 +12,13 @@ namespace ContextFreeGrammar
     /// CORE of an LR(k) item. That is the LR(0) item part, where the lookahead part is dropped.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct MarkedProduction<TNonterminalSymbol> : IEquatable<MarkedProduction<TNonterminalSymbol>>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    public struct MarkedProduction : IEquatable<MarkedProduction>
     {
         private string DebuggerDisplay => ToString();
         private const char DOT = '•'; // Bullet
 
         public MarkedProduction(
-            Production<TNonterminalSymbol> production,
+            Production production,
             int productionIndex,
             int markerPosition)
         {
@@ -41,7 +40,7 @@ namespace ContextFreeGrammar
             MarkerPosition = markerPosition;
         }
 
-        public Production<TNonterminalSymbol> Production { get; }
+        public Production Production { get; }
 
         public int ProductionIndex { get; }
 
@@ -51,13 +50,12 @@ namespace ContextFreeGrammar
         /// Get the successor item of a shift/goto action created by 'shifting the dot'.
         /// </summary>
         [Pure]
-        public MarkedProduction<TNonterminalSymbol> WithShiftedDot()
-            => new MarkedProduction<TNonterminalSymbol>(Production, ProductionIndex, MarkerPosition + 1);
+        public MarkedProduction WithShiftedDot()
+            => new MarkedProduction(Production, ProductionIndex, MarkerPosition + 1);
 
 
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> AsLr0Item<TTerminalSymbol>()
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-                => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(this, Set<TTerminalSymbol>.Empty);
+        public ProductionItem<TTokenKind> AsLr0Item<TTokenKind>() where TTokenKind : Enum
+            => new ProductionItem<TTokenKind>(this, Set<Terminal<TTokenKind>>.Empty);
 
         /// <summary>
         /// Any item B → α•β where α is not ε (the empty string),
@@ -80,9 +78,9 @@ namespace ContextFreeGrammar
         /// of the LR(0) automaton to be (numbered) the same way for both S' → S and S' → S$.
         /// </summary>
         ///  <remarks>
-        /// For any reduce item the <see cref="DotSymbol"/> will be either <see cref="Symbol.Epsilon"/> or <see cref="Symbol.EofMarker"/>.
+        /// For any reduce item the <see cref="DotSymbol"/> will be either <see cref="Symbol.Epsilon"/> or <see cref="Symbol.Eof{TTokenKind}"/>.
         /// For all 'semantic' reductions the <see cref="DotSymbol"/> will be <see cref="Symbol.Epsilon"/>, and for the augmented reduce item
-        /// the <see cref="DotSymbol"/> will be <see cref="Symbol.EofMarker"/> by convention. Therefore one cannot use <see cref="DotSymbol"/>
+        /// the <see cref="DotSymbol"/> will be <see cref="Symbol.Eof{TTokenKind}"/> by convention. Therefore one cannot use <see cref="DotSymbol"/>
         /// to test for the final item property, and all such tests should be based on <see cref="IsReduceItem"/>.
         /// </remarks>
         public bool IsReduceItem => MarkerPosition == Production.Tail.Count ||
@@ -95,7 +93,7 @@ namespace ContextFreeGrammar
         public bool IsGotoItem => DotSymbol.IsNonterminal;
 
         /// <summary>
-        /// B → α•aβ (where a is a terminal symbol -- that is not the <see cref="Symbol.EofMarker"/> symbol).
+        /// B → α•aβ (where a is a terminal symbol -- that is not the <see cref="Symbol.Eof{TTokenKind}"/> symbol).
         /// </summary>
         public bool IsShiftItem => DotSymbol.IsTerminal;
 
@@ -146,14 +144,14 @@ namespace ContextFreeGrammar
         public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol() => Production.GetSymbolsAfterMarkerPosition(MarkerPosition);
 
         [Pure]
-        public bool Equals(MarkedProduction<TNonterminalSymbol> other)
+        public bool Equals(MarkedProduction other)
         {
             return ProductionIndex == other.ProductionIndex && MarkerPosition == other.MarkerPosition;
         }
 
         public override bool Equals(object obj)
         {
-            return obj is MarkedProduction<TNonterminalSymbol> item && Equals(item);
+            return obj is MarkedProduction item && Equals(item);
         }
 
         public override int GetHashCode()
@@ -168,7 +166,7 @@ namespace ContextFreeGrammar
 
         public override string ToString()
         {
-            MarkedProduction<TNonterminalSymbol> self = this;
+            MarkedProduction self = this;
 
             StringBuilder dottedTail = self.Production.Tail
                 .Aggregate((i: 0, sb: new StringBuilder()),
@@ -177,6 +175,10 @@ namespace ContextFreeGrammar
                         if (t.i == self.MarkerPosition)
                         {
                             t.sb.Append(DOT);
+                        }
+                        else if (t.i > 0)
+                        {
+                            t.sb.Append(" ");
                         }
 
                         return (i: t.i + 1, sb: t.sb.Append(symbol.Name));

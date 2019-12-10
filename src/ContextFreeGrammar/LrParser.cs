@@ -78,11 +78,10 @@ namespace ContextFreeGrammar
     /// <summary>
     /// A specialization of a Deterministic Pushdown Automaton (DPDA) called a shift/reduce parser in compiler theory.
     /// </summary>
-    public class LrParser<TNonterminalSymbol, TTerminalSymbol> : IShiftReduceParser<TNonterminalSymbol, TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public class LrParser<TTokenKind> : IShiftReduceParser<TTokenKind>
+        where TTokenKind : Enum
     {
-        private readonly Grammar<TNonterminalSymbol, TTerminalSymbol> _grammar;
+        private readonly Grammar<TTokenKind> _grammar;
 
         // NOTE: This is sort of an adjacency matrix implementation of the two tables (ACTION and GOTO)
         //       where symbols (terminals and nonterminals) are translated to indices via hash tables
@@ -90,28 +89,30 @@ namespace ContextFreeGrammar
         //              GOTO table errors = 0 value of type 'int'
         //              ACTION table errors = LrAction.Error value of type 'LrAction'
 
-        private readonly IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> _originalStates;
+        private readonly IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> _originalStates;
 
-        private readonly Dictionary<TNonterminalSymbol, int> _nonterminalToIndex;
+        // TODO: Use index properties on grammar symbol instances
+
+        private readonly Dictionary<Nonterminal, int> _nonterminalToIndex;
         //private readonly TNonterminalSymbol[] _indexToNonterminal;
 
-        private readonly Dictionary<TTerminalSymbol, int> _terminalToIndex;
+        private readonly Dictionary<Terminal<TTokenKind>, int> _terminalToIndex;
         //private readonly TTerminalSymbol[] _indexToTerminal;
 
         private readonly int _maxState;
         private readonly int[,] _gotoTable;
         private readonly LrAction[,] _actionTable;
 
-        private readonly Dictionary<(int, TTerminalSymbol), LrConflict<TTerminalSymbol>> _conflictTable =
-            new Dictionary<(int, TTerminalSymbol), LrConflict<TTerminalSymbol>>();
+        private readonly Dictionary<(int, Terminal<TTokenKind>), LrConflict<TTokenKind>> _conflictTable =
+            new Dictionary<(int, Terminal<TTokenKind>), LrConflict<TTokenKind>>();
 
         public LrParser(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> originalStates,
-            IEnumerable<TNonterminalSymbol> nonterminalSymbols,
-            IEnumerable<TTerminalSymbol> terminalSymbols,
-            IEnumerable<LrActionEntry<TTerminalSymbol>> actionTableEntries,
-            IEnumerable<LrGotoEntry<TNonterminalSymbol>> gotoTableEntries
+            Grammar<TTokenKind> grammar,
+            IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> originalStates,
+            IEnumerable<Nonterminal> nonterminalSymbols,
+            IEnumerable<Terminal<TTokenKind>> terminalSymbols,
+            IEnumerable<LrActionEntry<TTokenKind>> actionTableEntries,
+            IEnumerable<LrGotoEntry> gotoTableEntries
             )
         {
             // TODO: states are numbered 0,1,...,N-1 when using ordered states set....Why not use DFA ordering 1,...,N in the parse tables???
@@ -123,19 +124,19 @@ namespace ContextFreeGrammar
 
             // Grammar variables (nonterminals)
             var indexToNonterminal = nonterminalSymbols.ToArray();
-            _nonterminalToIndex= new Dictionary<TNonterminalSymbol, int>();
+            _nonterminalToIndex= new Dictionary<Nonterminal, int>();
             for (int i = 0; i < indexToNonterminal.Length; i++)
                 _nonterminalToIndex[indexToNonterminal[i]] = i;
 
             // Grammar tokens (terminals)
             var indexToTerminal = terminalSymbols.ToArray();
-            _terminalToIndex= new Dictionary<TTerminalSymbol, int>();
+            _terminalToIndex= new Dictionary<Terminal<TTokenKind>, int>();
             for (int i = 0; i < indexToTerminal.Length; i++)
                 _terminalToIndex[indexToTerminal[i]] = i;
 
             // If EOF ($) is not defined as a valid token then we define it
-            if (!_terminalToIndex.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                _terminalToIndex[Symbol.Eof<TTerminalSymbol>()] = indexToTerminal.Length;
+            if (!_terminalToIndex.ContainsKey(Symbol.Eof<TTokenKind>()))
+                _terminalToIndex[Symbol.Eof<TTokenKind>()] = indexToTerminal.Length;
 
             _actionTable = new LrAction[_maxState + 1, _terminalToIndex.Count];
 
@@ -176,7 +177,7 @@ namespace ContextFreeGrammar
                     else
                     {
                         // add new conflict
-                        _conflictTable.Add((entry.State, entry.TerminalSymbol), new LrConflict<TTerminalSymbol>(
+                        _conflictTable.Add((entry.State, entry.TerminalSymbol), new LrConflict<TTokenKind>(
                             entry.State,
                             entry.TerminalSymbol,
                             new[]
@@ -203,13 +204,13 @@ namespace ContextFreeGrammar
         public int StartState { get; }
 
         /// <inheritdoc />
-        public TNonterminalSymbol StartSymbol => _grammar.Productions[StartState].Head;
+        public Nonterminal StartSymbol => _grammar.Productions[StartState].Head;
 
         /// <inheritdoc />
-        public IReadOnlyList<Production<TNonterminalSymbol>> Productions => _grammar.Productions;
+        public IReadOnlyList<Production> Productions => _grammar.Productions;
 
         /// <inheritdoc />
-        public ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> GetItems(int state)
+        public ProductionItemSet<TTokenKind> GetItems(int state)
         {
             return _originalStates[state];
         }
@@ -221,22 +222,22 @@ namespace ContextFreeGrammar
         }
 
         /// <inheritdoc />
-        public IEnumerable<TTerminalSymbol> TerminalSymbols => _terminalToIndex.Keys;
+        public IEnumerable<Terminal<TTokenKind>> TerminalSymbols => _terminalToIndex.Keys;
 
         /// <inheritdoc />
-        public IEnumerable<TNonterminalSymbol> NonTerminalSymbols => _nonterminalToIndex.Keys;
+        public IEnumerable<Nonterminal> NonTerminalSymbols => _nonterminalToIndex.Keys;
 
         /// <inheritdoc />
-        public IEnumerable<TNonterminalSymbol> TrimmedNonTerminalSymbols => _nonterminalToIndex.Keys.Where(symbol => !StartSymbol.Equals(symbol));
+        public IEnumerable<Nonterminal> TrimmedNonTerminalSymbols => _nonterminalToIndex.Keys.Where(symbol => !StartSymbol.Equals(symbol));
 
         /// <inheritdoc />
-        public LrAction Action(int state, TTerminalSymbol token)
+        public LrAction Action(int state, Terminal<TTokenKind> token)
         {
             return _actionTable[state, _terminalToIndex[token]];
         }
 
         /// <inheritdoc />
-        public int Goto(int state, TNonterminalSymbol variable)
+        public int Goto(int state, Nonterminal variable)
         {
             int symbolIndex = _nonterminalToIndex[variable];
             return symbolIndex == 0 ? 0 : _gotoTable[state, symbolIndex - 1];
@@ -246,7 +247,7 @@ namespace ContextFreeGrammar
         public bool AnyConflicts => _conflictTable.Count > 0;
 
         /// <inheritdoc />
-        public IEnumerable<LrConflict<TTerminalSymbol>> Conflicts => _conflictTable.Values;
+        public IEnumerable<LrConflict<TTokenKind>> Conflicts => _conflictTable.Values;
     }
 
     // TODO: Use this on the ParsingTable/Parser class

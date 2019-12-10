@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ContextFreeGrammar\ContextFreeGrammar.csproj" />
     <ProjectReference Include="..\FiniteAutomata\FiniteAutomata.csproj" />
+    <ProjectReference Include="..\GrammarRepo\GrammarRepo.csproj" />
   </ItemGroup>
 
 </Project>

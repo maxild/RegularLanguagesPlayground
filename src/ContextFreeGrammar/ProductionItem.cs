@@ -6,7 +6,7 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    // TODO: Kernel items (rename Iskernel to IsKernel) are the only mandatory items. Closure items should be lazy.
+    // TODO: Kernel items are the only mandatory items. Closure items should be lazy.
     // TODO: Could be renamed to LRItem
 
     #region docs
@@ -209,65 +209,64 @@ namespace ContextFreeGrammar
     /// is equal to one of {a,b,c}.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct ProductionItem<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>, IFiniteAutomatonState
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public struct ProductionItem<TTokenKind> : IEquatable<ProductionItem<TTokenKind>>, IFiniteAutomatonState
+        where TTokenKind : Enum
     {
         private string DebuggerDisplay => ToString();
 
         public ProductionItem(
-            Production<TNonterminalSymbol> production,
+            Production production,
             int productionIndex,
             int markerPosition,
-            params TTerminalSymbol[] lookaheads)
+            params Terminal<TTokenKind>[] lookaheads)
 
-            : this(new MarkedProduction<TNonterminalSymbol>(production, productionIndex, markerPosition),
-                   new Set<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
+            : this(new MarkedProduction(production, productionIndex, markerPosition),
+                   new Set<Terminal<TTokenKind>>(lookaheads ?? Enumerable.Empty<Terminal<TTokenKind>>()))
         {
         }
 
         public ProductionItem(
-            Production<TNonterminalSymbol> production,
+            Production production,
             int productionIndex,
             int markerPosition,
-            IEnumerable<TTerminalSymbol> lookaheads = null)
-            : this(new MarkedProduction<TNonterminalSymbol>(production, productionIndex, markerPosition),
-                   new Set<TTerminalSymbol>(lookaheads ?? Enumerable.Empty<TTerminalSymbol>()))
+            IEnumerable<Terminal<TTokenKind>> lookaheads = null)
+            : this(new MarkedProduction(production, productionIndex, markerPosition),
+                   new Set<Terminal<TTokenKind>>(lookaheads ?? Enumerable.Empty<Terminal<TTokenKind>>()))
         {
         }
 
         public ProductionItem(
-            MarkedProduction<TNonterminalSymbol> markedProduction,
-            IReadOnlySet<TTerminalSymbol> lookaheads)
+            MarkedProduction markedProduction,
+            IReadOnlySet<Terminal<TTokenKind>> lookaheads)
         {
             MarkedProduction = markedProduction;
-            Lookaheads = lookaheads ?? Set<TTerminalSymbol>.Empty;
+            Lookaheads = lookaheads ?? Set<Terminal<TTokenKind>>.Empty;
         }
 
         /// <summary>
         /// Merge lookaheads into new LR(1) item.
         /// </summary>
         /// <returns></returns>
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithUnionLookaheads(IEnumerable<TTerminalSymbol> lookaheadsToAdd) =>
-            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction, new Set<TTerminalSymbol>(Lookaheads).Union(lookaheadsToAdd));
+        public ProductionItem<TTokenKind> WithUnionLookaheads(IEnumerable<Terminal<TTokenKind>> lookaheadsToAdd) =>
+            new ProductionItem<TTokenKind>(MarkedProduction, new Set<Terminal<TTokenKind>>(Lookaheads).Union(lookaheadsToAdd));
 
         /// <summary>
         /// Convert to new LR(0) item with empty lookahead set.
         /// </summary>
         /// <returns></returns>
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithNoLookahead() =>
-            new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction, Set<TTerminalSymbol>.Empty);
+        public ProductionItem<TTokenKind> WithNoLookahead() =>
+            new ProductionItem<TTokenKind>(MarkedProduction, Set<Terminal<TTokenKind>>.Empty);
 
         /// <summary>
         /// Get the successor item of a shift/goto action created by 'shifting the dot'.
         /// </summary>
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> WithShiftedDot()
+        public ProductionItem<TTokenKind> WithShiftedDot()
             // NOTE: we only make a shallow copy of the read-only lookaheads set
-            => new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(MarkedProduction.WithShiftedDot(), Lookaheads);
+            => new ProductionItem<TTokenKind>(MarkedProduction.WithShiftedDot(), Lookaheads);
 
-        public MarkedProduction<TNonterminalSymbol> MarkedProduction { get; }
+        public MarkedProduction MarkedProduction { get; }
 
-        public Production<TNonterminalSymbol> Production => MarkedProduction.Production;
+        public Production Production => MarkedProduction.Production;
 
         public int ProductionIndex => MarkedProduction.ProductionIndex;
 
@@ -280,7 +279,7 @@ namespace ContextFreeGrammar
         /// part of the LR item is only used for LR(1) items. LR(0) items do not carry any lookahead, and
         /// therefore the set is empty for LR(0) items.
         /// </summary>
-        public IReadOnlySet<TTerminalSymbol> Lookaheads { get; }
+        public IReadOnlySet<Terminal<TTokenKind>> Lookaheads { get; }
 
         /// <summary>
         /// Any item B → α•β where α is not ε (the empty string),
@@ -349,12 +348,12 @@ namespace ContextFreeGrammar
         /// </summary>
         public IEnumerable<Symbol> GetRemainingSymbolsAfterDotSymbol() => MarkedProduction.GetRemainingSymbolsAfterDotSymbol();
 
-        public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other)
+        public bool Equals(ProductionItem<TTokenKind> other)
         {
             return Equals(other, ProductionItemComparison.MarkedProductionAndLookaheads);
         }
 
-        public bool Equals(ProductionItem<TNonterminalSymbol, TTerminalSymbol> other, ProductionItemComparison comparison)
+        public bool Equals(ProductionItem<TTokenKind> other, ProductionItemComparison comparison)
         {
             switch (comparison)
             {
@@ -370,7 +369,7 @@ namespace ContextFreeGrammar
 
         public override bool Equals(object obj)
         {
-            return obj is ProductionItem<TNonterminalSymbol, TTerminalSymbol> item && Equals(item);
+            return obj is ProductionItem<TTokenKind> item && Equals(item);
         }
 
         public override int GetHashCode()

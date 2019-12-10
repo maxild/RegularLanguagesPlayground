@@ -5,11 +5,11 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    public class Production<TNonterminalSymbol> where TNonterminalSymbol : Symbol
+    public class Production
     {
         private readonly Symbol[] _tail;
 
-        public Production(TNonterminalSymbol head, IEnumerable<Symbol> tail)
+        public Production(Nonterminal head, IEnumerable<Symbol> tail)
         {
             Head = head ?? throw new ArgumentNullException(nameof(head));
             var rhs = (tail ?? Enumerable.Empty<Symbol>()).ToArray();
@@ -24,7 +24,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// LHS
         /// </summary>
-        public TNonterminalSymbol Head { get; }
+        public Nonterminal Head { get; }
 
         /// <summary>
         /// RHS list of grammar symbols (note that ε-production has empty Tail of Length zero).
@@ -73,7 +73,7 @@ namespace ContextFreeGrammar
         public override string ToString()
         {
             return Tail.Count > 0
-                ? $"{Head} → {string.Join(string.Empty, Tail.Select(symbol => symbol.Name))}"
+                ? $"{Head} → {string.Join(" ", Tail.Select(symbol => symbol.Name))}"
                 : $"{Head} → {Symbol.Epsilon}";
         }
     }

@@ -27,12 +27,10 @@ namespace ContextFreeGrammar
             return new InsertionOrderedSet<T>(items);
         }
 
-        public static void MergeLookaheads<TNonterminalSymbol, TTerminalSymbol>(
-            this Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> dictionary,
-            IEnumerable<KeyValuePair<MarkedProduction<TNonterminalSymbol>, IReadOnlySet<TTerminalSymbol>>> other
-            )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : IEquatable<TTerminalSymbol>
+        public static void MergeLookaheads<TTokenKind>(
+            this Dictionary<MarkedProduction, Set<Terminal<TTokenKind>>> dictionary,
+            IEnumerable<KeyValuePair<MarkedProduction, IReadOnlySet<Terminal<TTokenKind>>>> other
+            ) where TTokenKind : Enum
         {
             foreach (var kvp in other)
             {
@@ -78,23 +76,22 @@ namespace ContextFreeGrammar
         //    return hashSet.Count > c;
         //}
 
-        public static IEnumerable<Terminal> WithEofMarker(this IEnumerable<Terminal> terminalSymbols)
-        {
-            return terminalSymbols.Concat(Symbol.EofMarker.AsSingletonEnumerable());
-        }
+        //public static IEnumerable<Terminal> WithEofMarker(this IEnumerable<Terminal> terminalSymbols)
+        //{
+        //    return terminalSymbols.Concat(Symbol.EofMarker.AsSingletonEnumerable());
+        //}
 
-        public static IEnumerable<TTerminalSymbol> UnionEofMarker<TTerminalSymbol>(this IEnumerable<TTerminalSymbol> terminals)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-        {
-            return terminals is IReadOnlySet<TTerminalSymbol> otherAsSet
-                ? otherAsSet.UnionEofMarker()
-                : new Set<TTerminalSymbol>(terminals).UnionWith(Symbol.Eof<TTerminalSymbol>().AsSingletonEnumerable());
-        }
+        //public static IEnumerable<Terminal<TTokenKind>> UnionEofMarker<TTokenKind>(this IEnumerable<Terminal<TTokenKind>> terminals) where TTokenKind : Enum
+        //{
+        //    return terminals is IReadOnlySet<Terminal<TTokenKind>> otherAsSet
+        //        ? otherAsSet.UnionEofMarker()
+        //        : new Set<Terminal<TTokenKind>>(terminals).UnionWith(Symbol.Eof<TTokenKind>().AsSingletonEnumerable());
+        //}
 
-        public static IEnumerable<TTerminalSymbol> UnionEofMarker<TTerminalSymbol>(this IReadOnlySet<TTerminalSymbol> terminals)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        public static IEnumerable<Terminal<TTokenKind>> UnionEofMarker<TTokenKind>(this IReadOnlySet<Terminal<TTokenKind>> terminals)
+            where TTokenKind : Enum
         {
-            var eofMarker = Symbol.Eof<TTerminalSymbol>();
+            var eofMarker = Symbol.Eof<TTokenKind>();
             return terminals.Contains(eofMarker)
                 ? terminals
                 : terminals.ConcatItem(eofMarker);

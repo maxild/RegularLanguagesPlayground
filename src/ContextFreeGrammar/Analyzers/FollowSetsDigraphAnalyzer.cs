@@ -7,28 +7,27 @@ using ContextFreeGrammar.Analyzers.Internal;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    internal class FollowSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IFollowSetsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    internal class FollowSetsDigraphAnalyzer<TTokenKind> : IFollowSetsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
-        private readonly Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _followMap;
+        private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _followMap;
 
         internal FollowSetsDigraphAnalyzer(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+            Grammar<TTokenKind> grammar,
             IErasableSymbolsAnalyzer nullableSymbolsAnalyzer,
-            IFirstSetsAnalyzer<TTerminalSymbol> starterTokensAnalyzer)
+            IFirstSetsAnalyzer<TTokenKind> starterTokensAnalyzer)
         {
-            var analyzer = new FirstSymbolsAnalyzer<TTerminalSymbol>(nullableSymbolsAnalyzer, starterTokensAnalyzer);
+            var analyzer = new FirstSymbolsAnalyzer<TTokenKind>(nullableSymbolsAnalyzer, starterTokensAnalyzer);
             _followMap = ComputeFollow(grammar, analyzer);
         }
 
         /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable) => _followMap[variable];
+        public IReadOnlySet<Terminal<TTokenKind>> Follow(Nonterminal variable) => _followMap[variable];
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private static Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> ComputeFollow(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer)
+        private static Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> ComputeFollow(
+            Grammar<TTokenKind> grammar,
+            IFirstSymbolsAnalyzer<TTokenKind> analyzer)
         {
             var (initFollowSets, graph) = DigraphAlgorithm.GetFollowGraph(grammar, analyzer);
 

@@ -6,32 +6,31 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct LrGotoEntry<TNonterminalSymbol> : IEquatable<LrGotoEntry<TNonterminalSymbol>>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    public struct LrGotoEntry : IEquatable<LrGotoEntry>
     {
         private string DebuggerDisplay => ToString();
 
         public readonly int SourceState;
-        public readonly TNonterminalSymbol NonterminalSymbol;
+        public readonly Nonterminal NonterminalSymbol;
         public readonly int TargetState;
 
-        internal LrGotoEntry(int sourceState, TNonterminalSymbol nonterminalSymbol, int targetState)
+        internal LrGotoEntry(int sourceState, Nonterminal nonterminalSymbol, int targetState)
         {
             SourceState = sourceState;
             NonterminalSymbol = nonterminalSymbol;
             TargetState = targetState;
         }
 
-        public bool Equals(LrGotoEntry<TNonterminalSymbol> other)
+        public bool Equals(LrGotoEntry other)
         {
             return SourceState == other.SourceState &&
-                   EqualityComparer<TNonterminalSymbol>.Default.Equals(NonterminalSymbol, other.NonterminalSymbol) &&
+                   EqualityComparer<Nonterminal>.Default.Equals(NonterminalSymbol, other.NonterminalSymbol) &&
                    TargetState == other.TargetState;
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LrGotoEntry<TNonterminalSymbol> other && Equals(other);
+            return obj is LrGotoEntry other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -39,7 +38,7 @@ namespace ContextFreeGrammar
             unchecked
             {
                 var hashCode = SourceState.GetHashCode();
-                hashCode = (hashCode * 397) ^ EqualityComparer<TNonterminalSymbol>.Default.GetHashCode(NonterminalSymbol);
+                hashCode = (hashCode * 397) ^ EqualityComparer<Nonterminal>.Default.GetHashCode(NonterminalSymbol);
                 hashCode = (hashCode * 397) ^ TargetState.GetHashCode();
                 return hashCode;
             }

@@ -120,9 +120,9 @@ namespace FiniteAutomata
             return _renamer.ToDfaStateString(state);
         }
 
-        public bool IsMatch(string input)
+        public bool IsMatch(IEnumerable<TAlphabet> input)
         {
-            int s = TransitionFunction(StartState, Letterizer<TAlphabet>.Default.GetLetters(input));
+            int s = TransitionFunction(StartState, input);
             return s != -1 && _acceptStates.Contains(s);
         }
 

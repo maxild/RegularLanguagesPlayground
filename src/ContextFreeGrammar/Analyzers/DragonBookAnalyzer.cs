@@ -9,35 +9,34 @@ namespace ContextFreeGrammar.Analyzers
     /// <summary>
     /// FixedPointIteration Algorithm found in most textbooks on compilers
     /// </summary>
-    public class DragonBookAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public class DragonBookAnalyzer<TTokenKind> : IFollowSymbolsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
         private readonly Dictionary<Symbol, bool> _nullableMap;
-        private readonly Dictionary<Symbol, Set<TTerminalSymbol>> _firstMap;
-        private readonly Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _followMap;
+        private readonly Dictionary<Symbol, Set<Terminal<TTokenKind>>> _firstMap;
+        private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _followMap;
 
-        public DragonBookAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+        public DragonBookAnalyzer(Grammar<TTokenKind> grammar)
         {
             (_nullableMap, _firstMap, _followMap) = ComputeFollow(grammar);
         }
 
         public bool Erasable(Symbol symbol) => _nullableMap[symbol];
 
-        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol) => _firstMap[symbol];
+        public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol) => _firstMap[symbol];
 
-        public IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable)
+        public IReadOnlySet<Terminal<TTokenKind>> Follow(Nonterminal variable)
             => _followMap[variable];
 
         // This method is kept around, because we might need to calculate nullable predicate, if calculating
         // FIRST and FOLLOW sets using a Graph representing all the recursive set constraints as a relation and
         // using Graph traversal as an efficient iteration technique to solve for the unique least fixed-point solution.
-        private static Dictionary<Symbol, bool> ComputeNullable(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+        private static Dictionary<Symbol, bool> ComputeNullable(Grammar<TTokenKind> grammar)
         {
             var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon || symbol.IsEof);
 
-            if (!nullableMap.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                nullableMap.Add(Symbol.Eof<TTerminalSymbol>(), true); // by convention
+            if (!nullableMap.ContainsKey(Symbol.Eof<TTokenKind>()))
+                nullableMap.Add(Symbol.Eof<TTokenKind>(), true); // by convention
 
             bool changed = true;
             while (changed)
@@ -79,19 +78,19 @@ namespace ContextFreeGrammar.Analyzers
         // if for all i=1,…,n, First(Xi) contains ε, then First(α) contains ε.
         //=======================================================================================================
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private static (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<TTerminalSymbol>>) ComputeFirst(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+        private static (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<Terminal<TTokenKind>>>) ComputeFirst(
+            Grammar<TTokenKind> grammar)
         {
             var nullableMap = ComputeNullable(grammar);
-            var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
+            var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
 
             // Base case: First(a) = {a} for all terminal symbols a ∈ T.
             foreach (var terminal in grammar.Terminals)
                 firstMap[terminal].Add(terminal);
 
             // Add EOF to avoid unnecessary exceptions
-            if (!firstMap.ContainsKey(Symbol.Eof<TTerminalSymbol>()))
-                firstMap.Add(Symbol.Eof<TTerminalSymbol>(), new Set<TTerminalSymbol> { Symbol.Eof<TTerminalSymbol>() });
+            if (!firstMap.ContainsKey(Symbol.Eof<TTokenKind>()))
+                firstMap.Add(Symbol.Eof<TTokenKind>(), new Set<Terminal<TTokenKind>> { Symbol.Eof<TTokenKind>() });
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -120,19 +119,19 @@ namespace ContextFreeGrammar.Analyzers
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public (Dictionary<Symbol, bool>,
-            Dictionary<Symbol, Set<TTerminalSymbol>>,
-            Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>>) ComputeFollow(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+            Dictionary<Symbol, Set<Terminal<TTokenKind>>>,
+            Dictionary<Nonterminal, Set<Terminal<TTokenKind>>>) ComputeFollow(Grammar<TTokenKind> grammar)
         {
             var (nullableMap, firstMap) = ComputeFirst(grammar);
 
             // We define Follow only for nonterminal symbols
-            var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
+            var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
 
             // NOTE: This is a requirement of the parsing table of shift-reduce parser
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!grammar.IsAugmentedWithEofMarker)
-                followMap[grammar.StartSymbol].Add(Symbol.Eof<TTerminalSymbol>()); 
+                followMap[grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>()].Add(Symbol.Eof<TTokenKind>());
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -145,7 +144,7 @@ namespace ContextFreeGrammar.Analyzers
                     for (int i = 0; i < production.Length; i += 1)
                     {
                         // for each Yi that is a nonterminal symbol
-                        var Yi = production.TailAs<TNonterminalSymbol>(i);
+                        var Yi = production.TailAs<Nonterminal>(i);
                         if (Yi == null) continue;
                         // Let m = First(Y(i+1)...Yn)
                         var m = First(production.Tail.Skip(i + 1));
@@ -161,9 +160,9 @@ namespace ContextFreeGrammar.Analyzers
             return (nullableMap, firstMap, followMap);
 
             // extend First to words of symbols
-            Set<TTerminalSymbol> First(IEnumerable<Symbol> symbols)
+            Set<Terminal<TTokenKind>> First(IEnumerable<Symbol> symbols)
             {
-                var m = new Set<TTerminalSymbol>();
+                var m = new Set<Terminal<TTokenKind>>();
                 foreach (var symbol in symbols)
                 {
                     m.AddRange(firstMap[symbol]);
@@ -183,13 +182,13 @@ namespace ContextFreeGrammar.Analyzers
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         [SuppressMessage("ReSharper", "UnusedMember.Local")]
         private (Dictionary<Symbol, bool>,
-            Dictionary<Symbol, Set<TTerminalSymbol>>,
-            Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>>) OldComputeNullableAndFirstAndFollow(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+            Dictionary<Symbol, Set<Terminal<TTokenKind>>>,
+            Dictionary<Nonterminal, Set<Terminal<TTokenKind>>>) OldComputeNullableAndFirstAndFollow(Grammar<TTokenKind> grammar)
         {
             // we keep a separate nullable map, instead of adding epsilon to First sets
             var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
-            var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
-            var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<TTerminalSymbol>());
+            var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
+            var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
 
             // Base case: First(a) = {a} for all terminal symbols a ∈ T.
             foreach (var symbol in grammar.Terminals)
@@ -198,7 +197,7 @@ namespace ContextFreeGrammar.Analyzers
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!grammar.IsAugmentedWithEofMarker)
-                followMap[grammar.StartSymbol].Add(Symbol.Eof<TTerminalSymbol>());
+                followMap[grammar.StartSymbol].Add(Symbol.Eof<TTokenKind>());
 
             bool changed = true;
             while (changed)
@@ -233,7 +232,7 @@ namespace ContextFreeGrammar.Analyzers
                         }
 
                         // for each Yi that is a nonterminal symbol
-                        var Yi = yi as TNonterminalSymbol; // FOLLOW is only defined w.r.t. nonterminal symbols.
+                        var Yi = yi as Nonterminal; // FOLLOW is only defined w.r.t. nonterminal symbols.
                         if (Yi == null) continue;
 
                         // If all symbols Y(i+1)...Yn succeeding Yi are nullable,

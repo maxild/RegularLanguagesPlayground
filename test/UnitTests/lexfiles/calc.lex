@@ -2,6 +2,8 @@ using System;
 using System.Text;
 using System.IO;
 using System.Diagnostics.CodeAnalysis;
+using AutomataLib;
+using ContextFreeGrammar.Lexers;
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 enum Sym
@@ -24,7 +26,7 @@ enum Sym
 
 %namespace UnitTests.Lexers
 %class CalcLexer
-%implements ILexer<Sym>
+%implements ILexer<Token<Sym>>
 %function GetNextToken
 %type Token<Sym>
 
@@ -39,10 +41,10 @@ WHITE_SPACE_CHAR=[{NEWLINE}\ \t\b\012]
 
 %%
 
-<YYINITIAL> "(" { return new Token<Sym>(Sym.LPARAN); }
-<YYINITIAL> ")" { return new Token<Sym>(Sym.RPARAN); }
-<YYINITIAL> "+" { return new Token<Sym>(Sym.PLUS); }
-<YYINITIAL> "-" { return new Token<Sym>(Sym.MINUS); }
+<YYINITIAL> "(" { return new Token<Sym>(Sym.LPARAN, yytext()); }
+<YYINITIAL> ")" { return new Token<Sym>(Sym.RPARAN, yytext()); }
+<YYINITIAL> "+" { return new Token<Sym>(Sym.PLUS, yytext()); }
+<YYINITIAL> "-" { return new Token<Sym>(Sym.MINUS, yytext()); }
 
 <YYINITIAL> {NON_NEWLINE_WHITE_SPACE_CHAR}+ { return Token<Sym>.EPS; }
 <YYINITIAL> {NEWLINE}+ { return Token<Sym>.EPS; }

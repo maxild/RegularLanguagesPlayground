@@ -3,17 +3,17 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers.Internal
 {
-    public class FollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
-        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    public class FollowSymbolsAnalyzer<TTokenKind> : IFollowSymbolsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
         private readonly IErasableSymbolsAnalyzer _nullableSymbolsAnalyzer;
-        private readonly IFirstSetsAnalyzer<TTerminalSymbol> _starterTokensAnalyzer;
-        private readonly IFollowSetsAnalyzer<TNonterminalSymbol, TTerminalSymbol> _followerTokensAnalyzer;
+        private readonly IFirstSetsAnalyzer<TTokenKind> _starterTokensAnalyzer;
+        private readonly IFollowSetsAnalyzer<TTokenKind> _followerTokensAnalyzer;
 
         public FollowSymbolsAnalyzer(
             IErasableSymbolsAnalyzer nullableSymbolsAnalyzer,
-            IFirstSetsAnalyzer<TTerminalSymbol> starterTokensAnalyzer,
-            IFollowSetsAnalyzer<TNonterminalSymbol, TTerminalSymbol> followerTokensAnalyzer)
+            IFirstSetsAnalyzer<TTokenKind> starterTokensAnalyzer,
+            IFollowSetsAnalyzer<TTokenKind> followerTokensAnalyzer)
         {
             _nullableSymbolsAnalyzer = nullableSymbolsAnalyzer;
             _starterTokensAnalyzer = starterTokensAnalyzer;
@@ -24,9 +24,9 @@ namespace ContextFreeGrammar.Analyzers.Internal
         public bool Erasable(Symbol symbol) => _nullableSymbolsAnalyzer.Erasable(symbol);
 
         /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol) => _starterTokensAnalyzer.First(symbol);
+        public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol) => _starterTokensAnalyzer.First(symbol);
 
         /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable) => _followerTokensAnalyzer.Follow(variable);
+        public IReadOnlySet<Terminal<TTokenKind>> Follow(Nonterminal variable) => _followerTokensAnalyzer.Follow(variable);
     }
 }

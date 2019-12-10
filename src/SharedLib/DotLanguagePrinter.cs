@@ -20,13 +20,13 @@ namespace AutomataLib
         /// <summary>
         /// Print the initial sets and the digraph superset relations graph.
         /// </summary>
-        public static string PrintGraph(
+        public static string PrintGraph<TTokenKind>(
             string functionName,
-            IReadOnlyList<IReadOnlySet<Terminal>> initSets,
+            IReadOnlyList<IReadOnlySet<Terminal<TTokenKind>>> initSets,
             IGraph graph,
             Func<int, string> labelFunc = null,
             DotRankDirection direction = DotRankDirection.LeftRight
-            )
+            ) where TTokenKind : Enum
         {
             var labelOf = labelFunc ?? (v => v.ToString());
 
@@ -67,7 +67,7 @@ namespace AutomataLib
 
                 sb.Append(functionName + "(" + labelOf(i) + ") = { ");
                 int c = 0;
-                foreach (Terminal terminal in initSets[i])
+                foreach (var terminal in initSets[i])
                 {
                     if (c > 0)
                         sb.Append(", ");

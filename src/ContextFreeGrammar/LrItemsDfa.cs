@@ -6,39 +6,43 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
+    // TState = ProductionItemSet<TTokenKind>
+    // TAlphabet = Symbol
+
     /// <summary>
     /// Deterministic Finite Automaton (Q, Σ, delta, q(0), F) from Automata Theory.
     /// </summary>
-    public class Dfa<TState, TAlphabet> : IDeterministicFiniteAutomaton<TAlphabet, int>, IFiniteAutomatonStateHomomorphism<int>
+    public class LrItemsDfa<TTokenKind> : IDeterministicFiniteAutomaton<Symbol, int>, IFiniteAutomatonStateHomomorphism<int>
+        where TTokenKind : Enum
     {
-        private readonly TState[] _originalStates; // one-way translation should be sufficient to show descriptive labels
-        private readonly Dictionary<TAlphabet, int> _alphabetToIndex;
-        private readonly TAlphabet[] _indexToAlphabet;
+        private readonly ProductionItemSet<TTokenKind>[] _originalStates; // one-way translation should be sufficient to show descriptive labels
+        private readonly Dictionary<Symbol, int> _alphabetToIndex;
+        private readonly Symbol[] _indexToAlphabet;
 
         private readonly int[,] _nextState; // adjacency matrix with dead state at index zero
         private readonly HashSet<int> _acceptStates;
 
-        public Dfa(
-            IEnumerable<TState> states,
-            IEnumerable<TAlphabet> alphabet,
-            IEnumerable<Transition<TAlphabet, TState>> transitions,
-            TState startState,
-            IEnumerable<TState> acceptStates)
+        public LrItemsDfa(
+            IEnumerable<ProductionItemSet<TTokenKind>> states,
+            IEnumerable<Symbol> alphabet,
+            IEnumerable<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions,
+            ProductionItemSet<TTokenKind> startState,
+            IEnumerable<ProductionItemSet<TTokenKind>> acceptStates)
         {
             _originalStates = states.ToArray();
             MaxState = _originalStates.Length; // 0,1,2,...,maxState, where dead state is at index zero
 
             // renaming all states to integers
-            var indexMap = new Dictionary<TState, int>(MaxState); // dead state excluded here
+            var indexMap = new Dictionary<ProductionItemSet<TTokenKind>, int>(MaxState); // dead state excluded here
             int stateIndex = 1;
-            foreach (TState state in _originalStates)
+            foreach (ProductionItemSet<TTokenKind> state in _originalStates)
             {
                 indexMap.Add(state, stateIndex);
                 stateIndex += 1;
             }
 
             _indexToAlphabet = alphabet.ToArray();
-            _alphabetToIndex = new Dictionary<TAlphabet, int>();
+            _alphabetToIndex = new Dictionary<Symbol, int>();
             for (int i = 0; i < _indexToAlphabet.Length; i++)
             {
                 _alphabetToIndex[_indexToAlphabet[i]] = i;
@@ -47,7 +51,7 @@ namespace ContextFreeGrammar
             StartState = indexMap[startState];
 
             _acceptStates = new HashSet<int>();
-            foreach (TState state in acceptStates)
+            foreach (ProductionItemSet<TTokenKind> state in acceptStates)
             {
                 _acceptStates.Add(indexMap[state]);
             }
@@ -88,7 +92,7 @@ namespace ContextFreeGrammar
             return Enumerable.Range(1, MaxState);      // 1, 2,..., maxState
         }
 
-        public IEnumerable<TAlphabet> GetAlphabet()
+        public IEnumerable<Symbol> GetAlphabet()
         {
             return _alphabetToIndex.Keys;
         }
@@ -98,7 +102,7 @@ namespace ContextFreeGrammar
             return _acceptStates;
         }
 
-        public IEnumerable<Transition<TAlphabet, int>> GetTransitions()
+        public IEnumerable<Transition<Symbol, int>> GetTransitions()
         {
             for (int s = 0; s < _nextState.GetLength(0); s += 1)
             {
@@ -110,7 +114,7 @@ namespace ContextFreeGrammar
             }
         }
 
-        public IEnumerable<Transition<TAlphabet, int>> GetTrimmedTransitions()
+        public IEnumerable<Transition<Symbol, int>> GetTrimmedTransitions()
         {
             // exclude dead (error) state
             for (int s = 1; s < _nextState.GetLength(0); s += 1)
@@ -130,7 +134,7 @@ namespace ContextFreeGrammar
         /// Get the set of possible predecessor states from where some label accesses the given state.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<int> PRED(int state, TAlphabet label)
+        public IReadOnlySet<int> PRED(int state, Symbol label)
         {
             // Highly inefficient
             var predStates = new Set<int>();
@@ -145,7 +149,7 @@ namespace ContextFreeGrammar
         /// Get the set of possible predecessor states from where some label accesses the given states.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<int> PRED(IEnumerable<int> states, TAlphabet label)
+        public IReadOnlySet<int> PRED(IEnumerable<int> states, Symbol label)
         {
             var predecessorStates = new Set<int>();
             foreach (int state in states)
@@ -159,7 +163,7 @@ namespace ContextFreeGrammar
         /// Get the set of possible predecessor states from where some (reversed) input accesses the given state.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public IReadOnlySet<int> PRED(int state, IEnumerable<TAlphabet> reversedInput)
+        public IReadOnlySet<int> PRED(int state, IEnumerable<Symbol> reversedInput)
         {
             IReadOnlySet<int> states = new Set<int>(state.AsSingletonEnumerable());
             foreach (var c in reversedInput)
@@ -169,17 +173,17 @@ namespace ContextFreeGrammar
             return states;
         }
 
-        public int TransitionFunction((int, TAlphabet) pair)
+        public int TransitionFunction((int, Symbol) pair)
         {
             return _nextState[pair.Item1, _alphabetToIndex[pair.Item2]];
         }
 
-        public int TransitionFunction(int s, TAlphabet label)
+        public int TransitionFunction(int s, Symbol label)
         {
             return _nextState[s, _alphabetToIndex[label]];
         }
 
-        public int TransitionFunction(int state, IEnumerable<TAlphabet> input)
+        public int TransitionFunction(int state, IEnumerable<Symbol> input)
         {
             int s = state;
             foreach (var c in input)
@@ -189,12 +193,12 @@ namespace ContextFreeGrammar
             return s;
         }
 
-        public bool IsMatch(string input)
+        public bool IsMatch(IEnumerable<Symbol> input)
         {
-            return IsAcceptState(TransitionFunction(StartState, Letterizer<TAlphabet>.Default.GetLetters(input)));
+            return IsAcceptState(TransitionFunction(StartState, input));
         }
 
-        public TState GetUnderlyingState(int state)
+        public ProductionItemSet<TTokenKind> GetUnderlyingState(int state)
         {
             int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
             return _originalStates[originalIndex];
@@ -203,7 +207,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Get the index state of some underlying state defined by a predicate.
         /// </summary>
-        public int IndexOfUnderlyingState(Func<TState, bool> predicate)
+        public int IndexOfUnderlyingState(Func<ProductionItemSet<TTokenKind>, bool> predicate)
         {
             // Linear O(n) search is the only option, but augmented kernel/reduce item should be contained in state 2
             int state = -1;
@@ -218,14 +222,14 @@ namespace ContextFreeGrammar
             int originalIndex = state - 1; // dead state occupies index zero in matrix, but not in _originalStates array
 
             // HACK: we special case two type of canonical LR(0) item sets to make graphviz images prettier
-            if (_originalStates[originalIndex] is ProductionItemSet<Nonterminal, Terminal> itemSet)
+            if (_originalStates[originalIndex] is ProductionItemSet<TTokenKind> itemSet)
             {
                 // LR(0) items separated by '\l', and kernel and closure items are separated by a newline
                 return itemSet.ClosureItems.Any()
                 ? string.Join(sep, itemSet.KernelItems) + "\\n" + sep + string.Join(sep, itemSet.ClosureItems) + sep
                 : string.Join(sep, itemSet.KernelItems) + sep;
             }
-            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem<Nonterminal, Terminal>> itemSet2)
+            if (_originalStates[originalIndex] is AutomataLib.ISet<ProductionItem<TTokenKind>> itemSet2)
             {
                 // LR(0) items separated by '\l' ('\l' in dot language makes the preceding text left aligned in Graphviz tool)
                 return string.Join(sep, itemSet2) + sep;

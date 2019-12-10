@@ -1,8 +1,10 @@
 using AutomataLib;
 using ContextFreeGrammar;
 using ContextFreeGrammar.Analyzers;
+using GrammarRepo;
 using Shouldly;
 using Xunit;
+using Sym = GrammarRepo.GallierCalc.Sym;
 
 namespace UnitTests
 {
@@ -10,32 +12,10 @@ namespace UnitTests
     {
         public DigraphAlgorithmTests()
         {
-            // Example 1 from the small survey of digraph methods https://www.cis.upenn.edu/~jean/gbooks/graphm.pdf
-            // 0: S → E$
-            // 1: E → E+T
-            // 2: E → T
-            // 3: T → T*F
-            // 4: T → F
-            // 5: F → (E)
-            // 6: F → -T
-            // 7: F → a
-            Grammar = new GrammarBuilder()
-                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "F")) // insertion ordered
-                .SetTerminalSymbols(Symbol.Ts('a', '+', '-', '*', '(', ')').WithEofMarker())
-                .SetStartSymbol(Symbol.V("S"))
-                .AndProductions(
-                    Symbol.V("S").Derives(Symbol.V("E"), Symbol.EofMarker),
-                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T('+'), Symbol.V("T")),
-                    Symbol.V("E").Derives(Symbol.V("T")),
-                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T('*'), Symbol.V("F")),
-                    Symbol.V("T").Derives(Symbol.V("F")),
-                    Symbol.V("F").Derives(Symbol.T('('), Symbol.V("E"), Symbol.T(')')),
-                    Symbol.V("F").Derives(Symbol.T('-'), Symbol.V("T")),
-                    Symbol.V("F").Derives(Symbol.T('a'))
-                );
+            Grammar = GallierCalc.GetGrammar();
         }
 
-        private Grammar<Nonterminal, Terminal> Grammar { get; }
+        private Grammar<Sym> Grammar { get; }
 
         [Fact]
         public void GetFirstGraph()
@@ -51,7 +31,7 @@ namespace UnitTests
             // INITFIRST(T)
             initSets[2].ShouldBeEmpty();
             // INITFIRST(F)
-            initSets[3].ShouldSetEqual(Symbol.Ts('(', '-', 'a'));
+            initSets[3].ShouldSetEqual(Symbol.Ts(Sym.LPARAN, Sym.MINUS, Sym.ID));
 
             var closureSets = DigraphAlgorithm.Traverse(graph, new[]
             {
@@ -82,9 +62,9 @@ namespace UnitTests
             // INITFOLLOW(S)
             initSets[0].ShouldBeEmpty();
             // INITFOLLOW(E)
-            initSets[1].ShouldSetEqual(Symbol.Ts('+', ')').WithEofMarker());
+            initSets[1].ShouldSetEqual(Symbol.Ts(Sym.PLUS, Sym.RPARAN, Sym.EOF));
             // INITFOLLOW(T)
-            initSets[2].ShouldSetEqual(Symbol.Ts('*'));
+            initSets[2].ShouldSetEqual(Symbol.Ts(Sym.ASTERISK));
             // INITFOLLOW(F)
             initSets[3].ShouldBeEmpty();
 

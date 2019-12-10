@@ -4,17 +4,16 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    public interface IProductionsContainer<TNonterminalSymbol> where TNonterminalSymbol : Symbol
+    public interface IProductionsContainer
     {
         /// <summary>
         /// Productions are numbered 0,1,2,...,N
         /// </summary>
-        IReadOnlyList<Production<TNonterminalSymbol>> Productions { get; }
+        IReadOnlyList<Production> Productions { get; }
     }
 
-    public interface IShiftReduceParsingTable<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public interface IShiftReduceParsingTable<TTokenKind> : IProductionsContainer
+        where TTokenKind : Enum
     {
         /// <summary>
         /// The value of the start state (that is always zero for any shift-reduce parser)
@@ -27,7 +26,7 @@ namespace ContextFreeGrammar
         /// <param name="state">The current state</param>
         /// <param name="token">The current input token (i.e. terminal symbol).</param>
         /// <returns>The action to be performed by the shift-reduce parser (shift, reduce, accept or error)</returns>
-        LrAction Action(int state, TTerminalSymbol token);
+        LrAction Action(int state, Terminal<TTokenKind> token);
 
         /// <summary>
         /// Get the new state to push to the stack after the top of the stack handle have been reduced.
@@ -40,14 +39,14 @@ namespace ContextFreeGrammar
         /// The variable (A) on top of the stack after a reduce (A → β) to that variable.
         /// </param>
         /// <returns>The new state to push to the stack.</returns>
-        int Goto(int state, TNonterminalSymbol variable);
+        int Goto(int state, Nonterminal variable);
 
         /// <summary>
         /// Get the LR(k) item set (of the canonical LR(k) collection) behind some integer state.
         /// </summary>
         /// <param name="state">The integer state.</param>
         /// <returns>The LR(k) item set (aka items).</returns>
-        ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> GetItems(int state);
+        ProductionItemSet<TTokenKind> GetItems(int state);
 
         /// <summary>
         /// If the grammar is ambiguous, then we have found some conflicts in the parsing table.
@@ -57,32 +56,31 @@ namespace ContextFreeGrammar
         /// <summary>
         /// The sequence of found conflicts.
         /// </summary>
-        IEnumerable<LrConflict<TTerminalSymbol>> Conflicts { get; }
+        IEnumerable<LrConflict<TTokenKind>> Conflicts { get; }
     }
 
-    public interface IShiftReduceParser<TNonterminalSymbol, TTerminalSymbol> : IShiftReduceParsingTable<TNonterminalSymbol, TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public interface IShiftReduceParser<TTokenKind> : IShiftReduceParsingTable<TTokenKind>
+        where TTokenKind : Enum
     {
         /// <summary>
         /// The name of the LHS variable in the augmented production rule.
         /// </summary>
-        TNonterminalSymbol StartSymbol { get; }
+        Nonterminal StartSymbol { get; }
 
         /// <summary>
         /// Terminal symbols, including the EOF marker symbol ($).
         /// </summary>
-        IEnumerable<TTerminalSymbol> TerminalSymbols { get; }
+        IEnumerable<Terminal<TTokenKind>> TerminalSymbols { get; }
 
         /// <summary>
         /// Nonterminal symbols, including any augmented start symbol (e.g. S').
         /// </summary>
-        IEnumerable<TNonterminalSymbol> NonTerminalSymbols { get; }
+        IEnumerable<Nonterminal> NonTerminalSymbols { get; }
 
         /// <summary>
         /// Nonterminal symbols, excluding any augmented start symbol (e.g. S').
         /// </summary>
-        IEnumerable<TNonterminalSymbol> TrimmedNonTerminalSymbols { get; }
+        IEnumerable<Nonterminal> TrimmedNonTerminalSymbols { get; }
 
         /// <summary>
         /// Get the sequence of states 0,1,2,...,maxState

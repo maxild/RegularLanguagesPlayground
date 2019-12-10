@@ -6,51 +6,53 @@ using ContextFreeGrammar.Analyzers;
 
 namespace ContextFreeGrammar
 {
-    /// <summary>
-    /// Simple textbook grammar, where tokens are single character letters
-    /// </summary>
-    public class GrammarBuilder: GrammarBuilder<Nonterminal, Terminal>
+    public class GrammarBuilder<TTokenKind>
+        where TTokenKind : Enum
     {
-    }
+        private IEnumerable<Nonterminal> _nonterminals;
+        private readonly IEnumerable<Terminal<TTokenKind>> _terminals;
+        private Nonterminal _startSymbol;
+        private Func<Grammar<TTokenKind>, IFollowSymbolsAnalyzer<TTokenKind>> _analyzerFactory;
 
-    public class GrammarBuilder<TNonterminalSymbol, TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-    {
-        private IEnumerable<TNonterminalSymbol> _nonterminals;
-        private IEnumerable<TTerminalSymbol> _terminals;
-        private TNonterminalSymbol _startSymbol;
-        private Func<Grammar<TNonterminalSymbol, TTerminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>> _analyzerFactory;
+        public GrammarBuilder()
+        {
+            // TODO: We could do better here
+            //     indexed array, where each token kind value is the index
+            //     Name     (Enum name)
+            //     Keyword  (+ for PLUS)
+            //     Index    (Enum value as int)
+            //     Kind     (Enum)
+            _terminals = Enum.GetValues(typeof(TTokenKind)).Cast<TTokenKind>()
+                //.Where(kind => !kind.Equals(default)) // TODO: Find better way to filter out EPS (epsilon tokens)
+                .Where(kind => false == "EPS".Equals(Enum.GetName(typeof(TTokenKind), kind), StringComparison.Ordinal))
+                .Select(Symbol.T)
+                .ToArray();
+        }
 
-        public GrammarBuilder<TNonterminalSymbol, TTerminalSymbol> SetStartSymbol(TNonterminalSymbol start)
+        public GrammarBuilder<TTokenKind> SetStartSymbol(Nonterminal start)
         {
             _startSymbol = start;
+            // EPS token kind
             return this;
         }
 
-        public GrammarBuilder<TNonterminalSymbol, TTerminalSymbol> SetNonterminalSymbols(IEnumerable<TNonterminalSymbol> nonterminals)
+        public GrammarBuilder<TTokenKind> SetNonterminalSymbols(IEnumerable<Nonterminal> nonterminals)
         {
-            _nonterminals = nonterminals ?? Enumerable.Empty<TNonterminalSymbol>();
+            _nonterminals = nonterminals ?? Enumerable.Empty<Nonterminal>();
             return this;
         }
 
-        public GrammarBuilder<TNonterminalSymbol, TTerminalSymbol> SetTerminalSymbols(IEnumerable<TTerminalSymbol> terminals)
-        {
-            _terminals = terminals ?? Enumerable.Empty<TTerminalSymbol>();
-            return this;
-        }
-
-        public GrammarBuilder<TNonterminalSymbol, TTerminalSymbol> SetAnalyzer(
-            Func<Grammar<TNonterminalSymbol, TTerminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>> analyzerFactory)
+        public GrammarBuilder<TTokenKind> SetAnalyzer(
+            Func<Grammar<TTokenKind>, IFollowSymbolsAnalyzer<TTokenKind>> analyzerFactory)
         {
             _analyzerFactory = analyzerFactory;
             return this;
         }
 
-        public Grammar<TNonterminalSymbol, TTerminalSymbol> AndProductions(params Production<TNonterminalSymbol>[] productions)
+        public Grammar<TTokenKind> AndProductions(params Production[] productions)
         {
-            return new Grammar<TNonterminalSymbol, TTerminalSymbol>(_nonterminals, _terminals, _startSymbol, productions,
-                _analyzerFactory ?? (grammar => new DragonBookAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar)));
+            return new Grammar<TTokenKind>(_nonterminals, _terminals, _startSymbol, productions,
+                _analyzerFactory ?? (grammar => new DragonBookAnalyzer<TTokenKind>(grammar)));
         }
     }
 }

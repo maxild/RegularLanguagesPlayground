@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using AutomataLib;
 using Shouldly;
 using Xunit;
@@ -6,6 +7,16 @@ namespace UnitTests
 {
     public class SymbolTests
     {
+        [SuppressMessage("ReSharper", "InconsistentNaming")]
+        [SuppressMessage("ReSharper", "UnusedMember.Local")]
+        enum Sym
+        {
+            EPS = 0,
+            PLUS,       // +
+            ID,
+            EOF
+        }
+
         [Fact]
         public void Epsilon()
         {
@@ -18,19 +29,24 @@ namespace UnitTests
         [Fact]
         public void Eof()
         {
-            Symbol.EofMarker.IsExtendedTerminal.ShouldBeTrue();
-            Symbol.EofMarker.IsTerminal.ShouldBeFalse();
-            Symbol.EofMarker.IsNonterminal.ShouldBeFalse();
-            Symbol.EofMarker.IsEpsilon.ShouldBeFalse();
+            Symbol.Eof<Sym>().IsExtendedTerminal.ShouldBeTrue();
+            Symbol.Eof<Sym>().IsTerminal.ShouldBeFalse();
+            Symbol.Eof<Sym>().IsNonterminal.ShouldBeFalse();
+            Symbol.Eof<Sym>().IsEpsilon.ShouldBeFalse();
         }
 
         [Fact]
         public void Terminal()
         {
-            Symbol.T('a').IsExtendedTerminal.ShouldBeTrue();
-            Symbol.T('a').IsTerminal.ShouldBeTrue();
-            Symbol.T('a').IsNonterminal.ShouldBeFalse();
-            Symbol.T('a').IsEpsilon.ShouldBeFalse();
+            Symbol.T(Sym.ID).IsExtendedTerminal.ShouldBeTrue();
+            Symbol.T(Sym.ID).IsTerminal.ShouldBeTrue();
+            Symbol.T(Sym.ID).IsNonterminal.ShouldBeFalse();
+            Symbol.T(Sym.ID).IsEpsilon.ShouldBeFalse();
+
+            Symbol.T(Sym.PLUS).IsExtendedTerminal.ShouldBeTrue();
+            Symbol.T(Sym.PLUS).IsTerminal.ShouldBeTrue();
+            Symbol.T(Sym.PLUS).IsNonterminal.ShouldBeFalse();
+            Symbol.T(Sym.PLUS).IsEpsilon.ShouldBeFalse();
         }
 
         [Fact]

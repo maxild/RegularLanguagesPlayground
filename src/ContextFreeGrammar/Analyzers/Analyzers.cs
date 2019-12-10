@@ -1,56 +1,46 @@
 using System;
-using AutomataLib;
 using ContextFreeGrammar.Analyzers.Internal;
 
 namespace ContextFreeGrammar.Analyzers
 {
     public static class Analyzers
     {
-        public static IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> CreateDragonBookAnalyzer<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static IFollowSymbolsAnalyzer<TTokenKind> CreateDragonBookAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
+            where TTokenKind : Enum
         {
-            return new DragonBookAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar);
+            return new DragonBookAnalyzer<TTokenKind>(grammar);
         }
 
-        public static IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> CreateDigraphAlgorithmAnalyzer<TNonterminalSymbol, TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static IFollowSymbolsAnalyzer<TTokenKind> CreateDigraphAlgorithmAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
+            where TTokenKind : Enum
         {
             var nullableSymbolsAnalyzer
-                = new ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar);
+                = new ErasableSymbolsAnalyzer<TTokenKind>(grammar);
 
             var starterTokensAnalyzer =
-                new FirstSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar, nullableSymbolsAnalyzer);
+                new FirstSetsDigraphAnalyzer<TTokenKind>(grammar, nullableSymbolsAnalyzer);
 
             var followerTokensAnalyzer
-                = new FollowSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar, nullableSymbolsAnalyzer, starterTokensAnalyzer);
+                = new FollowSetsDigraphAnalyzer<TTokenKind>(grammar, nullableSymbolsAnalyzer, starterTokensAnalyzer);
 
-            return new FollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(nullableSymbolsAnalyzer,
+            return new FollowSymbolsAnalyzer<TTokenKind>(nullableSymbolsAnalyzer,
                 starterTokensAnalyzer, followerTokensAnalyzer);
         }
 
-        public static IErasableSymbolsAnalyzer CreateErasableSymbolsAnalyzer<TNonterminalSymbol,
-            TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static IErasableSymbolsAnalyzer CreateErasableSymbolsAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
+            where TTokenKind : Enum
         {
-            return new ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar);
+            return new ErasableSymbolsAnalyzer<TTokenKind>(grammar);
         }
 
-        public static IFirstSymbolsAnalyzer<TTerminalSymbol> CreateFirstSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static IFirstSymbolsAnalyzer<TTokenKind> CreateFirstSymbolsAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
+            where TTokenKind : Enum
         {
-            var nullableSymbolsAnalyzer
-                = new ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar);
+            var nullableSymbolsAnalyzer = new ErasableSymbolsAnalyzer<TTokenKind>(grammar);
 
-            var starterTokensAnalyzer =
-                new FirstSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol>(grammar, nullableSymbolsAnalyzer);
+            var starterTokensAnalyzer = new FirstSetsDigraphAnalyzer<TTokenKind>(grammar, nullableSymbolsAnalyzer);
 
-            return new FirstSymbolsAnalyzer<TTerminalSymbol>(nullableSymbolsAnalyzer,
-                starterTokensAnalyzer);
+            return new FirstSymbolsAnalyzer<TTokenKind>(nullableSymbolsAnalyzer, starterTokensAnalyzer);
         }
     }
 }

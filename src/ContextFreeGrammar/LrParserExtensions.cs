@@ -1,41 +1,24 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using AutomataLib;
 using AutomataLib.Tables;
+using ContextFreeGrammar.Lexers;
 
 namespace ContextFreeGrammar
 {
     public static class LrParserExtensions
     {
         // Driver program here
-        public static void Parse<TNonterminalSymbol, TTerminalSymbol>(
-            this IShiftReduceParsingTable<TNonterminalSymbol, TTerminalSymbol> parser,
-            string input,
+        public static void Parse<TTokenKind>(
+            this IShiftReduceParsingTable<TTokenKind> parser,
+            ILexer<Token<TTokenKind>> lexer,
             TextWriter logger = null
-        )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+        ) where TTokenKind : Enum
         {
-            TTerminalSymbol GetNextToken(IEnumerator<TTerminalSymbol> tokenizer)
-            {
-                return tokenizer.TryGetNext() ?? Symbol.Eof<TTerminalSymbol>();
-            }
-
-            string GetStringOfSpan(Span<TTerminalSymbol> symbols)
-            {
-                var iter = symbols.GetEnumerator();
-                var sb = new StringBuilder();
-                while (iter.MoveNext())
-                {
-                    sb.Append(iter.Current.Name);
-                }
-                sb.Append(Symbol.EofMarker);
-                return sb.ToString();
-            }
-
             var table = new TableBuilder()
                 .SetColumns(new Column("SeqNo", 8),
                     new Column("Stack", 14, Align.Left),
@@ -43,11 +26,6 @@ namespace ContextFreeGrammar
                     new Column("Input", 10, Align.Right),
                     new Column("Action", 34, Align.Left))
                 .Build();
-
-            // We only need all the following variables because we support logging to a user-defined table writer
-            IEnumerable<TTerminalSymbol> inputSymbolSequence = Letterizer<TTerminalSymbol>.Default.GetLetters(input);
-            TTerminalSymbol[] inputSymbolArray = inputSymbolSequence.ToArray();
-            Span<TTerminalSymbol> inputSymbols = inputSymbolArray.AsSpan();
 
             int seqNo = 1;
             int ip = 0;
@@ -69,83 +47,128 @@ namespace ContextFreeGrammar
             // push initial state onto the stack
             stack.Push(parser.StartState);
 
-            using (IEnumerator<TTerminalSymbol> tokenizer = ((IEnumerable<TTerminalSymbol>) inputSymbolArray).GetEnumerator())
-            {
-                TTerminalSymbol a = GetNextToken(tokenizer);
-                while (true)
-                {
-                    int s = stack.Peek();
-                    var action = parser.Action(s, a);
-                    // Action(s, a) = shift t
-                    if (action.IsShift) // consume input token here
-                    {
-                        // push t onto the stack
-                        int t = action.ShiftToState;
+            // TODO: Are we using token (lexer type) or terminal (grammar type) here
+            Token<TTokenKind> token = lexer.GetNextToken();
+            Terminal<TTokenKind> a = Symbol.T(token.Kind);
 
+            while (true)
+            {
+                int s = stack.Peek();
+                var action = parser.Action(s, a);
+                // Action(s, a) = shift t
+                if (action.IsShift) // consume input token here
+                {
+                    // push t onto the stack
+                    int t = action.ShiftToState;
+
+                    if (lexer is IBufferedLexer<Token<TTokenKind>> fake)
+                    {
                         // output 'shift t'
                         tableWriter?.WriteRow($"({seqNo++})",
                             $" {string.Join(" ", stack.Reverse())}",
                             $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
-                            $"{GetStringOfSpan(inputSymbols.Slice(ip++))} ",
+                            $"{fake.GetRemainingTokens(ip++).Aggregate(new StringBuilder(), (sb, tok) => sb.Append(tok.Text))} ",
                             $" shift {t}");
-
-                        stack.Push(t);
-
-                        // call yylex to get the next token
-                        a = GetNextToken(tokenizer);
                     }
-                    // Action(s, a) = reduce A → β (DFA recognized a handle)
-                    else if (action.IsReduce) // remaining input remains unchanged
+                    else
                     {
-                        Production<TNonterminalSymbol> p = parser.Productions[action.ReduceToProductionIndex];
+                        // output 'shift t'
+                        tableWriter?.WriteRow($"({seqNo++})",
+                            $" {string.Join(" ", stack.Reverse())}",
+                            $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
+                            " ",
+                            $" shift {t}");
+                    }
 
-                        // output 'reduce by A → β'
-                        string[] values = null;
-                        if (tableWriter != null)
+                    stack.Push(t);
+
+                    // call yylex to get the next token
+                    // TODO: Are we using token (lexer type) or terminal (grammar type) here
+                    token = lexer.GetNextToken();
+                    a = Symbol.T(token.Kind);
+
+                }
+                // Action(s, a) = reduce A → β (DFA recognized a handle)
+                else if (action.IsReduce) // remaining input remains unchanged
+                {
+                    Production p = parser.Productions[action.ReduceToProductionIndex];
+
+                    // output 'reduce by A → β'
+                    string[] values = null;
+                    if (tableWriter != null)
+                    {
+                        if (lexer is IBufferedLexer<Token<TTokenKind>> fake)
                         {
                             values = new[]
                             {
                                 $"({seqNo++})",
                                 $" {string.Join(" ", stack.Reverse())}",
                                 $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
-                                $"{GetStringOfSpan(inputSymbols.Slice(ip))} ",
+                                $"{fake.GetRemainingTokens(ip).Aggregate(new StringBuilder(), (sb, tok) => sb.Append(tok.Text))} ",
                                 $" reduce by {p}"
                             };
                         }
-
-                        // pop |β| symbols off the stack
-                        stack.PopItemsOfLength(p.Length);
-                        // let state t now be on top of the stack
-                        int t = stack.Peek();
-                        // push GOTO(t, A) onto the stack
-                        int v = parser.Goto(t, p.Head);
-                        stack.Push(v);
-
-                        if (tableWriter != null)
+                        else
                         {
-                            values[4] += $", goto {v}";
-                            tableWriter.WriteRow(values);
+                            values = new[]
+                            {
+                                $"({seqNo++})",
+                                $" {string.Join(" ", stack.Reverse())}",
+                                $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
+                                " ",
+                                $" reduce by {p}"
+                            };
                         }
-
-                        // TODO: Create a new AST node for the (semantic) rule A → β, and build AST
                     }
-                    // DFA recognized a the accept handle of the initial item set
-                    else if (action.IsAccept)
+
+                    // pop |β| symbols off the stack
+                    stack.PopItemsOfLength(p.Length);
+                    // let state t now be on top of the stack
+                    int t = stack.Peek();
+                    // push GOTO(t, A) onto the stack
+                    int v = parser.Goto(t, p.Head);
+                    stack.Push(v);
+
+                    if (tableWriter != null)
+                    {
+                        values[4] += $", goto {v}";
+                        tableWriter.WriteRow(values);
+                    }
+
+                    // TODO: Create a new AST node for the (semantic) rule A → β, and build AST
+                }
+                // DFA recognized a the accept handle of the initial item set
+                else if (action.IsAccept)
+                {
+                    // TODO: Should this be validated here???
+                    Debug.Assert(lexer.GetNextToken().IsEof);
+
+                    if (lexer is IBufferedLexer<Token<TTokenKind>> fake)
                     {
                         // output accept
                         tableWriter?.WriteRow($"({seqNo})",
                             $" {string.Join(" ", stack.Reverse())}",
                             $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
-                            $"{GetStringOfSpan(inputSymbols.Slice(ip))} ",
+                            $"{fake.GetRemainingTokens(ip).Aggregate(new StringBuilder(), (sb, tok) => sb.Append(tok.Text))} ",
                             $" {action}");
 
-                        break;
                     }
                     else
                     {
-                        // error
-                        throw new InvalidOperationException($"Unexpected symbol: {a.Name}");
+                        // output accept
+                        tableWriter?.WriteRow($"({seqNo})",
+                            $" {string.Join(" ", stack.Reverse())}",
+                            $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
+                            " ",
+                            $" {action}");
                     }
+
+                    break;
+                }
+                else
+                {
+                    // error
+                    throw new InvalidOperationException($"Unexpected symbol: {a.Name}");
                 }
             }
 

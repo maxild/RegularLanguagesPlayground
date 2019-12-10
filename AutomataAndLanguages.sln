@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26124.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29519.87
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FiniteAutomata", "src\FiniteAutomata\FiniteAutomata.csproj", "{3EDFE5C1-21A4-452F-BF98-3C0B4865C600}"
 EndProject
@@ -12,7 +12,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnitTests", "test\UnitTests
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharedLib", "src\SharedLib\SharedLib.csproj", "{849E1CD0-5974-46C4-AAE5-FA4B4E76BC67}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutomataRepresentations", "src\AutomataRepresentations\AutomataRepresentations.csproj", "{155D1DE2-52B2-43B1-8A5C-2571D334E840}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutomataRepresentations", "src\AutomataRepresentations\AutomataRepresentations.csproj", "{155D1DE2-52B2-43B1-8A5C-2571D334E840}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GrammarRepo", "src\GrammarRepo\GrammarRepo.csproj", "{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -96,6 +98,18 @@ Global
 		{155D1DE2-52B2-43B1-8A5C-2571D334E840}.Release|x64.Build.0 = Release|Any CPU
 		{155D1DE2-52B2-43B1-8A5C-2571D334E840}.Release|x86.ActiveCfg = Release|Any CPU
 		{155D1DE2-52B2-43B1-8A5C-2571D334E840}.Release|x86.Build.0 = Release|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Debug|x64.Build.0 = Debug|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Debug|x86.Build.0 = Debug|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Release|x64.ActiveCfg = Release|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Release|x64.Build.0 = Release|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Release|x86.ActiveCfg = Release|Any CPU
+		{C0C19EF1-EBC9-4C3A-82FF-6CBE13FDF170}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

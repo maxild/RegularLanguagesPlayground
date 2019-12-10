@@ -6,29 +6,28 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    internal class FirstSetsDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IFirstSetsAnalyzer<TTerminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    internal class FirstSetsDigraphAnalyzer<TTokenKind> : IFirstSetsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
-        private static readonly Set<TTerminalSymbol> s_eofSingleton = new Set<TTerminalSymbol>(new []{Symbol.Eof<TTerminalSymbol>()});
+        private static readonly Set<Terminal<TTokenKind>> s_eofSingleton = new Set<Terminal<TTokenKind>>(new []{Symbol.Eof<TTokenKind>()});
 
-        private readonly Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> _firstMap;
+        private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _firstMap;
 
-        internal FirstSetsDigraphAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IErasableSymbolsAnalyzer analyzer)
+        internal FirstSetsDigraphAnalyzer(Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer)
         {
             _firstMap = ComputeFirst(grammar, analyzer);
         }
 
         /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol)
+        public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol)
         {
-            if (symbol is TNonterminalSymbol variable)
+            if (symbol is Nonterminal variable)
                 return _firstMap[variable];
-            if (symbol is TTerminalSymbol token)
-                return new Set<TTerminalSymbol>(new []{token});
+            if (symbol is Terminal<TTokenKind> terminal)
+                return new Set<Terminal<TTokenKind>>(new []{terminal});
             if (symbol.IsEof)
                 return s_eofSingleton;
-            return Set<TTerminalSymbol>.Empty; // epsilon
+            return Set<Terminal<TTokenKind>>.Empty; // epsilon
         }
 
         // We can collectively characterize all FIRST sets as the smallest sets
@@ -45,8 +44,8 @@ namespace ContextFreeGrammar.Analyzers
         // FIRST(A) = ∪ { INITFIRST(B) : (A,B) ∈ contains_the_first_set_of* }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private Dictionary<TNonterminalSymbol, Set<TTerminalSymbol>> ComputeFirst(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar, IErasableSymbolsAnalyzer analyzer)
+        private Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> ComputeFirst(
+            Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer)
         {
             var (initFirstSets, graph) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 

@@ -89,6 +89,7 @@ namespace AutomataLib
             return _dictionary.ContainsKey(item);
         }
 
+        /// <inheritdoc />
         public bool IsSubsetOf(IEnumerable<T> other)
         {
             if (other == null) throw new ArgumentNullException(nameof(other));
@@ -96,12 +97,14 @@ namespace AutomataLib
             return otherHashset.IsSupersetOf(this);
         }
 
+        /// <inheritdoc />
         public bool IsSupersetOf(IEnumerable<T> other)
         {
             if (other == null) throw new ArgumentNullException(nameof(other));
             return other.All(Contains);
         }
 
+        /// <inheritdoc />
         public bool IsProperSupersetOf(IEnumerable<T> other)
         {
             if (other == null) throw new ArgumentNullException(nameof(other));
@@ -109,6 +112,7 @@ namespace AutomataLib
             return otherHashset.IsProperSubsetOf(this);
         }
 
+        /// <inheritdoc />
         public bool IsProperSubsetOf(IEnumerable<T> other)
         {
             if (other == null) throw new ArgumentNullException(nameof(other));

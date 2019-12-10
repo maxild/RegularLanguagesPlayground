@@ -81,21 +81,25 @@ namespace AutomataLib
             return UnionWithHelper(other);
         }
 
+        /// <inheritdoc />
         public bool IsProperSubsetOf(IEnumerable<T> other)
         {
             return _inner.IsProperSubsetOf(other);
         }
 
+        /// <inheritdoc />
         public bool IsProperSupersetOf(IEnumerable<T> other)
         {
             return _inner.IsProperSupersetOf(other);
         }
 
+        /// <inheritdoc />
         public bool IsSubsetOf(IEnumerable<T> other)
         {
             return _inner.IsSubsetOf(other);
         }
 
+        /// <inheritdoc />
         public bool IsSupersetOf(IEnumerable<T> other)
         {
             return _inner.IsSupersetOf(other);

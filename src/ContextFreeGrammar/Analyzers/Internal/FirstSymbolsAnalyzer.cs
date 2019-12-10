@@ -3,13 +3,13 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers.Internal
 {
-    public class FirstSymbolsAnalyzer<TTerminalSymbol> : IFirstSymbolsAnalyzer<TTerminalSymbol>
-        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    public class FirstSymbolsAnalyzer<TTokenKind> : IFirstSymbolsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
         private readonly IErasableSymbolsAnalyzer _nullableSymbolsAnalyzer;
-        private readonly IFirstSetsAnalyzer<TTerminalSymbol> _starterTokensAnalyzer;
+        private readonly IFirstSetsAnalyzer<TTokenKind> _starterTokensAnalyzer;
 
-        public FirstSymbolsAnalyzer(IErasableSymbolsAnalyzer nullableSymbolsAnalyzer, IFirstSetsAnalyzer<TTerminalSymbol> starterTokensAnalyzer)
+        public FirstSymbolsAnalyzer(IErasableSymbolsAnalyzer nullableSymbolsAnalyzer, IFirstSetsAnalyzer<TTokenKind> starterTokensAnalyzer)
         {
             _nullableSymbolsAnalyzer = nullableSymbolsAnalyzer;
             _starterTokensAnalyzer = starterTokensAnalyzer;
@@ -19,6 +19,6 @@ namespace ContextFreeGrammar.Analyzers.Internal
         public bool Erasable(Symbol symbol) => _nullableSymbolsAnalyzer.Erasable(symbol);
 
         /// <inheritdoc />
-        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol) => _starterTokensAnalyzer.First(symbol);
+        public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol) => _starterTokensAnalyzer.First(symbol);
     }
 }

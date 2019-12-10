@@ -26,18 +26,17 @@ namespace ContextFreeGrammar
     /// <summary>
     /// Immutable context-free grammar (CFG) type.
     /// </summary>
-    public class Grammar<TNonterminalSymbol, TTerminalSymbol> : IProductionsContainer<TNonterminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public class Grammar<TTokenKind> : IProductionsContainer, IFollowSymbolsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
-        private readonly IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> _analyzer;
+        private readonly IFollowSymbolsAnalyzer<TTokenKind> _analyzer;
 
         public Grammar(
-            IEnumerable<TNonterminalSymbol> variables,
-            IEnumerable<TTerminalSymbol> terminals,
-            TNonterminalSymbol startSymbol,
-            IEnumerable<Production<TNonterminalSymbol>> productions,
-            Func<Grammar<TNonterminalSymbol, TTerminalSymbol>, IFollowSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol>> analyzerFactory)
+            IEnumerable<Nonterminal> variables,
+            IEnumerable<Terminal<TTokenKind>> terminals,
+            Nonterminal startSymbol,
+            IEnumerable<Production> productions,
+            Func<Grammar<TTokenKind>, IFollowSymbolsAnalyzer<TTokenKind>> analyzerFactory)
         {
             if (variables == null) throw new ArgumentNullException(nameof(variables));
             if (terminals == null) throw new ArgumentNullException(nameof(terminals));
@@ -45,13 +44,13 @@ namespace ContextFreeGrammar
 
             StartSymbol = startSymbol ?? throw new ArgumentNullException(nameof(startSymbol));
 
-            Variables = new InsertionOrderedSet<TNonterminalSymbol>(variables);
-            Terminals = new Set<TTerminalSymbol>(terminals);
+            Variables = new InsertionOrderedSet<Nonterminal>(variables);
+            Terminals = new Set<Terminal<TTokenKind>>(terminals);
 
             // Productions are numbered 0,1,2,...,^Productions.Count
-            var prods = new List<Production<TNonterminalSymbol>>();
+            var prods = new List<Production>();
             // Variables (productions on the shorter form (A -> α | β | ...) are numbered 0,1,...,^Variables.Count
-            var productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production<TNonterminalSymbol>)>());
+            var productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production)>());
 
             int index = 0;
             foreach (var production in productions)
@@ -62,7 +61,7 @@ namespace ContextFreeGrammar
             }
 
             ProductionsFor = productionMap.ToImmutableDictionary(kvp => kvp.Key,
-                kvp => (IReadOnlyList<(int, Production<TNonterminalSymbol>)>) kvp.Value);
+                kvp => (IReadOnlyList<(int, Production)>) kvp.Value);
 
             if (prods.Count == 0)
             {
@@ -104,8 +103,8 @@ namespace ContextFreeGrammar
         /// The (initial) start item (with CORE [S' → •S]) is the only LR(k) item in the LR(k) automaton,
         /// that is considered a kernel item even though the dot is at the beginning of the RHS of the production.
         /// </summary>
-        public MarkedProduction<TNonterminalSymbol> AugmentedStartItem =>
-            new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, 0);
+        public MarkedProduction AugmentedStartItem =>
+            new MarkedProduction(Productions[0], 0, 0);
 
         /// <summary>
         /// This is the augmented accept dotted production [S' → S•] (or [S' → S•$] if eof marker is used).
@@ -117,9 +116,9 @@ namespace ContextFreeGrammar
         /// By convention we never shift passed the eof marker. That is the final accepting state of the parser
         /// is always S' → S•$, and not S' → S$•.
         /// </remarks>
-        public MarkedProduction<TNonterminalSymbol> AugmentedAcceptItem => Productions[0].LastSymbol.IsEof
-            ? new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length - 1)
-            : new MarkedProduction<TNonterminalSymbol>(Productions[0], 0, Productions[0].Length);
+        public MarkedProduction AugmentedAcceptItem => Productions[0].LastSymbol.IsEof
+            ? new MarkedProduction(Productions[0], 0, Productions[0].Length - 1)
+            : new MarkedProduction(Productions[0], 0, Productions[0].Length);
 
         // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
         // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
@@ -128,9 +127,9 @@ namespace ContextFreeGrammar
         /// <summary>
         /// The set of nonterminal symbols (aka variables) used to define the grammar. The variables
         /// are defined in the order defined by the sequence of variables passed to the
-        /// <see cref="Grammar{TNonterminalSymbol, TTerminalSymbol}"/> constructor.
+        /// <see cref="Grammar{TTokenKind}"/> constructor.
         /// </summary>
-        public IReadOnlyOrderedSet<TNonterminalSymbol> Variables { get; }
+        public IReadOnlyOrderedSet<Nonterminal> Variables { get; }
 
         public IEnumerable<Symbol> NonTerminalSymbols => Variables;
 
@@ -138,10 +137,10 @@ namespace ContextFreeGrammar
         /// The set of input symbols used to define the grammar.
         /// </summary>
         /// <remarks>
-        /// If the grammar is augmented with an eof marker symbol, the <see cref="Symbol.EofMarker"/> is
+        /// If the grammar is augmented with an eof marker symbol, the <see cref="Symbol.Eof{TTokenKind}"/> is
         /// included in the <see cref="Terminals"/> set.
         /// </remarks>
-        public IReadOnlySet<TTerminalSymbol> Terminals { get; }
+        public IReadOnlySet<Terminal<TTokenKind>> Terminals { get; }
 
         public IEnumerable<Symbol> TerminalSymbols => Terminals;
 
@@ -156,31 +155,31 @@ namespace ContextFreeGrammar
         public IEnumerable<Symbol> AllSymbols => Symbols.ConcatItem(Symbol.Epsilon);
 
         /// <inheritdoc />
-        public IReadOnlyList<Production<TNonterminalSymbol>> Productions { get; }
+        public IReadOnlyList<Production> Productions { get; }
 
         /// <summary>
         /// List of production rules for any given variable (nonterminal symbol).
         /// When A → α | β | ... | ω, then ProductionsFor[A] = α, β,..., ω.
         /// </summary>
-        public IReadOnlyDictionary<TNonterminalSymbol, IReadOnlyList<(int, Production<TNonterminalSymbol>)>> ProductionsFor { get; }
+        public IReadOnlyDictionary<Nonterminal, IReadOnlyList<(int, Production)>> ProductionsFor { get; }
 
-        public TNonterminalSymbol StartSymbol { get; }
+        public Nonterminal StartSymbol { get; }
 
         public bool Erasable(int productionIndex)
         {
             return this.Erasable(Productions[productionIndex].Tail);
         }
 
-        public IReadOnlySet<TTerminalSymbol> First(int productionIndex)
+        public IReadOnlySet<Terminal<TTokenKind>> First(int productionIndex)
         {
             return this.First(Productions[productionIndex].Tail);
         }
 
         public bool Erasable(Symbol symbol) => _analyzer.Erasable(symbol);
 
-        public IReadOnlySet<TTerminalSymbol> First(Symbol symbol) => _analyzer.First(symbol);
+        public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol) => _analyzer.First(symbol);
 
-        public IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable) => _analyzer.Follow(variable);
+        public IReadOnlySet<Terminal<TTokenKind>> Follow(Nonterminal variable) => _analyzer.Follow(variable);
 
         /// <summary>
         /// Get NFA representation of the set of characteristic strings (aka viable prefixes) that are defined by
@@ -191,10 +190,10 @@ namespace ContextFreeGrammar
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonNfa() =>
+        public LrItemNfa<TTokenKind> GetLr0AutomatonNfa() =>
             Lr0AutomatonAlgorithm.GetLr0AutomatonNfa(this);
 
-        public Nfa<ProductionItem<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonNfa() =>
+        public LrItemNfa<TTokenKind> GetLr1AutomatonNfa() =>
             Lr1AutomatonAlgorithm.GetLr1AutomatonNfa(this);
 
         /// <summary>
@@ -206,13 +205,13 @@ namespace ContextFreeGrammar
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr0AutomatonDfa()
+        public LrItemsDfa<TTokenKind> GetLr0AutomatonDfa()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
             return Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this, states, transitions);
         }
 
-        public Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> GetLr1AutomatonDfa()
+        public LrItemsDfa<TTokenKind> GetLr1AutomatonDfa()
         {
             var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
             return Lr1AutomatonAlgorithm.GetLr1AutomatonDfa(this, states, transitions);
@@ -221,7 +220,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Compute LR(0) parsing table.
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLr0ParsingTable()
+        public LrParser<TTokenKind> ComputeLr0ParsingTable()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
@@ -231,14 +230,14 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute SLR(1) parsing table.
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeSlrParsingTable()
+        public LrParser<TTokenKind> ComputeSlrParsingTable()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
@@ -248,14 +247,14 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute LR(1) parsing table.
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLr1ParsingTable()
+        public LrParser<TTokenKind> ComputeLr1ParsingTable()
         {
             var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
@@ -265,7 +264,7 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -273,7 +272,7 @@ namespace ContextFreeGrammar
         /// Compute LALR(1) parsing table (by 'brute force' algorithm based on merging LR(1) item sets with identical
         /// kernel items in the LR(1) automaton).
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeLalrParsingTable()
+        public LrParser<TTokenKind> ComputeLalrParsingTable()
         {
             var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
@@ -286,20 +285,20 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, mergedStates, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, mergedStates, Variables, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute LALR(1) parsing table (by efficient digraph algorithm that simulates the valid lookahead sets in the LR(0) automaton).
         /// </summary>
-        public LrParser<TNonterminalSymbol, TTerminalSymbol> ComputeEfficientLalr1ParsingTable()
+        public LrParser<TTokenKind> ComputeEfficientLalr1ParsingTable()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
             var dfaLr0 = Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this, states, transitions);
 
-            var analyzer = new Lr0AutomatonDigraphAnalyzer<TNonterminalSymbol, TTerminalSymbol>(this, dfaLr0, _analyzer);
+            var analyzer = new Lr0AutomatonDigraphAnalyzer<TTokenKind>(this, dfaLr0, _analyzer);
 
             // LALR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
@@ -307,7 +306,7 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TNonterminalSymbol, TTerminalSymbol>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -323,14 +322,14 @@ namespace ContextFreeGrammar
         /// </param>
         /// <returns>The entries of the ACTION and GOTO tables of a shift-reduce parser.</returns>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private (IEnumerable<LrActionEntry<TTerminalSymbol>>, IEnumerable<LrGotoEntry<TNonterminalSymbol>>) ComputeParsingTableData(
-            IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
-            List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions,
-            Func<int, int, IEnumerable<TTerminalSymbol>> reduceOnTerminalSymbols
+        private (IEnumerable<LrActionEntry<TTokenKind>>, IEnumerable<LrGotoEntry>) ComputeParsingTableData(
+            IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
+            List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions,
+            Func<int, int, IEnumerable<Terminal<TTokenKind>>> reduceOnTerminalSymbols
             )
         {
-            var actionTableEntries = new List<LrActionEntry<TTerminalSymbol>>();
-            var gotoTableEntries = new List<LrGotoEntry<TNonterminalSymbol>>();
+            var actionTableEntries = new List<LrActionEntry<TTokenKind>>();
+            var gotoTableEntries = new List<LrGotoEntry>();
 
             // NOTE: Important that shift/goto actions are inserted (configured) before
             //       reduce actions in the action table (conflict resolution).
@@ -350,22 +349,22 @@ namespace ContextFreeGrammar
                 {
                     // If [A → α•aβ, L] is in LR(k) item set, where a is a terminal symbol, and L is an arbitrary
                     // lookahead set (possibly the empty set corresponding to an LR(0) item set)
-                    var a = (TTerminalSymbol)move.Label;
+                    var a = (Terminal<TTokenKind>)move.Label;
                     // Action[source, a] = shift target
-                    actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(source, a, LrAction.Shift(target)));
+                    actionTableEntries.Add(new LrActionEntry<TTokenKind>(source, a, LrAction.Shift(target)));
                 }
                 else
                 {
                     // If [A → α•Xβ, L] is in LR(k) item set, where X is a nonterminal symbol, and L is an arbitrary
                     // lookahead set (possibly the empty set corresponding to an LR(0) item set)
-                    var X = (TNonterminalSymbol)move.Label;
+                    var X = (Nonterminal)move.Label;
                     // Goto[source, X] = target;
-                    gotoTableEntries.Add(new LrGotoEntry<TNonterminalSymbol>(source, X, target));
+                    gotoTableEntries.Add(new LrGotoEntry(source, X, target));
                 }
             }
 
             int stateIndex = 0; // states variable is an ordered set and therefore we can simulate the index without doing any lookup
-            foreach (ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> itemSet in states)
+            foreach (ProductionItemSet<TTokenKind> itemSet in states)
             {
                 //  Reduce actions differ between different LR methods
                 //      If a ∈ LA(s, A → α•), then set action[s, a] to 'reduce A → α•' (where A is not S')
@@ -382,7 +381,7 @@ namespace ContextFreeGrammar
                         foreach (var terminal in reduceOnTerminalSymbols(stateIndex, reduceItem.ProductionIndex))
                         {
                             var reduceAction = LrAction.Reduce(reduceItem.ProductionIndex);
-                            actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(stateIndex, terminal, reduceAction));
+                            actionTableEntries.Add(new LrActionEntry<TTokenKind>(stateIndex, terminal, reduceAction));
                         }
                     }
                 }
@@ -390,8 +389,8 @@ namespace ContextFreeGrammar
                 // If S' → S• is in LR(0) item set, then set action[s, $] to accept
                 if (itemSet.IsAcceptAction)
                 {
-                    actionTableEntries.Add(new LrActionEntry<TTerminalSymbol>(stateIndex,
-                        Symbol.Eof<TTerminalSymbol>(), LrAction.Accept));
+                    actionTableEntries.Add(new LrActionEntry<TTokenKind>(stateIndex,
+                        Symbol.Eof<TTokenKind>(), LrAction.Accept));
                 }
 
                 stateIndex += 1;
@@ -407,11 +406,11 @@ namespace ContextFreeGrammar
         //       states (i.e. new one set of items). Since the GOTO (successor) function only depends on the kernel LR(0) items
         //       of any LR(1) items, it is easy to merge the transitions of the LR(1) automaton into a new simpler LALR automaton.
         //       On the other hand the ACTION table will change, and it is possible to introduce conflicts when merging.
-        private (IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> mergedStates,
-            List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> mergedTransitions)
+        private (IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> mergedStates,
+            List<Transition<Symbol, ProductionItemSet<TTokenKind>>> mergedTransitions)
             ComputeMergedLr1AutomatonData(
-                IReadOnlyOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>> states,
-                List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>> transitions)
+                IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
+                List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions)
         {
             // blocks[i][0] indicates what block and old index belongs to.
             // That is
@@ -442,7 +441,7 @@ namespace ContextFreeGrammar
             }
 
             // Create new set of states
-            var mergedStates = new InsertionOrderedSet<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>();
+            var mergedStates = new InsertionOrderedSet<ProductionItemSet<TTokenKind>>();
             int[] oldToNew = new int[states.Count];
             for (int i = 0; i < blocks.Length; i += 1)
             {
@@ -459,8 +458,8 @@ namespace ContextFreeGrammar
                         // into a single item set with union lookahead sets. Create hash table with
                         // keys defined by marked productions (LR(0) items), and values defined by
                         // the union of the corresponding LR(1) items' lookahead sets.
-                        Dictionary<MarkedProduction<TNonterminalSymbol>, Set<TTerminalSymbol>> itemsMap =
-                            state.Items.ToDictionary(item => item.MarkedProduction, item => new Set<TTerminalSymbol>(item.Lookaheads));
+                        Dictionary<MarkedProduction, Set<Terminal<TTokenKind>>> itemsMap =
+                            state.Items.ToDictionary(item => item.MarkedProduction, item => new Set<Terminal<TTokenKind>>(item.Lookaheads));
 
                         for (int j = 1; j < blocks[i].Count; j += 1)
                         {
@@ -469,9 +468,9 @@ namespace ContextFreeGrammar
                                 .ToDictionary(item => item.MarkedProduction, item => item.Lookaheads));
                         }
 
-                        mergedStates.Add(new ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>(
+                        mergedStates.Add(new ProductionItemSet<TTokenKind>(
                             itemsMap.Select(kvp =>
-                                new ProductionItem<TNonterminalSymbol, TTerminalSymbol>(kvp.Key, kvp.Value))));
+                                new ProductionItem<TTokenKind>(kvp.Key, kvp.Value))));
                     }
                     else
                     {
@@ -489,7 +488,7 @@ namespace ContextFreeGrammar
 
             // Create new list of transition triplets (s0, label, s1) for all merged states
             var mergedTransitions =
-                new List<Transition<Symbol, ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>>();
+                new List<Transition<Symbol, ProductionItemSet<TTokenKind>>>();
             foreach (var transition in transitions)
             {
                 int oldSource = states.IndexOf(transition.SourceState);

@@ -6,34 +6,34 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
+    // TState = ProductionItem
+    // TAlphabet = Symbol
+
     /// <summary>
     /// Non-deterministic Finite Automaton (Q, Σ, delta, q(0), F) from Automata Theory (with
     /// possible ε-transitions, aka ε-moves). Used in step 1 of LR(0) Automaton construction.
     /// </summary>
-    /// <typeparam name="TState"></typeparam>
-    /// <typeparam name="TAlphabet"></typeparam>
-    public class Nfa<TState, TAlphabet> : INondeterministicFiniteAutomaton<TAlphabet, TState>
-        where TAlphabet : IEquatable<TAlphabet>
-        where TState : IEquatable<TState>
+    public class LrItemNfa<TTokenKind> : INondeterministicFiniteAutomaton<Symbol, ProductionItem<TTokenKind>>
+        where TTokenKind : Enum
     {
         // In many cases TValue could be List<TState>, but it is better to be safe than sorry
-        private readonly Dictionary<SourceTransitionPair<TState, TAlphabet>, HashSet<TState>> _delta;
+        private readonly Dictionary<SourceTransitionPair<ProductionItem<TTokenKind>, Symbol>, HashSet<ProductionItem<TTokenKind>>> _delta;
 
-        private readonly HashSet<TState> _acceptStates;
-        private readonly HashSet<TState> _states;
-        private readonly SortedSet<TAlphabet> _alphabet; // ASCII sort order
+        private readonly HashSet<ProductionItem<TTokenKind>> _acceptStates;
+        private readonly HashSet<ProductionItem<TTokenKind>> _states;
+        private readonly SortedSet<Symbol> _alphabet; // ASCII sort order
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
-        public Nfa(
-            IEnumerable<Transition<TAlphabet, TState>> transitions,
-            TState startState,
-            IEnumerable<TState> acceptStates)
+        public LrItemNfa(
+            IEnumerable<Transition<Symbol, ProductionItem<TTokenKind>>> transitions,
+            ProductionItem<TTokenKind> startState,
+            IEnumerable<ProductionItem<TTokenKind>> acceptStates)
         {
             StartState = startState;
-            _acceptStates = new HashSet<TState>(acceptStates);
-            _states = new HashSet<TState>(acceptStates) { startState };
-            _delta = new Dictionary<SourceTransitionPair<TState, TAlphabet>, HashSet<TState>>();
-            _alphabet = new SortedSet<TAlphabet>();
+            _acceptStates = new HashSet<ProductionItem<TTokenKind>>(acceptStates);
+            _states = new HashSet<ProductionItem<TTokenKind>>(acceptStates) { startState };
+            _delta = new Dictionary<SourceTransitionPair<ProductionItem<TTokenKind>, Symbol>, HashSet<ProductionItem<TTokenKind>>>();
+            _alphabet = new SortedSet<Symbol>();
 
             foreach (var triple in transitions)
             {
@@ -43,57 +43,57 @@ namespace ContextFreeGrammar
                 if (_delta.ContainsKey(pair))
                     _delta[pair].Add(triple.TargetState);
                 else
-                    _delta[pair] = new HashSet<TState> {triple.TargetState};
-                if (triple.Label.Equals(Transition.Epsilon<TAlphabet>()))
+                    _delta[pair] = new HashSet<ProductionItem<TTokenKind>> {triple.TargetState};
+                if (triple.Label.Equals(Symbol.Epsilon))
                     IsEpsilonNfa = true;
                 else
                     _alphabet.Add(triple.Label); // alphabet does not contain epsilon
             }
         }
 
-        public TState StartState { get; }
+        public ProductionItem<TTokenKind> StartState { get; }
 
-        public bool IsAcceptState(TState state)
+        public bool IsAcceptState(ProductionItem<TTokenKind> state)
         {
             return _acceptStates.Contains(state);
         }
 
-        public IEnumerable<TState> GetStates()
+        public IEnumerable<ProductionItem<TTokenKind>> GetStates()
         {
             return _states;
         }
 
-        public IEnumerable<TState> GetTrimmedStates()
+        public IEnumerable<ProductionItem<TTokenKind>> GetTrimmedStates()
         {
             return GetStates();
         }
 
-        public IEnumerable<TAlphabet> GetAlphabet()
+        public IEnumerable<Symbol> GetAlphabet()
         {
             return _alphabet;
         }
 
         public bool IsEpsilonNfa { get; }
 
-        public IEnumerable<TState> GetAcceptStates()
+        public IEnumerable<ProductionItem<TTokenKind>> GetAcceptStates()
         {
             return _acceptStates;
         }
 
-        public IEnumerable<Transition<TAlphabet, TState>> GetTransitions()
+        public IEnumerable<Transition<Symbol, ProductionItem<TTokenKind>>> GetTransitions()
         {
-            foreach (KeyValuePair<SourceTransitionPair<TState, TAlphabet>, HashSet<TState>> kvp in _delta)
+            foreach (KeyValuePair<SourceTransitionPair<ProductionItem<TTokenKind>, Symbol>, HashSet<ProductionItem<TTokenKind>>> kvp in _delta)
             {
-                TState sourceState = kvp.Key.SourceState;
-                TAlphabet label = kvp.Key.Label;
-                foreach (TState targetState in kvp.Value)
+                ProductionItem<TTokenKind> sourceState = kvp.Key.SourceState;
+                Symbol label = kvp.Key.Label;
+                foreach (ProductionItem<TTokenKind> targetState in kvp.Value)
                 {
                     yield return Transition.Move(sourceState, label, targetState);
                 }
             }
         }
 
-        public IEnumerable<Transition<TAlphabet, TState>> GetTrimmedTransitions()
+        public IEnumerable<Transition<Symbol, ProductionItem<TTokenKind>>> GetTrimmedTransitions()
         {
             return GetTransitions();
         }
@@ -102,7 +102,7 @@ namespace ContextFreeGrammar
         /// Create Deterministic Finite Automaton by lazy form of subset construction (Rabin and Scott, )
         /// </summary>
         /// <returns>Deterministic Finite Automaton created by lazy form of subset construction</returns>
-        public Dfa<Set<TState>, TAlphabet> ToDfa()
+        public LrItemsDfa<TTokenKind> ToDfa()
         {
             // The subset construction is an example of a fixed-point computation, where an application of a
             // monotone function to some collection of sets drawn from a domain whose structure is known is
@@ -116,22 +116,22 @@ namespace ContextFreeGrammar
             // comparison operator ≥ is ⊇.) Since Q can have at most 2^N distinct elements, the while loop can iterate
             // at most 2^N times. It may, of course, reach a fixed point and halt more quickly than that.
 
-            var newStartState = EpsilonClose(new Set<TState> {StartState});
+            var newStartState = EpsilonClose(StartState.AsSingletonEnumerable());
 
-            var newAcceptStates = new HashSet<Set<TState>>();
-            var newTransitions = new List<Transition<TAlphabet, Set<TState>>>();
+            var newAcceptStates = new HashSet<ProductionItemSet<TTokenKind>>();
+            var newTransitions = new List<Transition<Symbol, ProductionItemSet<TTokenKind>>>();
 
-            var newStates = new InsertionOrderedSet<Set<TState>> {newStartState};
+            var newStates = new InsertionOrderedSet<ProductionItemSet<TTokenKind>> {newStartState};
 
             // Lazy form of Subset Construction where only reachable nodes
             // are added to the following work list of marked subsets
-            var markedVisitedStates = new Queue<Set<TState>>(); // work list that preserves insertion order
+            var markedVisitedStates = new Queue<ProductionItemSet<TTokenKind>>(); // work list that preserves insertion order
             markedVisitedStates.Enqueue(newStartState);
 
             while (markedVisitedStates.Count != 0)
             {
                 // subset S
-                Set<TState> subsetSourceState = markedVisitedStates.Dequeue();
+                ProductionItemSet<TTokenKind> subsetSourceState = markedVisitedStates.Dequeue();
 
                 if (subsetSourceState.Overlaps(GetAcceptStates()))
                 {
@@ -142,10 +142,10 @@ namespace ContextFreeGrammar
                 foreach (var label in GetAlphabet())
                 {
                     // subset T
-                    var subsetTargetState = new Set<TState>();
+                    var subsetTargetState = new Set<ProductionItem<TTokenKind>>();
 
                     // kernel items: For all s in S, add all non-epsilon transitions (s, label) → t to T
-                    foreach (TState s in subsetSourceState)
+                    foreach (ProductionItem<TTokenKind> s in subsetSourceState)
                     {
                         subsetTargetState.AddRange(Delta(Transition.FromPair(s, label)));
                     }
@@ -154,34 +154,34 @@ namespace ContextFreeGrammar
                     if (subsetTargetState.Count == 0) continue;
 
                     // Closure Items: Epsilon-close all T such that (S, label) → T
-                    subsetTargetState = EpsilonClose(subsetTargetState);
+                    var closure = EpsilonClose(subsetTargetState);
 
-                    if (!newStates.Contains(subsetTargetState))
+                    if (!newStates.Contains(closure))
                     {
-                        newStates.Add(subsetTargetState);
-                        markedVisitedStates.Enqueue(subsetTargetState);
+                        newStates.Add(closure);
+                        markedVisitedStates.Enqueue(closure);
                     }
 
                     // Add (S, label) → T transition
-                    newTransitions.Add(Transition.Move(subsetSourceState, label, subsetTargetState));
+                    newTransitions.Add(Transition.Move(subsetSourceState, label, closure));
                 }
             }
 
-            return new Dfa<Set<TState>, TAlphabet>(newStates, GetAlphabet(), newTransitions, newStartState, newAcceptStates);
+            return new LrItemsDfa<TTokenKind>(newStates, GetAlphabet(), newTransitions, newStartState, newAcceptStates);
         }
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
-        Set<TState> EpsilonClose(IEnumerable<TState> states)
+        ProductionItemSet<TTokenKind> EpsilonClose(IEnumerable<ProductionItem<TTokenKind>> kernelItems)
         {
-            var markedVisitedStates = new Queue<TState>(states);
+            var markedVisitedStates = new Queue<ProductionItem<TTokenKind>>(kernelItems);
             // base step
-            var closure = new Set<TState>(states);
+            var closure = new Set<ProductionItem<TTokenKind>>(kernelItems);
             // induction step: recurse until no more states in a round
             while (markedVisitedStates.Count != 0)
             {
-                TState sourceState = markedVisitedStates.Dequeue();
+                ProductionItem<TTokenKind> sourceState = markedVisitedStates.Dequeue();
                 // if any epsilon-moves add them all to the closure (union)
-                foreach (var targetState in Delta(Transition.FromEpsilonPair<TState, TAlphabet>(sourceState)))
+                foreach (var targetState in Delta(Transition.FromEpsilonPair<ProductionItem<TTokenKind>, Symbol>(sourceState)))
                 {
                     if (!closure.Contains(targetState))
                     {
@@ -190,12 +190,13 @@ namespace ContextFreeGrammar
                     }
                 }
             }
-            return closure;
+
+            return new ProductionItemSet<TTokenKind>(closure);
         }
 
-        IEnumerable<TState> Delta(SourceTransitionPair<TState, TAlphabet> pair)
+        IEnumerable<ProductionItem<TTokenKind>> Delta(SourceTransitionPair<ProductionItem<TTokenKind>, Symbol> pair)
         {
-            return _delta.TryGetValue(pair, out var targetStates) ? targetStates : Enumerable.Empty<TState>();
+            return _delta.TryGetValue(pair, out var targetStates) ? targetStates : Enumerable.Empty<ProductionItem<TTokenKind>>();
         }
     }
 }

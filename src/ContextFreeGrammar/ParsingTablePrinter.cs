@@ -10,34 +10,28 @@ namespace ContextFreeGrammar
 {
     public static class ParsingTablePrinter
     {
-        public static void PrintItems<TNonterminalSymbol, TTerminalSymbol>(
-            this Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfa,
+        public static void PrintItems<TTokenKind>(
+            this LrItemsDfa<TTokenKind> dfa,
             TextWriter writer
-        )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            ) where TTokenKind : Enum
         {
             dfa.PrintItemsHelper(writer, itemSet => itemSet.Items);
         }
 
-        public static void PrintKernelItems<TNonterminalSymbol, TTerminalSymbol>(
-            this Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfa,
+        public static void PrintKernelItems<TTokenKind>(
+            this LrItemsDfa<TTokenKind> dfa,
             TextWriter writer
-            )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            ) where TTokenKind : Enum
         {
             dfa.PrintItemsHelper(writer, itemSet => itemSet.KernelItems);
         }
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
-        private static void PrintItemsHelper<TNonterminalSymbol, TTerminalSymbol>(
-            this Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfa,
+        private static void PrintItemsHelper<TTokenKind>(
+            this LrItemsDfa<TTokenKind> dfa,
             TextWriter writer,
-            Func<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>> itemsResolver
-        )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            Func<ProductionItemSet<TTokenKind>, IEnumerable<ProductionItem<TTokenKind>>> itemsResolver
+            ) where TTokenKind : Enum
         {
             string maximalStateIndex = $"s{dfa.MaxState - 1}: ";
 
@@ -61,12 +55,10 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Print First and Follow sets for all non-terminal symbols.
         /// </summary>
-        public static void PrintFirstAndFollowSets<TNonterminalSymbol, TTerminalSymbol>(
-            this Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
+        public static void PrintFirstAndFollowSets<TTokenKind>(
+            this Grammar<TTokenKind> grammar,
             TextWriter writer
-            )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            ) where TTokenKind : Enum
         {
             var table = new TableBuilder()
                 .SetTitle("First and Follow sets")
@@ -78,7 +70,7 @@ namespace ContextFreeGrammar
 
             var tableWriter = new TextTableWriter(table, writer);
             tableWriter.WriteHead();
-            foreach (TNonterminalSymbol variable in grammar.Variables)
+            foreach (Nonterminal variable in grammar.Variables)
             {
                 tableWriter.WriteRow(variable.Name,
                     grammar.Erasable(variable).FormatBoolean(),
@@ -88,12 +80,10 @@ namespace ContextFreeGrammar
             tableWriter.WriteFooter();
         }
 
-        public static void PrintParsingTable<TNonterminalSymbol, TTerminalSymbol>(
-            this IShiftReduceParser<TNonterminalSymbol, TTerminalSymbol> parser,
+        public static void PrintParsingTable<TTokenKind>(
+            this IShiftReduceParser<TTokenKind> parser,
             TextWriter writer
-            )
-            where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-            where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+            ) where TTokenKind : Enum
         {
             var actionTable = new TableBuilder()
                 .SetTitle("ACTION")

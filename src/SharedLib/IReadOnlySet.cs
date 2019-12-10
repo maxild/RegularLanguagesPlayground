@@ -131,12 +131,24 @@ namespace AutomataLib
     {
         bool Contains(T item);
 
+        /// <summary>
+        /// THIS ⊆ OTHER
+        /// </summary>
         bool IsSubsetOf(IEnumerable<T> other);
 
+        /// <summary>
+        /// THIS ⊇ OTHER
+        /// </summary>
         bool IsSupersetOf(IEnumerable<T> other);
 
+        /// <summary>
+        /// THIS ⊃ OTHER
+        /// </summary>
         bool IsProperSupersetOf(IEnumerable<T> other);
 
+        /// <summary>
+        /// THIS ⊂ OTHER
+        /// </summary>
         bool IsProperSubsetOf(IEnumerable<T> other);
 
         bool Overlaps(IEnumerable<T> other);

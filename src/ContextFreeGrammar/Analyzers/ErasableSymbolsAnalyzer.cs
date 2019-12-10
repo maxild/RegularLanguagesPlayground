@@ -5,13 +5,12 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    internal class ErasableSymbolsAnalyzer<TNonterminalSymbol, TTerminalSymbol> : IErasableSymbolsAnalyzer
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+    internal class ErasableSymbolsAnalyzer<TTokenKind> : IErasableSymbolsAnalyzer
+        where TTokenKind : Enum
     {
-        private readonly Dictionary<TNonterminalSymbol, bool> _nullableMap;
+        private readonly Dictionary<Nonterminal, bool> _nullableMap;
 
-        internal ErasableSymbolsAnalyzer(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+        internal ErasableSymbolsAnalyzer(Grammar<TTokenKind> grammar)
         {
             if (grammar == null)
                 throw new ArgumentNullException(nameof(grammar));
@@ -22,16 +21,16 @@ namespace ContextFreeGrammar.Analyzers
         /// <inheritdoc />
         public bool Erasable(Symbol symbol)
         {
-            return symbol.IsEpsilon || symbol.IsEof || symbol is TNonterminalSymbol t && _nullableMap[t];
+            return symbol.IsEpsilon || symbol.IsEof || symbol is Nonterminal t && _nullableMap[t];
             //return symbol is TNonterminalSymbol variable
             //    ? _nullableMap[variable]
             //    : symbol.IsEpsilon || symbol.IsEof; // terminal and eof are both erasable (eof by convention)
         }
 
-        private static Dictionary<TNonterminalSymbol, bool> ComputeErasableSymbols(Grammar<TNonterminalSymbol, TTerminalSymbol> grammar)
+        private static Dictionary<Nonterminal, bool> ComputeErasableSymbols(Grammar<TTokenKind> grammar)
         {
             // only define nullable predicate on non-terminals
-            Dictionary<TNonterminalSymbol, bool> nullableMap = grammar.Variables.ToDictionary(symbol => symbol, _ => false);
+            Dictionary<Nonterminal, bool> nullableMap = grammar.Variables.ToDictionary(symbol => symbol, _ => false);
 
             bool changed = true;
             while (changed)
@@ -44,8 +43,7 @@ namespace ContextFreeGrammar.Analyzers
                     {
                         // if all symbols Y1 Y2...Yn are nullable (e.g. if X is an ε-production)
                         if (production.Tail.Count == 0 ||
-                            production.Tail.All(symbol => symbol.IsEpsilon
-                                                          || symbol is TNonterminalSymbol t && nullableMap[t]))
+                            production.Tail.All(symbol => symbol.IsEpsilon || symbol is Nonterminal t && nullableMap[t]))
                         {
                             nullableMap[production.Head] = true;
                             changed = true;

@@ -24,8 +24,8 @@ namespace ContextFreeGrammar.Analyzers
     /// <summary>
     /// Starter tokens analyzer.
     /// </summary>
-    public interface IFirstSetsAnalyzer<TTerminalSymbol>
-        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    public interface IFirstSetsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
         /// <summary>
         /// The First function yields the set of starter symbols for a grammar symbol. It is formally
@@ -38,22 +38,22 @@ namespace ContextFreeGrammar.Analyzers
         /// FIRST(eof) = {eof} = {$}
         /// FIRST(ε) = Ø
         /// </remarks>
-        IReadOnlySet<TTerminalSymbol> First(Symbol symbol);
+        IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol);
     }
 
     /// <summary>
     /// Combined 'nullable symbols' and 'starter tokens' analyzer.
     /// </summary>
-    public interface IFirstSymbolsAnalyzer<TTerminalSymbol> : IErasableSymbolsAnalyzer, IFirstSetsAnalyzer<TTerminalSymbol>
-        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    public interface IFirstSymbolsAnalyzer<TTokenKind> : IErasableSymbolsAnalyzer, IFirstSetsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
     }
 
     /// <summary>
     /// Follower tokens analyzer.
     /// </summary>
-    public interface IFollowSetsAnalyzer<in TNonterminalSymbol, TTerminalSymbol>
-        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    public interface IFollowSetsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
         /// <summary>
         /// The FOLLOW function yields the set of terminal symbols that may legally follow a nonterminal symbol in a
@@ -65,15 +65,15 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         /// <param name="variable">A nonterminal symbol.</param>
         /// <returns>The set of terminal symbols that may legally follow a nonterminal symbol.</returns>
-        IReadOnlySet<TTerminalSymbol> Follow(TNonterminalSymbol variable);
+        IReadOnlySet<Terminal<TTokenKind>> Follow(Nonterminal variable);
     }
 
     /// <summary>
     /// Combined 'nullable symbols', 'starter tokens' and 'follower tokens' analyzer.
     /// </summary>
-    public interface IFollowSymbolsAnalyzer<in TNonterminalSymbol, TTerminalSymbol> :
-        IFirstSymbolsAnalyzer<TTerminalSymbol>, IFollowSetsAnalyzer<TNonterminalSymbol, TTerminalSymbol>
-        where TTerminalSymbol : IEquatable<TTerminalSymbol>
+    public interface IFollowSymbolsAnalyzer<TTokenKind> :
+        IFirstSymbolsAnalyzer<TTokenKind>, IFollowSetsAnalyzer<TTokenKind>
+        where TTokenKind : Enum
     {
     }
 
@@ -107,11 +107,11 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         /// <param name="analyzer"></param>
         /// <param name="symbols">The sequence of symbols (possibly empty, aka epsilon)</param>
-        public static IReadOnlySet<TTerminalSymbol> First<TTerminalSymbol>(
-            this IFirstSymbolsAnalyzer<TTerminalSymbol> analyzer,
-            IEnumerable<Symbol> symbols) where TTerminalSymbol : IEquatable<TTerminalSymbol>
+        public static IReadOnlySet<Terminal<TTokenKind>> First<TTokenKind>(
+            this IFirstSymbolsAnalyzer<TTokenKind> analyzer,
+            IEnumerable<Symbol> symbols) where TTokenKind : Enum
         {
-            var first = new Set<TTerminalSymbol>();
+            var first = new Set<Terminal<TTokenKind>>();
             foreach (var symbol in symbols)
             {
                 first.AddRange(analyzer.First(symbol));

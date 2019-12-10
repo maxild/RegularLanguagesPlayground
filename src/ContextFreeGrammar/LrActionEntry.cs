@@ -6,32 +6,32 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public struct LrActionEntry<TTerminalSymbol> : IEquatable<LrActionEntry<TTerminalSymbol>>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public struct LrActionEntry<TTokenKind> : IEquatable<LrActionEntry<TTokenKind>>
+        where TTokenKind : Enum
     {
         private string DebuggerDisplay => ToString();
 
         public readonly int State;
-        public readonly TTerminalSymbol TerminalSymbol;
+        public readonly Terminal<TTokenKind> TerminalSymbol;
         public readonly LrAction Action;
 
-        internal LrActionEntry(int state, TTerminalSymbol terminalSymbol, LrAction action)
+        internal LrActionEntry(int state, Terminal<TTokenKind> terminalSymbol, LrAction action)
         {
             State = state;
             TerminalSymbol = terminalSymbol;
             Action = action;
         }
 
-        public bool Equals(LrActionEntry<TTerminalSymbol> other)
+        public bool Equals(LrActionEntry<TTokenKind> other)
         {
             return State == other.State &&
-                   EqualityComparer<TTerminalSymbol>.Default.Equals(TerminalSymbol, other.TerminalSymbol) &&
+                   EqualityComparer<Terminal<TTokenKind>>.Default.Equals(TerminalSymbol, other.TerminalSymbol) &&
                    Action.Equals(other.Action);
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LrActionEntry<TTerminalSymbol> other && Equals(other);
+            return obj is LrActionEntry<TTokenKind> other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -39,7 +39,7 @@ namespace ContextFreeGrammar
             unchecked
             {
                 var hashCode = State.GetHashCode();
-                hashCode = (hashCode * 397) ^ EqualityComparer<TTerminalSymbol>.Default.GetHashCode(TerminalSymbol);
+                hashCode = (hashCode * 397) ^ EqualityComparer<Terminal<TTokenKind>>.Default.GetHashCode(TerminalSymbol);
                 hashCode = (hashCode * 397) ^ Action.GetHashCode();
                 return hashCode;
             }

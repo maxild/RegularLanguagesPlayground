@@ -6,6 +6,6 @@ namespace AutomataLib
     {
         TState TransitionFunction(TState state, IEnumerable<TAlphabet> input);
 
-        bool IsMatch(string input);
+        bool IsMatch(IEnumerable<TAlphabet> input);
     }
 }

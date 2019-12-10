@@ -171,9 +171,9 @@ namespace AutomataRepresentations
             return s;
         }
 
-        public bool IsMatch(string input)
+        public bool IsMatch(IEnumerable<char> input)
         {
-            return IsAcceptState(TransitionFunction(StartState, Letterizer<char>.Default.GetLetters(input)));
+            return IsAcceptState(TransitionFunction(StartState, input));
         }
 
         public string PrintTable()

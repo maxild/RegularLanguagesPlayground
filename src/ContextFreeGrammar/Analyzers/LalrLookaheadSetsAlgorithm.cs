@@ -46,14 +46,13 @@ namespace ContextFreeGrammar.Analyzers
         /// Vertices are defined by all nonterminal ('goto') transitions in the LR(0) automaton denoted by a pairs on the form (p,A).
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static IReadOnlyOrderedSet<(int, TNonterminalSymbol)> GetGotoTransitionPairs<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0)
-                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static IReadOnlyOrderedSet<(int, Nonterminal)> GetGotoTransitionPairs<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            LrItemsDfa<TTokenKind> dfaLr0) where TTokenKind : Enum
+
         {
             // This is the bijective mapping between integer values and (p,A)-pairs.
-            var vertices = new InsertionOrderedSet<(int, TNonterminalSymbol)>();
+            var vertices = new InsertionOrderedSet<(int, Nonterminal)>();
 
             // p = 1,...,N
             foreach (int p in dfaLr0.GetTrimmedStates())
@@ -85,13 +84,12 @@ namespace ContextFreeGrammar.Analyzers
         ///      GOTO(p,AC) is defined, and C *=> ε
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (ImmutableArray<IReadOnlySet<TTerminalSymbol>> DR, IGraph Graph) GetGraphReads<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
-            IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
-            IErasableSymbolsAnalyzer analyzer)
-                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> DR, IGraph Graph) GetGraphReads<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            LrItemsDfa<TTokenKind> dfaLr0,
+            IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
+            IErasableSymbolsAnalyzer analyzer
+            ) where TTokenKind : Enum
         {
             // TODO: Move everywhere (maybe an invariant of grammar itself...If (!IsAugmented) MakeAugmented
             if (!grammar.IsAugmented)
@@ -101,9 +99,9 @@ namespace ContextFreeGrammar.Analyzers
             var edges = new HashSet<(int, int)>(); // no parallel edges
 
             // direct reads (init sets)
-            var DR = new Set<TTerminalSymbol>[vertices.Count]; // terminals, including eof = $
+            var DR = new Set<Terminal<TTokenKind>>[vertices.Count]; // terminals, including eof = $
             for (int i = 0; i < vertices.Count; i += 1)
-                DR[i] = new Set<TTerminalSymbol>();
+                DR[i] = new Set<Terminal<TTokenKind>>();
 
             // Ensure that for the state p whose kernel item is [S' → •S], we have
             //       DR(p, S) = {$},
@@ -113,9 +111,9 @@ namespace ContextFreeGrammar.Analyzers
                 // NOTE: If S' → S$ is not defined by the grammar then the dot symbol of the [S' → S•] item is the empty symbol,
                 // and we therefore have to add eof marker 'manually' here.
                 int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelEquals(grammar.AugmentedStartItem));
-                var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<TNonterminalSymbol>());
+                var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>());
                 var indexOfAcceptTransition = vertices.IndexOf(acceptTransition);
-                DR[indexOfAcceptTransition].Add(Symbol.Eof<TTerminalSymbol>());
+                DR[indexOfAcceptTransition].Add(Symbol.Eof<TTokenKind>());
             }
 
             // p = 1,...,N
@@ -138,7 +136,7 @@ namespace ContextFreeGrammar.Analyzers
                             if (analyzer.Erasable(symbol))
                             {
                                 // indirect read: GOTO(p,AC) is defined, and C *=> ε
-                                var C = (TNonterminalSymbol)symbol;
+                                var C = (Nonterminal)symbol;
                                 var successorPair = (r, C);
                                 var indexOfSuccessorPair = vertices.IndexOf(successorPair);
                                 edges.Add((indexOfPair, indexOfSuccessorPair));
@@ -154,7 +152,7 @@ namespace ContextFreeGrammar.Analyzers
                             Debug.Assert(symbol.IsTerminal || symbol.IsEof);
 
                             // direct read: GOTO(p,Aa) is defined
-                            var a = (TTerminalSymbol)symbol; // DR(1,s) = {$} here for grammar without eof marker (by convention)
+                            var a = (Terminal<TTokenKind>) symbol; // DR(1,s) = {$} here for grammar without eof marker (by convention)
                             DR[indexOfPair].Add(a);
                         }
                     }
@@ -163,7 +161,7 @@ namespace ContextFreeGrammar.Analyzers
 
             var graph = new AdjacencyListGraph(vertices.Count, edges);
 
-            return (ImmutableArray<IReadOnlySet<TTerminalSymbol>>.CastUp(DR.ToImmutableArray()), graph);
+            return (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>>.CastUp(DR.ToImmutableArray()), graph);
         }
 
         /// <summary>
@@ -197,13 +195,12 @@ namespace ContextFreeGrammar.Analyzers
         ///                                           the LR(0) automaton). The set of successor states q from where β accesses p.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static IGraph GetGraphLaFollow<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
-            IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
-            IErasableSymbolsAnalyzer analyzer)
-                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static IGraph GetGraphLaFollow<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            LrItemsDfa<TTokenKind> dfaLr0,
+            IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
+            IErasableSymbolsAnalyzer analyzer
+            ) where TTokenKind : Enum
         {
             // includes relation defines the edges in the digraph
             var includes = new HashSet<(int, int)>(); // no parallel edges
@@ -227,7 +224,7 @@ namespace ContextFreeGrammar.Analyzers
                 // TODO: ret follow til saadan ogsaa...better performance, because erasable does not have to be extended
                 for (int i = production.Tail.Count - 1; i >= 0; i -= 1)
                 {
-                    var A = production.TailAs<TNonterminalSymbol>(i);
+                    var A = production.TailAs<Nonterminal>(i);
                     if (A == null) break;
                     var revBeta = production.GetSymbolsBeforeMarkerPosition(i).ToArray(); // TODO: Slice, dont't copy
                     // We have found B → βAγ, γ *=> ε
@@ -293,19 +290,18 @@ namespace ContextFreeGrammar.Analyzers
         /// and therefore the relation makes sense.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static Dictionary<(int stateIndex, int productionIndex), Set<TTerminalSymbol>> GetLaUnion<TNonterminalSymbol, TTerminalSymbol>(
-            Grammar<TNonterminalSymbol, TTerminalSymbol> grammar,
-            Dfa<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>, Symbol> dfaLr0,
-            IReadOnlyOrderedSet<(int, TNonterminalSymbol)> vertices,
-            IReadOnlyList<IReadOnlySet<TTerminalSymbol>> followSets)
-                where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
-                where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
+        public static Dictionary<(int stateIndex, int productionIndex), Set<Terminal<TTokenKind>>> GetLaUnion<TTokenKind>(
+            Grammar<TTokenKind> grammar,
+            LrItemsDfa<TTokenKind> dfaLr0,
+            IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
+            IReadOnlyList<IReadOnlySet<Terminal<TTokenKind>>> followSets
+            ) where TTokenKind : Enum
         {
             // TODO: Move centrally
             if (!grammar.IsAugmented)
                 throw new ArgumentException("The grammar need to be augmented with S' → S starter unit production.");
 
-            var lookaheadSets = new Dictionary<(int, int), Set<TTerminalSymbol>>();
+            var lookaheadSets = new Dictionary<(int, int), Set<Terminal<TTokenKind>>>();
 
             foreach (int reduceState in dfaLr0.GetAcceptStates())
             {
@@ -314,19 +310,19 @@ namespace ContextFreeGrammar.Analyzers
                 foreach (var reduceItem in reduceItemSet.ReduceItems)
                 {
                     var key = (reduceState, reduceItem.ProductionIndex);
-                    lookaheadSets.TryAdd(key, new Set<TTerminalSymbol>());
+                    lookaheadSets.TryAdd(key, new Set<Terminal<TTokenKind>>());
 
                     // S' → S• (or S' → S•$, or S' → S$•) need special treatment, because the DFA has no transition (_, S')
                     // on S'. We can safely define it as (1, S) with regards to the eof marker follower symbol
                     if (reduceItem.Production.Head.Equals(grammar.StartSymbol))
                     {
                         // S
-                        var startSymbol = reduceItem.Production.TailAs<TNonterminalSymbol>(0);
+                        var startSymbol = reduceItem.Production.TailAs<Nonterminal>(0);
                         Debug.Assert(dfaLr0.StartState == 1);
                         // (1,S)-index
                         var index = vertices.IndexOf((dfaLr0.StartState, startSymbol));
                         // FOLLOW(1,S) = {$}
-                        Debug.Assert(followSets[index].SetEquals(Symbol.Eof<TTerminalSymbol>().AsSingletonEnumerable()));
+                        Debug.Assert(followSets[index].SetEquals(Symbol.Eof<TTokenKind>().AsSingletonEnumerable()));
                         lookaheadSets[key].AddRange(followSets[index]);
                     }
                     else

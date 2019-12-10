@@ -16,9 +16,8 @@ namespace ContextFreeGrammar
     /// Thus each state except the initial state has a unique grammar symbol associated with it.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> : IEquatable<ProductionItemSet<TNonterminalSymbol, TTerminalSymbol>>, IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>
-        where TNonterminalSymbol : Symbol, IEquatable<TNonterminalSymbol>
-        where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    public class ProductionItemSet<TTokenKind> : IEquatable<ProductionItemSet<TTokenKind>>, IReadOnlySet<ProductionItem<TTokenKind>>
+        where TTokenKind : Enum
     {
         private string DebuggerDisplay => ClosureItems.Any()
             ? string.Concat(KernelItems.ToVectorString(), ":", ClosureItems.ToVectorString())
@@ -27,14 +26,14 @@ namespace ContextFreeGrammar
         private readonly bool _anyLookaheads; // are comparisons of items and marked productions the same thing?
 
         // kernel items are always non-empty (the kernel items identifies the LR(0) item set)
-        private readonly HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _kernelItems;
+        private readonly HashSet<ProductionItem<TTokenKind>> _kernelItems;
         // closure items can be empty (and can BTW always be generated on the fly, but we store them to begin with)
-        private readonly List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> _closureItems;
+        private readonly List<ProductionItem<TTokenKind>> _closureItems;
 
-        public ProductionItemSet(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> items)
+        public ProductionItemSet(IEnumerable<ProductionItem<TTokenKind>> items)
         {
-            _kernelItems = new HashSet<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
-            _closureItems = new List<ProductionItem<TNonterminalSymbol, TTerminalSymbol>>();
+            _kernelItems = new HashSet<ProductionItem<TTokenKind>>();
+            _closureItems = new List<ProductionItem<TTokenKind>>();
             foreach (var item in items)
             {
                 if (item.IsKernelItem)
@@ -45,7 +44,7 @@ namespace ContextFreeGrammar
             }
         }
 
-        public ProductionItem<TNonterminalSymbol, TTerminalSymbol> ReduceBy(int productionIndex) =>
+        public ProductionItem<TTokenKind> ReduceBy(int productionIndex) =>
             _kernelItems.Single(item => item.IsReduceItem && item.ProductionIndex == productionIndex);
 
         /// <summary>
@@ -55,23 +54,23 @@ namespace ContextFreeGrammar
         /// </summary>
         public Symbol SpellingSymbol => KernelItems.First().BeforeDotSpellingSymbol; // all kernel items have the same grammar symbol to the left of the dot
 
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> Items => _kernelItems.Concat(_closureItems);
+        public IEnumerable<ProductionItem<TTokenKind>> Items => _kernelItems.Concat(_closureItems);
 
         /// <summary>
         /// The partially parsed rules for a state are called its kernel LR(0) items.
         /// If we also call S′ → .S a kernel item, we observe that every state in the
         /// DFA is completely determined by its subset of kernel items.
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> KernelItems => _kernelItems;
+        public IEnumerable<ProductionItem<TTokenKind>> KernelItems => _kernelItems;
 
         /// <summary>
         /// The closure items (obtained via ϵ-closure) do not determine the state of the LR(0) automaton,
         /// because they can all be forgotten about, and regenerated on the fly. All closure items have
         /// the dot at the beginning of the rule, and are therefore not parsed yet.
         /// </summary>
-        public IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ClosureItems => _closureItems;
+        public IEnumerable<ProductionItem<TTokenKind>> ClosureItems => _closureItems;
 
-        private ProductionItem<TNonterminalSymbol, TTerminalSymbol>[] _reduceItems;
+        private ProductionItem<TTokenKind>[] _reduceItems;
 
         /// <summary>
         /// The ordered list of reduce items, where a reduce item comes first, if it is based on a
@@ -82,9 +81,9 @@ namespace ContextFreeGrammar
         /// because the single item of an ε-production is both a reduce item and and a closure item
         /// (it can never be a kernel item).
         /// </remarks>
-        public IReadOnlyList<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> ReduceItems => _reduceItems ??= GetReduceItems();
+        public IReadOnlyList<ProductionItem<TTokenKind>> ReduceItems => _reduceItems ??= GetReduceItems();
 
-        ProductionItem<TNonterminalSymbol, TTerminalSymbol>[] GetReduceItems()
+        ProductionItem<TTokenKind>[] GetReduceItems()
         {
             // In case of reduce-reduce conflicts we order by production index (standard conflict resolution)
             var reduceItems = Items.Where(item => item.IsReduceItem).ToArray();
@@ -106,27 +105,27 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Find all nonterminal labeled transitions out of this item set.
         /// </summary>
-        public IEnumerable<TNonterminalSymbol> NonterminalTransitions =>
-            Items.Where(item => item.DotSymbol.IsNonterminal).Select(item => item.GetDotSymbol<TNonterminalSymbol>());
+        public IEnumerable<Nonterminal> NonterminalTransitions =>
+            Items.Where(item => item.DotSymbol.IsNonterminal).Select(item => item.GetDotSymbol<Nonterminal>());
 
         /// <summary>
         /// Find all terminal labeled transitions out of this item set.
         /// </summary>
-        public IEnumerable<TTerminalSymbol> TerminalTransitions =>
-            Items.Where(item => item.DotSymbol.IsTerminal).Select(item => item.GetDotSymbol<TTerminalSymbol>());
+        public IEnumerable<Terminal<TTokenKind>> TerminalTransitions =>
+            Items.Where(item => item.DotSymbol.IsTerminal).Select(item => item.GetDotSymbol<Terminal<TTokenKind>>());
 
         /// <summary>
         /// Compute the successor goto items (i.e for non-terminal transitions) and/or shift items
         /// (i.e. for terminal transitions). This is the kernel items of the GOTO function in the dragon book.
         /// </summary>
-        public ILookup<Symbol, ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetTargetItems()
+        public ILookup<Symbol, ProductionItem<TTokenKind>> GetTargetItems()
         {
             return Items
                 .Where(item => !item.IsReduceItem)
                 .ToLookup(item => item.DotSymbol, item => item.WithShiftedDot());
         }
 
-        public bool Equals(ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> other)
+        public bool Equals(ProductionItemSet<TTokenKind> other)
         {
             return other != null && _kernelItems.SetEquals(other.KernelItems);
         }
@@ -134,49 +133,49 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Does this LR(k) item set have kernel items which CORE equals the given marked productions?
         /// </summary>
-        public bool CoreOfKernelEquals(IEnumerable<MarkedProduction<TNonterminalSymbol>> other)
+        public bool CoreOfKernelEquals(IEnumerable<MarkedProduction> other)
         {
-            return CoreOfKernelEquals(other.Select(dottedProduction => dottedProduction.AsLr0Item<TTerminalSymbol>()));
+            return CoreOfKernelEquals(other.Select(dottedProduction => dottedProduction.AsLr0Item<TTokenKind>()));
         }
 
 
         /// <summary>
         /// Does this LR(k) item set have kernel items which CORE equals the given marked productions?
         /// </summary>
-        public bool CoreOfKernelEquals(params MarkedProduction<TNonterminalSymbol>[] other)
+        public bool CoreOfKernelEquals(params MarkedProduction[] other)
         {
-            return CoreOfKernelEquals(other.Select(dottedProduction => dottedProduction.AsLr0Item<TTerminalSymbol>()));
+            return CoreOfKernelEquals(other.Select(dottedProduction => dottedProduction.AsLr0Item<TTokenKind>()));
         }
 
         /// <summary>
         /// Are the CORE of the kernel items of the two item sets the same?
         /// </summary>
-        public bool CoreOfKernelEquals(IEnumerable<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> otherItemSet)
+        public bool CoreOfKernelEquals(IEnumerable<ProductionItem<TTokenKind>> otherItemSet)
         {
             // we filter out closure items in the otherItemSet, because this way we can compare ProductionItemSet instances
             return _anyLookaheads
                 ? AsLr0KernelItems().SetEquals(otherItemSet.Where(item => item.IsKernelItem).Select(item => item.MarkedProduction))
                 : _kernelItems.SetEquals(otherItemSet.Where(item => item.IsKernelItem));
 
-            HashSet<MarkedProduction<TNonterminalSymbol>> AsLr0KernelItems()
+            HashSet<MarkedProduction> AsLr0KernelItems()
             {
-                return new HashSet<MarkedProduction<TNonterminalSymbol>>(_kernelItems.Select(item => item.MarkedProduction));
+                return new HashSet<MarkedProduction>(_kernelItems.Select(item => item.MarkedProduction));
             }
         }
 
         /// <summary>
         /// Does this LR(k) item set contain a kernel item with a given CORE (dotted production).
         /// </summary>
-        public bool CoreOfKernelContains(MarkedProduction<TNonterminalSymbol> dottedProduction)
+        public bool CoreOfKernelContains(MarkedProduction dottedProduction)
         {
             return _anyLookaheads
                 ? KernelItems.Select(item => item.MarkedProduction).Contains(dottedProduction)
-                : _kernelItems.Contains(dottedProduction.AsLr0Item<TTerminalSymbol>());
+                : _kernelItems.Contains(dottedProduction.AsLr0Item<TTokenKind>());
         }
 
         public override bool Equals(object obj)
         {
-            return obj is ProductionItemSet<TNonterminalSymbol, TTerminalSymbol> set && Equals(set);
+            return obj is ProductionItemSet<TTokenKind> set && Equals(set);
         }
 
         public override int GetHashCode()
@@ -194,7 +193,7 @@ namespace ContextFreeGrammar
                 : KernelItems.ToVectorString();
         }
 
-        public IEnumerator<ProductionItem<TNonterminalSymbol, TTerminalSymbol>> GetEnumerator()
+        public IEnumerator<ProductionItem<TTokenKind>> GetEnumerator()
         {
             return Items.GetEnumerator();
         }
@@ -202,6 +201,57 @@ namespace ContextFreeGrammar
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        public int Count => _kernelItems.Count + _closureItems.Count;
+
+        public bool Contains(ProductionItem<TTokenKind> item)
+        {
+            return _kernelItems.Contains(item) || _closureItems.Contains(item);
+        }
+
+        /// <inheritdoc />
+        public bool IsSubsetOf(IEnumerable<ProductionItem<TTokenKind>> other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            var otherHashset = new HashSet<ProductionItem<TTokenKind>>(other);
+            return otherHashset.IsSupersetOf(this);
+        }
+
+        /// <inheritdoc />
+        public bool IsSupersetOf(IEnumerable<ProductionItem<TTokenKind>> other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            return other.All(Contains);
+        }
+
+        /// <inheritdoc />
+        public bool IsProperSupersetOf(IEnumerable<ProductionItem<TTokenKind>> other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            var otherHashset = new HashSet<ProductionItem<TTokenKind>>(other);
+            return otherHashset.IsProperSubsetOf(this);
+        }
+
+        /// <inheritdoc />
+        public bool IsProperSubsetOf(IEnumerable<ProductionItem<TTokenKind>> other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            var otherHashset = new HashSet<ProductionItem<TTokenKind>>(other);
+            return otherHashset.IsProperSupersetOf(this);
+        }
+
+        public bool Overlaps(IEnumerable<ProductionItem<TTokenKind>> other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            return other.Any(Contains);
+        }
+
+        public bool SetEquals(IEnumerable<ProductionItem<TTokenKind>> other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            var otherHashset = new HashSet<ProductionItem<TTokenKind>>(other);
+            return otherHashset.SetEquals(this);
         }
     }
 }
