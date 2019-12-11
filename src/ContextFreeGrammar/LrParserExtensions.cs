@@ -151,7 +151,6 @@ namespace ContextFreeGrammar
                             $" {string.Join(" ", stack.Reverse().Skip(1).Select(state => parser.GetItems(state).SpellingSymbol.Name))}",
                             $"{fake.GetRemainingTokens(ip).Aggregate(new StringBuilder(), (sb, tok) => sb.Append(tok.Text))} ",
                             $" {action}");
-
                     }
                     else
                     {

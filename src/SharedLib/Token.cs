@@ -4,58 +4,60 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace AutomataLib
 {
-    // PROBLEM: where TTerminalSymbol : Symbol, IEquatable<TTerminalSymbol>
+    // Token and Terminal are different types, that only share the TTokenKind enum. Terminal describe
+    // the LHS of grammar rules and are _not_ the interface with the lexer. Token describe the interface
+    // with the lexer and is very much concerned with the user input to the compiler pipeline (kind, span etc)
+
+    // Terminal<TTokenKind>
+    //    * It is a grammar symbol, and therefore can be the spelling property of a state (LR(k) item set)
+    //    * The is a terminal symbol for each token kind (where epsilon/empty token kind is the exception)
+    //    * Each token can be mapped to a terminal symbol (via table/array indexing)
+    //    * A terminal symbol has an index property.
     //
-    //   where TTerminalSymbol : IGrammarSymbol, IEquatable<TTerminalSymbol>
-    //
-    // ILexer is parameterized by TEnum not Token<TEnum>, and therefore does TTerminalSymbol not flow....
+    // Token<TTokenKind>
+    //    * The token is the input into the parser (and the interface with the lexer)
+    //    * There are many more tokens than there are token kinds (terminal symbols)
+    //    * Each token represent a 'span' of the input, has a lexeme value, and also belong
+    //      to a token kind, that represents a lexical class/category of input defined by a RE pattern.
+    //    * The token is put on the value stack (not the same as the parser stack) because the semantic
+    //      actions of a (reduced) rule need to receive the token lexeme value as input for every terminal
+    //      symbol on the RHS of the rule.
 
-
-    // This is the interface with the lexer/tokenizer. Token is a value type (for better performance)
-
-    // Symbol and Terminal are different types, that only share the TTokenKind enum. Terminal describe the LHS of grammar rules
-    // and _not_ the interface with the lexer. Also Symbol and Symbol-derived types are reference types.
-
-    /// <summary>
-    /// Test Specification: Always use enum for tokens, Equals/GetHashCode compares every field, Op==/Op!= only compares Kind/TEnum field.
-    ///                     EOF kind is assumed to be zero (convention)
-    ///                     No location span information.
-    /// </summary>
-    /// <typeparam name="TEnum">The token kind enumeration.</typeparam>
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public struct Token<TEnum> : IEquatable<Token<TEnum>>
-        where TEnum : Enum
+    public struct Token<TTokenKind> : IEquatable<Token<TTokenKind>>
+        where TTokenKind : Enum
     {
-        // TODO: Can we do better here
-        public static readonly Token<TEnum> EOF = new Token<TEnum>((TEnum)Enum.Parse(typeof(TEnum), "EOF"), "$");
-        public static readonly Token<TEnum> EPS = new Token<TEnum>(default);
+        /// <summary>
+        /// Reserved token that represents the end-of-input.
+        /// </summary>
+        public static readonly Token<TTokenKind> EOF = new Token<TTokenKind>((TTokenKind)Enum.Parse(typeof(TTokenKind), "EOF"), "$");
+
+        /// <summary>
+        /// Reserved token that represents the empty token (epsilon, nil, null, empty, or whatnot).
+        /// </summary>
+        /// <remarks>
+        /// This value should only be used in the lexer to signal 'hidden tokens' (aka trivia),
+        /// and should never be send to the parser. We define here for this reason, such that lexer actions
+        /// can return default/null values to the lexer when ignoring whitespace, and other hidden tokens.
+        /// </remarks>
+        public static readonly Token<TTokenKind> EPS = new Token<TTokenKind>(default);
 
         /// <summary>
         /// The name of the lexical unit.
         /// </summary>
-        public string Name => Enum.GetName(typeof(TEnum), Kind);
-
-        public int Index => Convert.ToInt32(Kind);
-
-        public bool IsExtendedTerminal => true;
-
-        public bool IsTerminal => !IsEof;
-
-        public bool IsNonterminal => false;
-
-        public bool IsEpsilon => Equals(EPS);
+        public string Name => Enum.GetName(typeof(TTokenKind), Kind);
 
         public bool IsEof => Equals(EOF);
 
         /// <summary>
         /// The type of the lexical unit.
         /// </summary>
-        public readonly TEnum Kind; // TODO: Maybe rename to Symbol or TokenKind
+        public readonly TTokenKind Kind;
 
         /// <summary>
         /// Lexeme value.
         /// </summary>
-        public readonly string Text; // TODO: Maybe rename to LexemeValue
+        public readonly string Text;
 
         // Parsed simple values are a lexer responsibility (integer, bool etc.)
         // TODO: public TValue Value { get; } // Later on we need this prop to ease semantic actions
@@ -63,7 +65,7 @@ namespace AutomataLib
         /// <summary>
         /// Token without a lexeme value.
         /// </summary>
-        public Token(TEnum kind)
+        public Token(TTokenKind kind)
         {
             Kind = kind;
             Text = string.Empty;
@@ -72,7 +74,7 @@ namespace AutomataLib
         /// <summary>
         /// Token with a lexeme value.
         /// </summary>
-        public Token(TEnum kind, string lexemeValue)
+        public Token(TTokenKind kind, string lexemeValue)
         {
             Kind = kind;
             Text = lexemeValue;
@@ -85,35 +87,35 @@ namespace AutomataLib
 
         public override bool Equals(object obj)
         {
-            if (!(obj is Token<TEnum>)) return false;
-            var other = (Token<TEnum>)obj;
+            if (!(obj is Token<TTokenKind>)) return false;
+            var other = (Token<TTokenKind>)obj;
             return Equals(other);
         }
 
-        public bool Equals(Token<TEnum> other)
+        public bool Equals(Token<TTokenKind> other)
         {
             return Equals(other, TokenComparison.KindAndLexemeValue);
         }
 
-        public bool Equals(Token<TEnum> other, TokenComparison comparison)
+        public bool Equals(Token<TTokenKind> other, TokenComparison comparison)
         {
             switch (comparison)
             {
                 case TokenComparison.KindOnly:
-                    return EqualityComparer<TEnum>.Default.Equals(Kind, other.Kind);
+                    return EqualityComparer<TTokenKind>.Default.Equals(Kind, other.Kind);
                 case TokenComparison.KindAndLexemeValue:
                 default:
-                    return EqualityComparer<TEnum>.Default.Equals(Kind, other.Kind) &&
+                    return EqualityComparer<TTokenKind>.Default.Equals(Kind, other.Kind) &&
                            Text.Equals(other.Text, StringComparison.Ordinal);
             }
         }
 
-        public static bool operator ==(Token<TEnum> a, Token<TEnum> b)
+        public static bool operator ==(Token<TTokenKind> a, Token<TTokenKind> b)
         {
             return a.Equals(b);
         }
 
-        public static bool operator !=(Token<TEnum> a, Token<TEnum> b)
+        public static bool operator !=(Token<TTokenKind> a, Token<TTokenKind> b)
         {
             return !a.Equals(b);
         }
