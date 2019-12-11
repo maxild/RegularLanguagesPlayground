@@ -22,22 +22,16 @@ namespace AutomataLib
 
     // NOTE: Type (int, Node, string) etc is not part yet of grammar (no semantic actions yet)
 
-    // TODO: After supporting BNF (written a parser) we should really soften the requirements that
-    // Variables are uppercase letters and terminals are a single lowercase letter
-
-    // TODO: We really need a Lexer!!!!! that generate stream of <num, "123">, <id, "x">,...etc without using symboltable
-    //            var t = new Lexer(LexerSpecification spec, string content);
-    //            Terminal token = t.GetNext(); // <name, value>
-    //            string name = token.Name;
-    //            string value = token.Lexeme;
-
-    // NOTE: Name of terminal symbols are the only interesting terminal-attribute when building the parser. However
-    //       when using the parser to accept/recognize a string, or to build a parse-tree we need a Lexer of some kind.
+    // TODO: Create grammar symbol namespace (part of grammar)
+    //    terminals defined by TTokenKind enum instance
+    //    nonterminals defined by rules (we need | operator)
+    // TODO: Maybe better to move all other stuff out of grammar, because grammar (CFG) should only contain
+    //      the basic rewriting system (phrase structure ????, generative grammar).
 
     /// <summary>
-    /// Grammar symbol (in T or V)
+    /// Grammar symbol (T or V)
     /// </summary>
-    public abstract class Symbol : IEquatable<Symbol>, IComparable<Symbol>
+    public abstract class Symbol : IEquatable<Symbol>, IComparable<Symbol> // TODO: Why comparable?????
     {
         /// <summary>
         /// The name of the (grammar) variable (nonterminal) in the BNF, or the name of the terminal symbol (i.e. the name of some abstract
@@ -45,6 +39,8 @@ namespace AutomataLib
         /// are what the parser processes during derivations/reductions of the grammar.
         /// </summary>
         public string Name { get; }
+
+        // TODO: We need Index property (on both terminal and nonterminal instances), BUT what is the index of epsilon??
 
         /// <summary>
         /// Is the symbol a terminal symbol that is either part of language described by the grammar or
@@ -285,7 +281,7 @@ namespace AutomataLib
         /// <summary>
         /// The raw value of the token kind.
         /// </summary>
-        public int Index { get; }
+        public int Index { get; } // TODO: Move to base Symbol class
 
         public override bool IsExtendedTerminal => true;
 
@@ -299,6 +295,7 @@ namespace AutomataLib
 
         public bool Equals(Terminal<TTokenKind> other)
         {
+            // TODO: Use base.Equals, where base.Equals uses Index
             return other != null && EqualityComparer<TTokenKind>.Default.Equals(Kind, other.Kind);
         }
     }
