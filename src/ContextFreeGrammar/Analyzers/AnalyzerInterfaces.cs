@@ -55,6 +55,11 @@ namespace ContextFreeGrammar.Analyzers
     public interface IFollowSetsAnalyzer<TTokenKind>
         where TTokenKind : Enum
     {
+        // Define Follow(A), for non-terminal A, to be the set of terminals a that can appear immediately
+        // to the right of A in some sentential form. That is, the set of terminals a such that there
+        // exists a derivation of the form S *=> αAaβ for some α and β. Note that there may, at some time
+        // during the derivation, have been symbols between A and a, but if so, they derived ε and disappeared.
+
         /// <summary>
         /// The FOLLOW function yields the set of terminal symbols that may legally follow a nonterminal symbol in a
         /// sentential form. It is defined as
@@ -111,6 +116,9 @@ namespace ContextFreeGrammar.Analyzers
             this IFirstSymbolsAnalyzer<TTokenKind> analyzer,
             IEnumerable<Symbol> symbols) where TTokenKind : Enum
         {
+            // If α is any string of grammar symbols, let First(α) be the set of terminals that begin the
+            // strings derived from α. In some texts (dragon book) if α *=> ε, then ε is also in First(α).
+            // We prefer to keep nullable in a separate Erasable function.
             var first = new Set<Terminal<TTokenKind>>();
             foreach (var symbol in symbols)
             {

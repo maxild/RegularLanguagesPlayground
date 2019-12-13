@@ -9,19 +9,63 @@ using ContextFreeGrammar.Analyzers;
 
 namespace ContextFreeGrammar
 {
-    // First and Follow functions associated with a grammar G is important when conducting LL and
-    // LR (SLR(1), LR(1), LALR(1)) parser, because the setting up of parsing table is aided by them
-
-    // If α is any string of grammar symbols, let First(α) be the set of terminals that begin the
-    // strings derived from α, if α *=> ε, then ε is also in First(α).
-
-    // Define Follow(A), for non-terminal A, to be the set of terminals a that can appear immediately
-    // to the right of A in some sentential form. That is, the set of terminals a such that there
-    // exists a derivation of the form S *=> αAaβ for some α and β. Note that there may, at some time
-    // during the derivation, have been symbols between A and a, but if so, they derived ε and disappeared.
-
     // Test your grammar online here
     // http://smlweb.cpsc.ucalgary.ca/start.html
+
+    // TODO: Two types of tokens (keywords: '+', '-', 'if' etc) called STRING/LITERAL and ENUM/NAME values that are lexer defined).
+    // TODO: How do we connect ENUm/NAME with a STRING/LITERAL/KEYWORD
+    // TODOs
+    // * Terminals should be an ordered (indexed) set indexed by TTokenKind enum: 0,1,2,...,T (TODO: If EPS is filtered out it should not be zero)
+    // * Nonterminals should be an insertion ordered set indexed by the order of declaration in the grammar specification: 0,1.2,...V
+    // * Each nonterminal can derive one or more LHS-rules. Each rule is indexed by its order of declaration in the alternative list
+    //   of the overall production rule for the terminal:
+    //      0. Sentences ---> Name | List 'and' Name
+    //      1. Name ---> 'tom' | 'dick' | 'harry'
+    //      2. List ---> Name ',' List | Name
+    //   This CFG has 3 terminals (Sentence, Name and List). Each production (rule) has one or more LHS alternatives
+    //      0. Sentences → Name                 (0,0)
+    //                   | List 'and' Name      (0,1)
+    //      1. Name      → 'tom'                (1,0)
+    //                   | 'dick'               (1,1)
+    //                   | 'harry'              (1,2)
+    //      2. List      → Name ',' List        (2,0)
+    //                   | Name                 (2,1)
+    // * That is simple rules can be indexed either by
+    //          a pair (i,j)
+    //          an index = sumOfRules(0..(i-1)) + j
+    // * Terminals.IndexOf('Sentences') == 0
+    // * Terminals.IndexOf('Name') == 1
+    // * Terminals.IndexOf('List') == 2
+    // * ProductionsFor[]
+    // NOTE: Both Terminals and Nonterminals can be stored in array, because each type have an Index property.
+    // NOTE: Both Terminals and Nonterminals are singleton objects, because grammar symbols carry no state. Only tokens,
+    //       CST/AST nodes etc carry state. BUT if the parser should produce interesting output (besides recognizing input)
+    //       some values must be defined on a parallel value stack (state connected to the tokens/input).
+    //
+    // BNF like syntax for describing grammars
+    //    ::=   'may produce' / 'derives' / 'is defined as ????'
+    //    |     ', or as ???'      (choice)
+    //          'followed by ??? (concatenation)
+    //    ;     ', and as nothing else'  (punctuation of rule)
+    // Extensions
+    //   In an extended context-free grammar we can write Something+ meaning “one or more Somethings” and we do not
+    //   need to give a rule for Something+. The rule
+    //      Something+ → Something | Something Something+
+    //   is implicit. The same goes for
+    //      Something? → Something | ε
+    //      Something* → Something Something* | ε
+    //   All the above extensions is done through a “(right-)recursive” interpretation. The method has the advantage
+    //   that it is easy to explain and that the transformation to “normal” CF is simple. Disadvantages are that the
+    //   transformation entails anonymous rules (identified by α below) and that the parse tree (CST) gets ugly.
+    //   The extended rule
+    //      Book → Preface Chapter+ Conclusion
+    //   gets translated to (new extra anonymous nonterminal α with a right recursive rule)
+    //      Book ---> Preface α Conclusion
+    //      α ---> Chapter | Chapter α
+    //   The extensions of an EBNF grammar do not increase its expressive powers: all implicit rules can be made explicit
+    //   and then a normal CF grammar in BNF notation results. Their strength lies in their user-friendliness. The star in
+    //   the notation X* with the meaning “a sequence of zero or more Xs” is called the Kleene star.
+
 
     /// <summary>
     /// Immutable context-free grammar (CFG) type.
@@ -175,10 +219,13 @@ namespace ContextFreeGrammar
             return this.First(Productions[productionIndex].Tail);
         }
 
+        /// <inheritdoc />
         public bool Erasable(Symbol symbol) => _analyzer.Erasable(symbol);
 
+        /// <inheritdoc />
         public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol) => _analyzer.First(symbol);
 
+        /// <inheritdoc />
         public IReadOnlySet<Terminal<TTokenKind>> Follow(Nonterminal variable) => _analyzer.Follow(variable);
 
         /// <summary>
