@@ -4,7 +4,7 @@ using AutomataLib;
 namespace ContextFreeGrammar.Analyzers.Internal
 {
     public class FirstSymbolsAnalyzer<TTokenKind> : IFirstSymbolsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly IErasableSymbolsAnalyzer _nullableSymbolsAnalyzer;
         private readonly IFirstSetsAnalyzer<TTokenKind> _starterTokensAnalyzer;

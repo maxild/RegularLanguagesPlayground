@@ -10,7 +10,7 @@ namespace ContextFreeGrammar.Analyzers
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static LrItemNfa<TTokenKind> GetLr1AutomatonNfa<TTokenKind>(Grammar<TTokenKind> grammar)
-            where TTokenKind : Enum
+            where TTokenKind : struct, Enum
         {
             if (!grammar.IsAugmented)
             {
@@ -87,7 +87,7 @@ namespace ContextFreeGrammar.Analyzers
                                 worklist.Enqueue(closureItem);
                             }
                             transitions.Add(
-                                Transition.EpsilonMove<Symbol, ProductionItem<TTokenKind>>(item, closureItem));
+                                Transition.Move(item, Symbol.Epsilon, closureItem));
                         }
                     }
                 }
@@ -106,7 +106,7 @@ namespace ContextFreeGrammar.Analyzers
             Grammar<TTokenKind> grammar,
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             IEnumerable<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
@@ -122,7 +122,7 @@ namespace ContextFreeGrammar.Analyzers
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
             )
-            ComputeLr1AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : Enum
+            ComputeLr1AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : struct, Enum
         {
             ProductionItemSet<TTokenKind> startItemSet =
                 Closure(grammar,
@@ -167,7 +167,7 @@ namespace ContextFreeGrammar.Analyzers
         private static ProductionItemSet<TTokenKind> Closure<TTokenKind>(
             Grammar<TTokenKind> grammar,
             IEnumerable<ProductionItem<TTokenKind>> kernelItems
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             var closure = new HashSet<ProductionItem<TTokenKind>>(kernelItems);
 

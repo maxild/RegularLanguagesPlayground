@@ -10,7 +10,7 @@ namespace ContextFreeGrammar.Analyzers
     /// FixedPointIteration Algorithm found in most textbooks on compilers
     /// </summary>
     public class DragonBookAnalyzer<TTokenKind> : IFollowSymbolsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly Dictionary<Symbol, bool> _nullableMap;
         private readonly Dictionary<Symbol, Set<Terminal<TTokenKind>>> _firstMap;
@@ -125,7 +125,7 @@ namespace ContextFreeGrammar.Analyzers
             var (nullableMap, firstMap) = ComputeFirst(grammar);
 
             // We define Follow only for nonterminal symbols
-            var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
+            var followMap = grammar.Nonterminals.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
 
             // NOTE: This is a requirement of the parsing table of shift-reduce parser
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
@@ -188,7 +188,7 @@ namespace ContextFreeGrammar.Analyzers
             // we keep a separate nullable map, instead of adding epsilon to First sets
             var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
             var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
-            var followMap = grammar.Variables.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
+            var followMap = grammar.Nonterminals.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
 
             // Base case: First(a) = {a} for all terminal symbols a ∈ T.
             foreach (var symbol in grammar.Terminals)

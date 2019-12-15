@@ -19,7 +19,7 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static LrItemNfa<TTokenKind> GetLr0AutomatonNfa<TTokenKind>(Grammar<TTokenKind> grammar)
-            where TTokenKind : Enum
+            where TTokenKind : struct, Enum
         {
             // NOTE: These are all synonyms for what machine we are building here
             //          - 'characteristic strings' recognizer
@@ -77,7 +77,7 @@ namespace ContextFreeGrammar.Analyzers
                             var closureItem = new ProductionItem<TTokenKind>(productionOfB, index, 0);
                             // Expecting to see a nonterminal 'B' (of Bβ) is the same as expecting to see
                             // RHS grammar symbols 'γ(i)', where B → γ(i) is a production ∈ P
-                            transitions.Add(Transition.EpsilonMove<Symbol, ProductionItem<TTokenKind>>(item, closureItem));
+                            transitions.Add(Transition.Move(item, Symbol.Epsilon, closureItem));
                         }
                     }
 
@@ -107,7 +107,7 @@ namespace ContextFreeGrammar.Analyzers
             Grammar<TTokenKind> grammar,
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             IEnumerable<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
@@ -131,7 +131,7 @@ namespace ContextFreeGrammar.Analyzers
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
             )
-            ComputeLr0AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : Enum
+            ComputeLr0AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : struct, Enum
         {
             ProductionItemSet<TTokenKind> startItemSet =
                 Closure(grammar, new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0).AsSingletonEnumerable());
@@ -175,7 +175,7 @@ namespace ContextFreeGrammar.Analyzers
         private static ProductionItemSet<TTokenKind> Closure<TTokenKind>(
             Grammar<TTokenKind> grammar,
             IEnumerable<ProductionItem<TTokenKind>> kernelItems
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             var closure = new HashSet<ProductionItem<TTokenKind>>(kernelItems);
 

@@ -79,7 +79,7 @@ namespace ContextFreeGrammar
     /// A specialization of a Deterministic Pushdown Automaton (DPDA) called a shift/reduce parser in compiler theory.
     /// </summary>
     public class LrParser<TTokenKind> : IShiftReduceParser<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly Grammar<TTokenKind> _grammar;
 

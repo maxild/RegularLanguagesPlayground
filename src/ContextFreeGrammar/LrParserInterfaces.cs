@@ -13,7 +13,7 @@ namespace ContextFreeGrammar
     }
 
     public interface IShiftReduceParsingTable<TTokenKind> : IProductionsContainer
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         /// <summary>
         /// The value of the start state (that is always zero for any shift-reduce parser)
@@ -60,7 +60,7 @@ namespace ContextFreeGrammar
     }
 
     public interface IShiftReduceParser<TTokenKind> : IShiftReduceParsingTable<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         /// <summary>
         /// The name of the LHS variable in the augmented production rule.

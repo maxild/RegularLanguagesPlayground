@@ -13,7 +13,7 @@ namespace ContextFreeGrammar
         public static void PrintItems<TTokenKind>(
             this LrItemsDfa<TTokenKind> dfa,
             TextWriter writer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             dfa.PrintItemsHelper(writer, itemSet => itemSet.Items);
         }
@@ -21,7 +21,7 @@ namespace ContextFreeGrammar
         public static void PrintKernelItems<TTokenKind>(
             this LrItemsDfa<TTokenKind> dfa,
             TextWriter writer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             dfa.PrintItemsHelper(writer, itemSet => itemSet.KernelItems);
         }
@@ -31,7 +31,7 @@ namespace ContextFreeGrammar
             this LrItemsDfa<TTokenKind> dfa,
             TextWriter writer,
             Func<ProductionItemSet<TTokenKind>, IEnumerable<ProductionItem<TTokenKind>>> itemsResolver
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             string maximalStateIndex = $"s{dfa.MaxState - 1}: ";
 
@@ -58,7 +58,7 @@ namespace ContextFreeGrammar
         public static void PrintFirstAndFollowSets<TTokenKind>(
             this Grammar<TTokenKind> grammar,
             TextWriter writer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             var table = new TableBuilder()
                 .SetTitle("First and Follow sets")
@@ -70,7 +70,7 @@ namespace ContextFreeGrammar
 
             var tableWriter = new TextTableWriter(table, writer);
             tableWriter.WriteHead();
-            foreach (Nonterminal variable in grammar.Variables)
+            foreach (Nonterminal variable in grammar.Nonterminals)
             {
                 tableWriter.WriteRow(variable.Name,
                     grammar.Erasable(variable).FormatBoolean(),
@@ -83,7 +83,7 @@ namespace ContextFreeGrammar
         public static void PrintParsingTable<TTokenKind>(
             this IShiftReduceParser<TTokenKind> parser,
             TextWriter writer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             var actionTable = new TableBuilder()
                 .SetTitle("ACTION")

@@ -7,7 +7,7 @@ using AutomataLib;
 namespace ContextFreeGrammar
 {
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class LrConflict<TTokenKind> where TTokenKind : Enum
+    public class LrConflict<TTokenKind> where TTokenKind : struct, Enum
     {
         private string DebuggerDisplay => ToString();
 

@@ -16,15 +16,6 @@ namespace UnitTests
             string.Empty.GetHashCode().ShouldNotBe(0);
         }
 
-        // This type will probably be generated from a YACC-like tool (and therefore imported into the LEX-like tool generated lexer)
-        //enum Sym2
-        //{
-        //    // NOTE: Values can overlap!!!!
-        //    EOF = 0,
-        //    EPS = 0,
-        //    // EOF = 1 // but names are unique (checked by the C# compiler)
-        //}
-
         [Fact]
         public void FakeLexer()
         {
@@ -39,7 +30,7 @@ namespace UnitTests
             sut.GetNextToken().ShouldBe(new Token<Sym>(Sym.RPARAN, ")"));
             sut.GetNextToken().ShouldBe(new Token<Sym>(Sym.MINUS, "-"));
             sut.GetNextToken().ShouldBe(new Token<Sym>(Sym.NUM, "100"));
-            sut.GetNextToken().ShouldBe(Token<Sym>.EOF);
+            sut.GetNextToken().ShouldBe(Token.Eof<Sym>());
         }
 
         [Fact]
@@ -55,7 +46,7 @@ namespace UnitTests
             sut.GetNextToken().ShouldBe(new Token<Sym>(Sym.RPARAN, ")"));
             sut.GetNextToken().ShouldBe(new Token<Sym>(Sym.MINUS, "-"));
             sut.GetNextToken().ShouldBe(new Token<Sym>(Sym.NUM, "100"));
-            sut.GetNextToken().ShouldBe(Token<Sym>.EOF);
+            sut.GetNextToken().ShouldBe(Token.Eof<Sym>());
         }
     }
 }

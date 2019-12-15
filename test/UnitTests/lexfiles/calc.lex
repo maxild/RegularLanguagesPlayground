@@ -8,15 +8,17 @@ using ContextFreeGrammar.Lexers;
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 enum Sym
 {
-  EOF = -1, // EOF
-  EPS = 0,  // Empty Symbol
+  // Hidden token kinds have negative values
+  NIL = -2,   // Lexical error (syntax error)
+  EPS = -1,   // Epsilon (empty/hidden) token
+  // All non-hidden token kinds are sequentially ordered 0,1,2,...,N-1
+  EOF = 0,
   LPARAN,
   RPARAN,
   PLUS,
   MINUS,
   NUM,
-  ID,
-  ERROR
+  ID
 }
 
 %%
@@ -30,8 +32,8 @@ enum Sym
 %function GetNextToken
 %type Token<Sym>
 
-%epsilon Token<Sym>.EPS
-%eof Token<Sym>.EOF
+%epsilon Token.Epsilon<Sym>()
+%eof Token.Eof<Sym>()
 
 ALPHA=[A-Za-z]
 DIGIT=[0-9]
@@ -46,8 +48,8 @@ WHITE_SPACE_CHAR=[{NEWLINE}\ \t\b\012]
 <YYINITIAL> "+" { return new Token<Sym>(Sym.PLUS, yytext()); }
 <YYINITIAL> "-" { return new Token<Sym>(Sym.MINUS, yytext()); }
 
-<YYINITIAL> {NON_NEWLINE_WHITE_SPACE_CHAR}+ { return Token<Sym>.EPS; }
-<YYINITIAL> {NEWLINE}+ { return Token<Sym>.EPS; }
+<YYINITIAL> {NON_NEWLINE_WHITE_SPACE_CHAR}+ { return Token.Epsilon<Sym>(); }
+<YYINITIAL> {NEWLINE}+ { return Token.Epsilon<Sym>(); }
 
 <YYINITIAL> {DIGIT}+                    { return new Token<Sym>(Sym.NUM, yytext()); }
 <YYINITIAL> {ALPHA}({ALPHA}|{DIGIT}|_)* { return new Token<Sym>(Sym.ID, yytext()); }
@@ -68,5 +70,5 @@ WHITE_SPACE_CHAR=[{NEWLINE}\ \t\b\012]
   sb.Append(">");
   Console.WriteLine(sb.ToString());
   Console.WriteLine("Error: Illegal character.");
-  return new Token<Sym>(Sym.ERROR, yytext());
+  return new Token<Sym>(Sym.NIL, yytext());
 }

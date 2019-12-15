@@ -30,7 +30,7 @@ namespace ContextFreeGrammar
         public static void MergeLookaheads<TTokenKind>(
             this Dictionary<MarkedProduction, Set<Terminal<TTokenKind>>> dictionary,
             IEnumerable<KeyValuePair<MarkedProduction, IReadOnlySet<Terminal<TTokenKind>>>> other
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             foreach (var kvp in other)
             {
@@ -76,27 +76,6 @@ namespace ContextFreeGrammar
         //    return hashSet.Count > c;
         //}
 
-        //public static IEnumerable<Terminal> WithEofMarker(this IEnumerable<Terminal> terminalSymbols)
-        //{
-        //    return terminalSymbols.Concat(Symbol.EofMarker.AsSingletonEnumerable());
-        //}
-
-        //public static IEnumerable<Terminal<TTokenKind>> UnionEofMarker<TTokenKind>(this IEnumerable<Terminal<TTokenKind>> terminals) where TTokenKind : Enum
-        //{
-        //    return terminals is IReadOnlySet<Terminal<TTokenKind>> otherAsSet
-        //        ? otherAsSet.UnionEofMarker()
-        //        : new Set<Terminal<TTokenKind>>(terminals).UnionWith(Symbol.Eof<TTokenKind>().AsSingletonEnumerable());
-        //}
-
-        public static IEnumerable<Terminal<TTokenKind>> UnionEofMarker<TTokenKind>(this IReadOnlySet<Terminal<TTokenKind>> terminals)
-            where TTokenKind : Enum
-        {
-            var eofMarker = Symbol.Eof<TTokenKind>();
-            return terminals.Contains(eofMarker)
-                ? terminals
-                : terminals.ConcatItem(eofMarker);
-        }
-
         public static void Each<T>(this IEnumerable<T> e, Action<T> a)
         {
             foreach (var i in e) a(i);
@@ -114,7 +93,7 @@ namespace ContextFreeGrammar
                 stack.Pop();
         }
 
-        // use the null-conditional operator as a reaaly bad Option<T> C# Monad that is not polymorphic between reference and value types
+        // use the null-conditional operator as a really bad Option<T> C# Monad that is not polymorphic between reference and value types
         public static T TryGetNext<T>(this IEnumerator<T> iter) where T : class
         {
             return iter.MoveNext()

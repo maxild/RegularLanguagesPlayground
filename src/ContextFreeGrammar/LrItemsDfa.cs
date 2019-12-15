@@ -13,7 +13,7 @@ namespace ContextFreeGrammar
     /// Deterministic Finite Automaton (Q, Σ, delta, q(0), F) from Automata Theory.
     /// </summary>
     public class LrItemsDfa<TTokenKind> : IDeterministicFiniteAutomaton<Symbol, int>, IFiniteAutomatonStateHomomorphism<int>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly ProductionItemSet<TTokenKind>[] _originalStates; // one-way translation should be sufficient to show descriptive labels
         private readonly Dictionary<Symbol, int> _alphabetToIndex;

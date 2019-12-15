@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using AutomataLib;
 using ContextFreeGrammar;
 using ContextFreeGrammar.Analyzers;
 
@@ -10,7 +9,6 @@ namespace GrammarRepo
     {
         public enum Sym
         {
-            EPS = 0,
             EQUAL,    // =
             ID,       // ID
             ASTERISK, // *

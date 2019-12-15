@@ -60,14 +60,14 @@ namespace CLI.TestDriver
             (var initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
             SaveFile("GallierEx3_FirstGraph.dot",
-                DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
+                DigraphDotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Nonterminals[v].Name));
 
             var firstSymbolsAnalyzer = Analyzers.CreateFirstSymbolsAnalyzer(grammar);
 
             (var initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
 
             SaveFile("GallierEx3_FollowGraph.dot",
-                DotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Variables[v].Name));
+                DigraphDotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Nonterminals[v].Name));
 
             var stringWriter = new StringWriter();
             grammar.PrintFirstAndFollowSets(stringWriter);
@@ -95,12 +95,12 @@ namespace CLI.TestDriver
             var (directReads, graphRead) = LalrLookaheadSetsAlgorithm.GetGraphReads(grammar, dfaLr0, vertices, analyzer);
 
             SaveFile("GallierEx3_ReadGraph.dot",
-                DotLanguagePrinter.PrintGraph("DR", directReads, graphRead, v => vertices[v].ToString()));
+                DigraphDotLanguagePrinter.PrintGraph("DR", directReads, graphRead, v => vertices[v].ToString()));
 
             var graphLaFollow = LalrLookaheadSetsAlgorithm.GetGraphLaFollow(grammar, dfaLr0, vertices, analyzer);
 
             SaveFile("GallierEx3_LaFollowGraph.dot",
-                DotLanguagePrinter.PrintGraph("INITFOLLOW", directReads, graphLaFollow, v => vertices[v].ToString()));
+                DigraphDotLanguagePrinter.PrintGraph("INITFOLLOW", directReads, graphLaFollow, v => vertices[v].ToString()));
 
         }
 
@@ -113,13 +113,13 @@ namespace CLI.TestDriver
 
             (var initfirstSets, IGraph graphFirst) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
-            SaveFile("FirstGraph.dot", DotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Variables[v].Name));
+            SaveFile("FirstGraph.dot", DigraphDotLanguagePrinter.PrintGraph("INITFIRST", initfirstSets, graphFirst, v => grammar.Nonterminals[v].Name));
 
             var firstSymbolsAnalyzer = Analyzers.CreateFirstSymbolsAnalyzer(grammar);
 
             (var initFollowSets, IGraph graphFollow) = DigraphAlgorithm.GetFollowGraph(grammar, firstSymbolsAnalyzer);
 
-            SaveFile("FollowGraph.dot", DotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Variables[v].Name));
+            SaveFile("FollowGraph.dot", DigraphDotLanguagePrinter.PrintGraph("INITFOLLOW", initFollowSets, graphFollow, v => grammar.Nonterminals[v].Name));
         }
 
         public static void GrammarSomething()
@@ -382,8 +382,8 @@ namespace CLI.TestDriver
 
             // 9,1,0 is part of every state, so we remove them from the naming strategy
             var nfaKeywords = new Nfa<string>(9, new [] {4, 8}, s => new Set<int>(new[] {0,1,9}).Contains(s) == false);
-            nfaKeywords.AddTrans(Transition.EpsilonMove<string, int>(9, 1));
-            nfaKeywords.AddTrans(Transition.EpsilonMove<string, int>(9, 0));
+            nfaKeywords.AddTrans(Transition.Move<string, int>(9, null, 1));
+            nfaKeywords.AddTrans(Transition.Move<string, int>(9, null, 0));
             // guessing is smart in NFA
             nfaKeywords.AddTrans(Transition.Move(9, "w", 9));
             nfaKeywords.AddTrans(Transition.Move(9, "e", 9));
@@ -491,7 +491,7 @@ namespace CLI.TestDriver
             // TODO: Have the program calculate the label with fewest characters, and always use single arcs between any two nodes
 
             // sign
-            nfaDecimal.AddTrans(Transition.EpsilonMove<string, int>(0, 1));
+            nfaDecimal.AddTrans(Transition.Move<string, int>(0, null, 1));
             nfaDecimal.AddTrans(Transition.Move(0, "+", 1));
             nfaDecimal.AddTrans(Transition.Move(0, "-", 1));
             // optional digits [0-9] before decimal point
@@ -543,7 +543,7 @@ namespace CLI.TestDriver
             //nfa.AddTrans(3, "8", 3);
             //nfa.AddTrans(3, "9", 3);
             // epsilon-transition to accepting/final state
-            nfaDecimal.AddTrans(Transition.EpsilonMove<string, int>(3, 5));
+            nfaDecimal.AddTrans(Transition.Move<string, int>(3, null, 5));
 
             var dfaDecimal = nfaDecimal.ToDfa();
 

@@ -6,7 +6,7 @@ using AutomataLib;
 namespace ContextFreeGrammar.Analyzers
 {
     internal class ErasableSymbolsAnalyzer<TTokenKind> : IErasableSymbolsAnalyzer
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly Dictionary<Nonterminal, bool> _nullableMap;
 
@@ -30,7 +30,7 @@ namespace ContextFreeGrammar.Analyzers
         private static Dictionary<Nonterminal, bool> ComputeErasableSymbols(Grammar<TTokenKind> grammar)
         {
             // only define nullable predicate on non-terminals
-            Dictionary<Nonterminal, bool> nullableMap = grammar.Variables.ToDictionary(symbol => symbol, _ => false);
+            Dictionary<Nonterminal, bool> nullableMap = grammar.Nonterminals.ToDictionary(symbol => symbol, _ => false);
 
             bool changed = true;
             while (changed)

@@ -17,7 +17,7 @@ namespace ContextFreeGrammar
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class ProductionItemSet<TTokenKind> : IEquatable<ProductionItemSet<TTokenKind>>, IReadOnlySet<ProductionItem<TTokenKind>>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private string DebuggerDisplay => ClosureItems.Any()
             ? string.Concat(KernelItems.ToVectorString(), ":", ClosureItems.ToVectorString())

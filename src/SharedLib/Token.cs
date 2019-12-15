@@ -4,6 +4,30 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace AutomataLib
 {
+    public static class Token
+    {
+        /// <summary>
+        /// Reserved token that represents the empty (epsilon) token, that is a hidden token, only used internally in the lexer.
+        /// </summary>
+        /// <remarks>
+        /// This value should only be used in the lexer to signal 'hidden tokens' (aka trivia),
+        /// and should never be send to the parser. We define here for this reason, such that lexer actions
+        /// can return default/null values to the lexer when ignoring whitespace, and other hidden tokens.
+        /// </remarks>
+        public static Token<TTokenKind> Epsilon<TTokenKind>() where TTokenKind : struct, Enum
+        {
+            return new Token<TTokenKind>((TTokenKind) Enum.Parse(typeof(TTokenKind), TokenKinds.Eps));
+        }
+
+        /// <summary>
+        /// Reserved token that represents the EOF marker.
+        /// </summary>
+        public static Token<TTokenKind> Eof<TTokenKind>() where TTokenKind : struct, Enum
+        {
+            return Token<TTokenKind>.EOF;
+        }
+    }
+
     // Token and Terminal are different types, that only share the TTokenKind enum. Terminal describe
     // the LHS of grammar rules and are _not_ the interface with the lexer. Token describe the interface
     // with the lexer and is very much concerned with the user input to the compiler pipeline (kind, span etc)
@@ -25,22 +49,9 @@ namespace AutomataLib
 
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public struct Token<TTokenKind> : IEquatable<Token<TTokenKind>>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
-        /// <summary>
-        /// Reserved token that represents the end-of-input.
-        /// </summary>
-        public static readonly Token<TTokenKind> EOF = new Token<TTokenKind>((TTokenKind)Enum.Parse(typeof(TTokenKind), "EOF"), "$");
-
-        /// <summary>
-        /// Reserved token that represents the empty token (epsilon, nil, null, empty, or whatnot).
-        /// </summary>
-        /// <remarks>
-        /// This value should only be used in the lexer to signal 'hidden tokens' (aka trivia),
-        /// and should never be send to the parser. We define here for this reason, such that lexer actions
-        /// can return default/null values to the lexer when ignoring whitespace, and other hidden tokens.
-        /// </remarks>
-        public static readonly Token<TTokenKind> EPS = new Token<TTokenKind>(default);
+        internal static readonly Token<TTokenKind> EOF = new Token<TTokenKind>((TTokenKind)Enum.Parse(typeof(TTokenKind), TokenKinds.Eof), "$");
 
         /// <summary>
         /// The name of the lexical unit.
@@ -136,5 +147,12 @@ namespace AutomataLib
     {
         KindAndLexemeValue,
         KindOnly
+    }
+
+    public static class TokenKinds
+    {
+        public const string Eps = "EPS";
+        public const string Nil = "NIL";
+        public const string Eof = "EOF";
     }
 }

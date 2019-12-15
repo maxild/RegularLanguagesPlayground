@@ -12,8 +12,15 @@ namespace ContextFreeGrammar
     // Test your grammar online here
     // http://smlweb.cpsc.ucalgary.ca/start.html
 
-    // TODO: Two types of tokens (keywords: '+', '-', 'if' etc) called STRING/LITERAL and ENUM/NAME values that are lexer defined).
-    // TODO: How do we connect ENUm/NAME with a STRING/LITERAL/KEYWORD
+    // In general I have seen 3 types of tokens in grammars (BNF's, EBNF's etc...):
+    //    STRING literals: '+', '-', 'if' etc
+    //    REGEX literals: /[a-zA-Z]+/
+    //    NAME values: ID, NUM etc (that are references to formal token definitions found elsewhere -- NAME, PATTERN, ORDER, TYPE etc...)
+    // The first 2 ways to define tokens inline in the grammar (rules) will make the tokens kind of anonymous. We will not
+    // support such a system. Therefore no 'scannerless' parsers here!!! We want an explicit lexical specification defined (almost) independently
+    // of the grammar specification (it could embedded). But the lexical specification must be an independent specification, that only need
+    // to overlap with the grammar specification w.r.t. NAME values (TTokenKind enum values).
+
     // TODOs
     // * Terminals should be an ordered (indexed) set indexed by TTokenKind enum: 0,1,2,...,T (TODO: If EPS is filtered out it should not be zero)
     // * Nonterminals should be an insertion ordered set indexed by the order of declaration in the grammar specification: 0,1.2,...V
@@ -67,34 +74,52 @@ namespace ContextFreeGrammar
     //   the notation X* with the meaning “a sequence of zero or more Xs” is called the Kleene star.
 
 
+    public interface IGrammar
+    {
+        bool IsReduced { get; }
+
+        bool IsAugmented { get; }
+
+        bool IsAugmentedWithEofMarker { get; }
+
+        Nonterminal StartSymbol { get; }
+
+        // Terminals
+        // Nonterminals
+        // Productions: list representation, (pair)-indexed list representation
+    }
+
     /// <summary>
-    /// Immutable context-free grammar (CFG) type.
+    /// Immutable context-free grammar (CFG) type, where terminals are defined by <see cref="Enum"/>
+    /// derived enumeration kind.
     /// </summary>
-    public class Grammar<TTokenKind> : IProductionsContainer, IFollowSymbolsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+    /// <remarks>
+    /// The <see cref="System.Enum"/> derived enumeration kind is defined by hand coding it, or by using lexer compiler.
+    /// </remarks>
+    public class Grammar<TTokenKind> : IGrammar,  IProductionsContainer, IFollowSymbolsAnalyzer<TTokenKind>
+        where TTokenKind : struct, Enum
     {
         private readonly IFollowSymbolsAnalyzer<TTokenKind> _analyzer;
 
         public Grammar(
             IEnumerable<Nonterminal> variables,
-            IEnumerable<Terminal<TTokenKind>> terminals,
+            IReadOnlyList<Terminal<TTokenKind>> terminals,
             Nonterminal startSymbol,
             IEnumerable<Production> productions,
             Func<Grammar<TTokenKind>, IFollowSymbolsAnalyzer<TTokenKind>> analyzerFactory)
         {
             if (variables == null) throw new ArgumentNullException(nameof(variables));
-            if (terminals == null) throw new ArgumentNullException(nameof(terminals));
             if (productions == null) throw new ArgumentNullException(nameof(productions));
 
             StartSymbol = startSymbol ?? throw new ArgumentNullException(nameof(startSymbol));
 
-            Variables = new InsertionOrderedSet<Nonterminal>(variables);
-            Terminals = new Set<Terminal<TTokenKind>>(terminals);
+            Nonterminals = new InsertionOrderedSet<Nonterminal>(variables);
+            Terminals = terminals ?? throw new ArgumentNullException(nameof(terminals));
 
             // Productions are numbered 0,1,2,...,^Productions.Count
             var prods = new List<Production>();
             // Variables (productions on the shorter form (A -> α | β | ...) are numbered 0,1,...,^Variables.Count
-            var productionMap = Variables.ToDictionary(symbol => symbol, _ => new List<(int, Production)>());
+            var productionMap = Nonterminals.ToDictionary(symbol => symbol, _ => new List<(int, Production)>());
 
             int index = 0;
             foreach (var production in productions)
@@ -117,6 +142,10 @@ namespace ContextFreeGrammar
             // Calculate lookahead sets (Erasable, First, Follow) using strategy provided by the caller
             _analyzer = analyzerFactory(this);
         }
+
+        // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
+        // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
+        public bool IsReduced => true;
 
         /// <summary>
         /// First production is a unit production (S → E), where the head (LHS) variable (S) and the tail (RHS symbols) is
@@ -164,34 +193,25 @@ namespace ContextFreeGrammar
             ? new MarkedProduction(Productions[0], 0, Productions[0].Length - 1)
             : new MarkedProduction(Productions[0], 0, Productions[0].Length);
 
-        // NOTE: Our context-free grammars are (always) reduced and augmented!!!!
-        // TODO: No useless symbols (required to construct DFA of LR(0) automaton, Knuths Theorem)
-        public bool IsReduced => true;
-
         /// <summary>
         /// The set of nonterminal symbols (aka variables) used to define the grammar. The variables
         /// are defined in the order defined by the sequence of variables passed to the
         /// <see cref="Grammar{TTokenKind}"/> constructor.
         /// </summary>
-        public IReadOnlyOrderedSet<Nonterminal> Variables { get; }
-
-        public IEnumerable<Symbol> NonTerminalSymbols => Variables;
+        public IReadOnlyOrderedSet<Nonterminal> Nonterminals { get; }
 
         /// <summary>
-        /// The set of input symbols used to define the grammar.
+        /// The set of sequentially ordered terminal symbols.
         /// </summary>
         /// <remarks>
-        /// If the grammar is augmented with an eof marker symbol, the <see cref="Symbol.Eof{TTokenKind}"/> is
-        /// included in the <see cref="Terminals"/> set.
+        /// The terminals are ordered 0,1,2,...,N-1 by an index. 
         /// </remarks>
-        public IReadOnlySet<Terminal<TTokenKind>> Terminals { get; }
-
-        public IEnumerable<Symbol> TerminalSymbols => Terminals;
+        public IReadOnlyList<Terminal<TTokenKind>> Terminals { get; }
 
         /// <summary>
         /// All grammar symbols (terminal and nonterminal symbols), not including ε (the empty string).
         /// </summary>
-        public IEnumerable<Symbol> Symbols => NonTerminalSymbols.Concat(TerminalSymbols);
+        public IEnumerable<Symbol> Symbols => Nonterminals.Cast<Symbol>().Concat(Terminals);
 
         /// <summary>
         /// All grammar symbols (terminal and nonterminal symbols), including ε (the empty string).
@@ -208,6 +228,28 @@ namespace ContextFreeGrammar
         public IReadOnlyDictionary<Nonterminal, IReadOnlyList<(int, Production)>> ProductionsFor { get; }
 
         public Nonterminal StartSymbol { get; }
+
+        public override string ToString()
+        {
+            return Productions
+                .Aggregate((i: 0, sb: new StringBuilder()), (t, p) => (t.i + 1, t.sb.AppendLine($"{t.i}: {p}")))
+                .sb.ToString();
+        }
+
+        //
+        // The rest of Grammar should be moved elsewhere (Grammar should be clean!!!)
+        //
+        //    - Erasable
+        //    - First
+        //    - Follow
+        //
+        //    - LR(0) and LR(1) automatons
+        //    - Parsing tables for
+        //        - LR(0)
+        //        - SLR(1)
+        //        - LALR(1): Merged-ineffcient-way or DeRemer-efficient-digraph-way
+        //        - LR(1)
+
 
         public bool Erasable(int productionIndex)
         {
@@ -273,11 +315,11 @@ namespace ContextFreeGrammar
 
             // LR(0)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
-                (_,__) => Terminals.UnionEofMarker());
+                (_,__) => Terminals);
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -294,7 +336,7 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -311,7 +353,7 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -332,7 +374,7 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, mergedStates, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, mergedStates, Nonterminals, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -353,7 +395,7 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Variables, Terminals,
+            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
                 actionTableEntries, gotoTableEntries);
         }
 
@@ -550,13 +592,6 @@ namespace ContextFreeGrammar
             }
 
             return (mergedStates, mergedTransitions);
-        }
-
-        public override string ToString()
-        {
-            return Productions
-                .Aggregate((i: 0, sb: new StringBuilder()), (t, p) => (t.i + 1, t.sb.AppendLine($"{t.i}: {p}")))
-                .sb.ToString();
         }
     }
 }

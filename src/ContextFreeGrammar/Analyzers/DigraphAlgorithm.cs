@@ -16,13 +16,13 @@ namespace ContextFreeGrammar.Analyzers
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFIRST, IGraph Graph) GetFirstGraph<TTokenKind>(
-            Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer) where TTokenKind : Enum
+            Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer) where TTokenKind : struct, Enum
         {
             // direct contributions: initial first sets (INITFIRST)
             //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
             //for (int i = 0; i < initSets.Length; i += 1)
             //    initSets[i] = new Set<TTerminalSymbol>();
-            var initSets = Enumerable.Range(0, grammar.Variables.Count)
+            var initSets = Enumerable.Range(0, grammar.Nonterminals.Count)
                 .Select(_ => new Set<Terminal<TTokenKind>>()) // empty sets
                 .ToImmutableArray();
 
@@ -32,7 +32,7 @@ namespace ContextFreeGrammar.Analyzers
             // For each production A → Y1Y2...Yn
             foreach (var production in grammar.Productions)
             {
-                var Aix = grammar.Variables.IndexOf(production.Head);
+                var Aix = grammar.Nonterminals.IndexOf(production.Head);
 
                 foreach (var Yi in production.Tail)
                 {
@@ -44,7 +44,7 @@ namespace ContextFreeGrammar.Analyzers
                     //       A → αBβ, where α *=> ε and B ∈ N, and B ≠ A
                     if (Yi is Nonterminal B)
                     {
-                        var Bix = grammar.Variables.IndexOf(B);
+                        var Bix = grammar.Nonterminals.IndexOf(B);
                         if (Aix != Bix)
                             contains_the_first_set_of.Add((Aix, Bix));
                     }
@@ -55,7 +55,7 @@ namespace ContextFreeGrammar.Analyzers
                 }
             }
 
-            var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_first_set_of);
+            var graph = new AdjacencyListGraph(grammar.Nonterminals.Count, contains_the_first_set_of);
 
             return (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>>.CastUp(initSets), graph);
         }
@@ -64,13 +64,13 @@ namespace ContextFreeGrammar.Analyzers
         public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFOLLOW, IGraph Graph) GetFollowGraph<TTokenKind>(
             Grammar<TTokenKind> grammar,
             IFirstSymbolsAnalyzer<TTokenKind> analyzer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             // direct contributions: initial follow sets (INITFOLLOW)
             //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
             //for (int i = 0; i < initSets.Length; i += 1)
             //    initSets[i] = new Set<TTerminalSymbol>();
-            var initSets = Enumerable.Range(0, grammar.Variables.Count)
+            var initSets = Enumerable.Range(0, grammar.Nonterminals.Count)
                 .Select(_ => new Set<Terminal<TTokenKind>>()) // empty sets
                 .ToImmutableArray();
 
@@ -78,7 +78,7 @@ namespace ContextFreeGrammar.Analyzers
             // haven't been augmented with an eof marker.
             if (!grammar.IsAugmentedWithEofMarker)
             {
-                int indexOfS = grammar.Variables.IndexOf(grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>());
+                int indexOfS = grammar.Nonterminals.IndexOf(grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>());
                 initSets[indexOfS].Add(Symbol.Eof<TTokenKind>());
             }
 
@@ -113,7 +113,7 @@ namespace ContextFreeGrammar.Analyzers
             // For each production B → Y1Y2...Yn
             foreach (var production in grammar.Productions)
             {
-                var Bix = grammar.Variables.IndexOf(production.Head);
+                var Bix = grammar.Nonterminals.IndexOf(production.Head);
 
                 for (int i = 0; i < production.Length; i += 1)
                 {
@@ -123,7 +123,7 @@ namespace ContextFreeGrammar.Analyzers
                     // Look at the current tail
                     var beta = production.Tail.Skip(i + 1).ToArray();
                     // direct contribution B −→ αAβ
-                    var Aix = grammar.Variables.IndexOf(Yi);
+                    var Aix = grammar.Nonterminals.IndexOf(Yi);
                     // FIRST(β) ⊆ INITFOLLOW(A)
                     var directlyFollowsYi = analyzer.First(beta);
                     initSets[Aix].AddRange(directlyFollowsYi);
@@ -133,7 +133,7 @@ namespace ContextFreeGrammar.Analyzers
                 }
             }
 
-            var graph = new AdjacencyListGraph(grammar.Variables.Count, contains_the_follow_set_of);
+            var graph = new AdjacencyListGraph(grammar.Nonterminals.Count, contains_the_follow_set_of);
 
             return (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>>.CastUp(initSets), graph);
         }

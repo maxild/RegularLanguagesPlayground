@@ -4,36 +4,19 @@ using System.Diagnostics;
 
 namespace AutomataLib
 {
+    /// <summary>
+    /// Edges in Automaton (In NFA epsilon transitions are encoded by the user, we no longer have an explicit Epsilon type)
+    /// </summary>
     public static class Transition
     {
-        public static TAlphabet Epsilon<TAlphabet>()
-        {
-            Type t = typeof(TAlphabet);
-            if (typeof(Symbol).IsAssignableFrom(t))
-            {
-                return (TAlphabet)(object)Symbol.Epsilon;
-            }
-            return default;
-        }
-
         public static SourceTransitionPair<TState, TAlphabet> FromPair<TState, TAlphabet>(TState sourceState, TAlphabet label)
         {
             return new SourceTransitionPair<TState, TAlphabet>(sourceState, label);
         }
 
-        public static SourceTransitionPair<TState, TAlphabet> FromEpsilonPair<TState, TAlphabet>(TState sourceState)
-        {
-            return new SourceTransitionPair<TState, TAlphabet>(sourceState, Epsilon<TAlphabet>());
-        }
-
         public static TargetTransitionPair<TAlphabet, TState> ToPair<TAlphabet, TState>(TAlphabet label, TState targetState)
         {
             return new TargetTransitionPair<TAlphabet, TState>(label, targetState);
-        }
-
-        public static TargetTransitionPair<TAlphabet, TState> ToEpsilonPair<TAlphabet, TState>(TAlphabet label, TState targetState)
-        {
-            return new TargetTransitionPair<TAlphabet, TState>(Epsilon<TAlphabet>(), targetState);
         }
 
         public static Transition<TAlphabet, TState> Move<TAlphabet, TState>(
@@ -50,13 +33,6 @@ namespace AutomataLib
             int targetState)
         {
             return new Transition<char, int>(sourceState, label, targetState);
-        }
-
-        public static Transition<TAlphabet, TState> EpsilonMove<TAlphabet, TState>(
-            TState sourceState,
-            TState targetState)
-        {
-            return new Transition<TAlphabet, TState>(sourceState, Epsilon<TAlphabet>(), targetState);
         }
 
         public static Transition<char, int> EpsilonMove(
@@ -82,8 +58,6 @@ namespace AutomataLib
             Label = label;
             TargetState = targetState;
         }
-
-        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, Transition.Epsilon<TAlphabet>());
 
         public bool Equals(Transition<TAlphabet, TState> other)
         {
@@ -117,7 +91,7 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            return "(" + SourceState + "," + (IsEpsilon ? "ε," : Label + ",") + TargetState + ")"; // tuple format
+            return "(" + SourceState + "," + Label + "," + TargetState + ")"; // tuple format
         }
     }
 
@@ -134,8 +108,6 @@ namespace AutomataLib
             Label = label;
             TargetState = targetState;
         }
-
-        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, Transition.Epsilon<TAlphabet>());
 
         public bool Equals(TargetTransitionPair<TAlphabet, TState> other)
         {
@@ -160,7 +132,7 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            return (IsEpsilon ? "(ε," : "(" + Label + ",") + TargetState + ")"; // tuple format
+            return "(" + Label + "," + TargetState + ")"; // tuple format
         }
     }
 
@@ -177,8 +149,6 @@ namespace AutomataLib
             SourceState = sourceState;
             Label = label;
         }
-
-        public bool IsEpsilon => EqualityComparer<TAlphabet>.Default.Equals(Label, Transition.Epsilon<TAlphabet>());
 
         public bool Equals(SourceTransitionPair<TState, TAlphabet> other)
         {
@@ -203,7 +173,7 @@ namespace AutomataLib
 
         public override string ToString()
         {
-            return "(" + SourceState + (IsEpsilon ? ",ε)" : "," + Label + ")"); // tuple format
+            return "(" + SourceState + "," + Label + ")"; // tuple format
         }
     }
 }

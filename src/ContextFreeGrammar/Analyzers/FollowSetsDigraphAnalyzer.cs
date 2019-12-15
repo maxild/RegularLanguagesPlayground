@@ -8,7 +8,7 @@ using ContextFreeGrammar.Analyzers.Internal;
 namespace ContextFreeGrammar.Analyzers
 {
     internal class FollowSetsDigraphAnalyzer<TTokenKind> : IFollowSetsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _followMap;
 
@@ -33,7 +33,7 @@ namespace ContextFreeGrammar.Analyzers
 
             var followSets = DigraphAlgorithm.Traverse(graph, initFollowSets);
 
-            var followMap = grammar.Variables.ToDictionary(v => v, v => followSets[grammar.Variables.IndexOf(v)]);
+            var followMap = grammar.Nonterminals.ToDictionary(v => v, v => followSets[grammar.Nonterminals.IndexOf(v)]);
 
             return followMap;
         }

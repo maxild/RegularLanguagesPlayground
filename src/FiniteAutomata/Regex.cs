@@ -72,7 +72,7 @@ namespace FiniteAutomata
             int startState = nameFunc();
             int exitState = nameFunc();
             var nfa0 = new Nfa<string>(startState, exitState);
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(startState, exitState));
+            nfa0.AddTrans(Transition.Move<string, int>(startState, null, exitState));
             return nfa0;
         }
     }
@@ -129,7 +129,7 @@ namespace FiniteAutomata
                 nfa0.AddTrans(entry);
             foreach (KeyValuePair<int, List<TargetTransitionPair<string, int>>> entry in nfa2.Trans)
                 nfa0.AddTrans(entry);
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(nfa1.GetRequiredSingleAcceptingState(), nfa2.Start));
+            nfa0.AddTrans(Transition.Move<string, int>(nfa1.GetRequiredSingleAcceptingState(), null, nfa2.Start));
             return nfa0;
         }
     }
@@ -164,10 +164,10 @@ namespace FiniteAutomata
                 nfa0.AddTrans(entry);
             foreach (KeyValuePair<int, List<TargetTransitionPair<string, int>>> entry in nfa2.Trans)
                 nfa0.AddTrans(entry);
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(startState, nfa1.Start));
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(startState, nfa2.Start));
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(nfa1.GetRequiredSingleAcceptingState(), exitState));
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(nfa2.GetRequiredSingleAcceptingState(), exitState));
+            nfa0.AddTrans(Transition.Move<string, int>(startState, null, nfa1.Start));
+            nfa0.AddTrans(Transition.Move<string, int>(startState, null, nfa2.Start));
+            nfa0.AddTrans(Transition.Move<string, int>(nfa1.GetRequiredSingleAcceptingState(), null, exitState));
+            nfa0.AddTrans(Transition.Move<string, int>(nfa2.GetRequiredSingleAcceptingState(), null, exitState));
             return nfa0;
         }
     }
@@ -196,8 +196,8 @@ namespace FiniteAutomata
             var nfa0 = new Nfa<string>(startState, startState);
             foreach (KeyValuePair<int, List<TargetTransitionPair<string, int>>> entry in nfa1.Trans)
                 nfa0.AddTrans(entry);
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(startState, nfa1.Start));
-            nfa0.AddTrans(Transition.EpsilonMove<string, int>(nfa1.GetRequiredSingleAcceptingState(), startState));
+            nfa0.AddTrans(Transition.Move<string, int>(startState, null, nfa1.Start));
+            nfa0.AddTrans(Transition.Move<string, int>(nfa1.GetRequiredSingleAcceptingState(), null, startState));
             return nfa0;
         }
     }

@@ -54,7 +54,7 @@ namespace ContextFreeGrammar
             => new MarkedProduction(Production, ProductionIndex, MarkerPosition + 1);
 
 
-        public ProductionItem<TTokenKind> AsLr0Item<TTokenKind>() where TTokenKind : Enum
+        public ProductionItem<TTokenKind> AsLr0Item<TTokenKind>() where TTokenKind : struct, Enum
             => new ProductionItem<TTokenKind>(this, Set<Terminal<TTokenKind>>.Empty);
 
         /// <summary>

@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using AutomataLib;
 using ContextFreeGrammar;
 using Shouldly;
 using Xunit;
@@ -13,7 +12,6 @@ namespace UnitTests
         [SuppressMessage("ReSharper", "UnusedMember.Local")]
         enum Sym
         {
-            EPS = 0,
             PLUS,       // +
             ID,
             EOF

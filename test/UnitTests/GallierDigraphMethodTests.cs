@@ -28,7 +28,7 @@ namespace UnitTests
         public void Erasable()
         {
             // No ε-productions, no nullable/erasable symbols
-            Grammar.Variables.Each(symbol => Grammar.Erasable(symbol).ShouldBeFalse());
+            Grammar.Nonterminals.Each(symbol => Grammar.Erasable(symbol).ShouldBeFalse());
             Enumerable.Range(0, Grammar.Productions.Count).Each(i => Grammar.Erasable(i).ShouldBeFalse());
 
             Grammar.Erasable(Symbol.V("S")).ShouldBeFalse();

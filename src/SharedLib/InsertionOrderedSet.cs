@@ -10,7 +10,6 @@ namespace AutomataLib
     /// <summary>
     /// A set, that preserves insertion order.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
     [DebuggerTypeProxy(typeof(EnumerableDebugView<>)), DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class InsertionOrderedSet<T> : ISet<T>, IReadOnlyOrderedSet<T>, IEquatable<InsertionOrderedSet<T>>

@@ -7,7 +7,7 @@ using AutomataLib;
 namespace ContextFreeGrammar.Lexers
 {
     public class FakeLexer<TTokenKind> : IBufferedLexer<Token<TTokenKind>>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private readonly Token<TTokenKind>[] _tokens;
         private int _index;
@@ -26,7 +26,7 @@ namespace ContextFreeGrammar.Lexers
         {
             return (tokenStream ?? Enumerable.Empty<(TTokenKind, string)>())
                 .Select(pair => new Token<TTokenKind>(pair.Item1, pair.Item2))
-                .Concat(Token<TTokenKind>.EOF.AsSingletonEnumerable())
+                .Concat(Token.Eof<TTokenKind>().AsSingletonEnumerable())
                 .ToArray();
         }
 

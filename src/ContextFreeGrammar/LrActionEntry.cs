@@ -7,7 +7,7 @@ namespace ContextFreeGrammar
 {
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct LrActionEntry<TTokenKind> : IEquatable<LrActionEntry<TTokenKind>>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private string DebuggerDisplay => ToString();
 

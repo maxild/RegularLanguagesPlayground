@@ -16,7 +16,6 @@ namespace GrammarRepo
     {
         public enum Sym
         {
-            EPS,
             a,
             b,
             EOF

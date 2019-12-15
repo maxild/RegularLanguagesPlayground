@@ -3,15 +3,17 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using AutomataLib;
 
-namespace AutomataLib
+namespace ContextFreeGrammar
 {
     // Conventions (to be validated by grammar type/class):
     //   tokens have to represented by enumeration indexed 0,1,2...,N (table indexes)
     //   terminals are uppercase words: NUM, ID etc...
     //   variables have to be represented by enumeration 0,1,2,...N (table indexes)
     //   nonterminals are lowercase word: expression, term, factor, declaration
-    //   terminals are uniquely indexed by enum (maybe generated from grammar spec). EOF and EPS are both tokens.
+    //   terminals are uniquely indexed by enum (maybe generated from grammar spec). EOF and EPS are both
+    //   tokens (but only EOF carry over to Symbols).
     //   nonterminals are insertion ordered by their definition in grammar.
     //
     //                       IsExtendedTerminal    IsTerminal    IsNonterminal    IsEpsilon      IsEof
@@ -28,11 +30,28 @@ namespace AutomataLib
     // TODO: Maybe better to move all other stuff out of grammar, because grammar (CFG) should only contain
     //      the basic rewriting system (phrase structure ????, generative grammar).
 
+    // TODO: Create TokenKindCache for enum metadata (name, value, index) and use it for both Token and Terminal
+
     /// <summary>
-    /// Grammar symbol (T or V)
+    /// Represents a grammar symbol (terminal, nonterminal) or one of the
+    /// two reserved symbols EOF marker or Epsilon (the empty string).
     /// </summary>
-    public abstract class Symbol : IEquatable<Symbol>, IComparable<Symbol> // TODO: Why comparable?????
+    /// <remarks>
+    /// The two reserved symbols are not grammar symbols. They are reserved keywords in the grammar of grammars
+    /// that we for practical reasons describe as symbols, because it makes sense a lot of places in the code.
+    /// </remarks>
+    public abstract class Symbol : IEquatable<Symbol>
     {
+        protected Symbol(string name, int index)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentNullException(name);
+            }
+            Name = name;
+            Index = index;
+        }
+
         /// <summary>
         /// The name of the (grammar) variable (nonterminal) in the BNF, or the name of the terminal symbol (i.e. the name of some abstract
         /// input symbol, aka token kind, lexical unit, identified by the lexer). Both interpretations of name (for variable or terminal)
@@ -40,12 +59,20 @@ namespace AutomataLib
         /// </summary>
         public string Name { get; }
 
-        // TODO: We need Index property (on both terminal and nonterminal instances), BUT what is the index of epsilon??
+        /// <summary>
+        /// Get the symbols unique identifier that also happen to be an index in the range 0,1,2,...,N.
+        /// </summary>
+        /// <remarks>
+        /// The <see cref="Epsilon"/> symbol will get an index equal to -1. This is because the empty string is not a
+        /// grammar symbol that will be used in any parsing table.
+        /// </remarks>
+        public int Index { get; }
 
         /// <summary>
-        /// Is the symbol a terminal symbol that is either part of language described by the grammar or
-        /// is it the reserved EOF symbol. In other words, is the symbol part of the
-        /// input language of the parser.
+        /// Is the symbol a terminal symbol that is either part of the alphabet of the language or
+        /// is it the reserved eof marker symbol instantiated by <see cref="Symbol.Eof{TTokenKind}()"/>.
+        /// In other words, is the symbol part of the input language of the parser (or equivalently the
+        /// output language of the lexer).
         /// </summary>
         /// <remarks>
         /// In textbooks the extended terminal symbols is defined by the set T' = T ∪ {$}, that contain
@@ -57,10 +84,12 @@ namespace AutomataLib
         public abstract bool IsExtendedTerminal { get; }
 
         /// <summary>
-        /// Is the symbol a terminal symbol that is part of language described by the grammar.
+        /// Is the symbol a terminal symbol that is part of the language described by the grammar (i.e. the alphabet of the language).
         /// </summary>
         /// <remarks>
-        /// All <see cref="Terminal{TTokenKind}"/> derived symbols have <see cref="IsTerminal"/> equal to <c>true</c>.
+        /// All <see cref="Terminal{TTokenKind}"/> derived symbols have <see cref="IsTerminal"/> equal to <c>true</c>. The only
+        /// <see cref="Terminal{TTokenKind}"/> value that does not have <see cref="IsTerminal"/> equal to <c>true</c> is the
+        /// reserved eof marker symbol instantiated by <see cref="Symbol.Eof{TTokenKind}()"/>.
         /// </remarks>
         public abstract bool IsTerminal { get; }
 
@@ -105,16 +134,30 @@ namespace AutomataLib
         /// the parser to accept the input in a deterministic way. That is a bottom-up (left) parser will only accept the input
         /// if the next input token is eof ($) after reducing by the final accept item [S' → S•$].
         /// </remarks>
-        public static Terminal<TTokenKind> Eof<TTokenKind>() where TTokenKind : Enum => Terminal<TTokenKind>.EOF;
+        public static Terminal<TTokenKind> Eof<TTokenKind>() where TTokenKind : struct, Enum => Terminal<TTokenKind>.EOF;
 
         /// <summary>
-        /// Reserved symbol for the empty string.
+        /// Reserved symbol 'ε' representing the empty string, that is only used as a reserved symbol in the grammar of
+        /// grammars (just like the '→' symbol).
         /// </summary>
+        /// <remarks>
+        /// A production is a relation V → (V∪T)∗. The Kleene star covers all productions on the form A → ε.
+        /// Therefore the empty string is not a terminal symbol. In fact is not a symbol at all, but it represents
+        /// missing symbol. It is sort of like the empty list, or the Nothing of the Maybe in Haskell. In C# we
+        /// represent the empty string with a so-called null object.
+        /// </remarks>
         public static readonly Symbol Epsilon = new Eps();
 
+        /// <summary>
+        /// The empty string is just a reserved symbol in the (meta-)language for grammars. It is used to make it explicit
+        /// that a production has an empty RHS. Such a production (A → ε) is known as an ε-production.
+        /// The reserved symbol 'ε' is just like the reserved symbol '→' a special keyword in the grammar for a grammar
+        /// (our so-called metalanguage). We represent it in the library as a (reserved) <see cref="Symbol"/> derived singleton
+        /// It is not part of any grammar, and therefore it is not a terminal symbol, and it is not a nonterminal symbol either.
+        /// </summary>
         class Eps : Symbol
         {
-            public Eps() : base(new string('ε', 1))
+            public Eps() : base("ε", index: -1)
             {
             }
 
@@ -129,6 +172,18 @@ namespace AutomataLib
             public override bool IsEof => false;
         }
 
+        // TODO: T, Ts, V and Vs should be moved else where (because we need central repository/cache for singleton values) scoped to a grammar
+
+        // Registry<TKey, TSymbol> == IReadOnlyList<TSymbol> + IndexOf(TKey key)
+
+        // Registry<TTokenKind, Terminal<TTokenKind>>
+        //      Enum --> Terminal --> Index         (Enum is the index)
+        //      Index --> Terminal --> Enum
+
+        // Registry<string, Nonterminal>
+        //      Name --> Nonterminal --> Index      (Here we need insertion ordered set...but we only need IndexOf)
+        //      Index --> Nonterminal --> Name
+
         public static Nonterminal V(string name)
         {
             return new Nonterminal(name);
@@ -139,23 +194,16 @@ namespace AutomataLib
             return names.Select(name => new Nonterminal(name));
         }
 
-        public static Terminal<TTokenKind> T<TTokenKind>(TTokenKind kind) where TTokenKind : Enum
+        public static Terminal<TTokenKind> T<TTokenKind>(TTokenKind kind)
+            where TTokenKind : struct, Enum
         {
             return Terminal<TTokenKind>.T(kind);
         }
 
-        public static IEnumerable<Terminal<TTokenKind>> Ts<TTokenKind>(params TTokenKind[] kinds) where TTokenKind : Enum
+        public static IEnumerable<Terminal<TTokenKind>> Ts<TTokenKind>(params TTokenKind[] kinds)
+            where TTokenKind : struct, Enum
         {
             return kinds.Select(Terminal<TTokenKind>.T);
-        }
-
-        protected Symbol(string name)
-        {
-            if (string.IsNullOrEmpty(name))
-            {
-                throw new ArgumentNullException(name);
-            }
-            Name = name;
         }
 
         public override string ToString()
@@ -166,21 +214,16 @@ namespace AutomataLib
         public bool Equals(Symbol other)
         {
             if (other == null)
-            {
                 return false;
-            }
 
             if (ReferenceEquals(this, other))
-            {
                 return true;
-            }
 
             if (GetType() != other.GetType())
-            {
                 return false;
-            }
 
-            // TODO: Use Index!!!!
+            // TODO: Uncomment when index is created in Nonterminal
+            //return Index == other.Index;
             return Name.Equals(other.Name, StringComparison.Ordinal);
         }
 
@@ -196,20 +239,12 @@ namespace AutomataLib
 
         public override int GetHashCode()
         {
-            return Name.GetHashCode();
-        }
-
-        // TODO: Why compare (Ord)????
-        public int CompareTo(Symbol other)
-        {
-            if (ReferenceEquals(this, other)) return 0;
-            if (ReferenceEquals(null, other)) return 1;
-            return string.Compare(Name, other.Name, StringComparison.Ordinal);
+            return Index;
         }
     }
 
     /// <summary>
-    /// A variable in V.
+    /// A nonterminal (aka grammar variable) in V.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public class Nonterminal : Symbol, IEquatable<Nonterminal>
@@ -217,7 +252,7 @@ namespace AutomataLib
         private string DebuggerDisplay => Name;
 
         internal Nonterminal(string name)
-            : base(name)
+            : base(name, 0) // TODO: Create index
         {
         }
 
@@ -238,50 +273,94 @@ namespace AutomataLib
     }
 
     /// <summary>
-    /// The single character terminal (non-essential simplification).
+    /// A terminal in T defined by some token kind enumeration (enum from corefx).
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class Terminal<TTokenKind> : Symbol, IEquatable<Terminal<TTokenKind>>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         /// <summary>
-        /// Reserved terminal grammar symbol used in the initial augmented unit production.
+        /// Reserved terminal grammar symbol for EOF marker.
         /// </summary>
-        internal static readonly Terminal<TTokenKind> EOF = new Terminal<TTokenKind>((TTokenKind)Enum.Parse(typeof(TTokenKind), "EOF"));
+        internal static Terminal<TTokenKind> EOF => All[s_eofIndex];
 
-        public static readonly Terminal<TTokenKind>[] s_terminals;
+        // NOTE: The static fields will not be shared between different closed Terminal<TTokenKind> classes. That
+        // Terminal<Sym1> and Terminal<Sym2> will have different independent static fields. This is correct for our cache.
+        // ReSharper disable once StaticMemberInGenericType
+        private static readonly int s_eofIndex;
 
         // NOTE: the static constructor will be called once for each closed class type (i.e. once for each token kind)
         static Terminal()
         {
-            s_terminals = Enum.GetValues(typeof(TTokenKind)).Cast<TTokenKind>().Select(kind => new Terminal<TTokenKind>(kind)).ToArray();
+            (All, s_eofIndex) = GetSeqOrdTerminals();
         }
+
+        internal static IReadOnlyList<Terminal<TTokenKind>> All { get; }
 
         internal static Terminal<TTokenKind> T(TTokenKind kind)
         {
-            return s_terminals[Convert.ToInt32(kind)];
+            return All[Convert.ToInt32(kind)];
+        }
+
+        // TODO: All the validation exceptions are hard to catch when done in static initializers...move vakidations to GrammarBuilder and use intermediate sequence of tuples (kind, name, index)
+
+        /// <summary>
+        /// Get sequentially ordered list of token kinds from minimal bound zero to maximal bound N-1.
+        /// </summary>
+        public static (IReadOnlyList<Terminal<TTokenKind>>, int) GetSeqOrdTerminals()
+        {
+            Type t = typeof(TTokenKind);
+
+            if (Attribute.IsDefined(t, typeof(FlagsAttribute)))
+                throw new InvalidOperationException("The TTokenKind enum type cannot have [Flags] attribute.");
+            if (Enum.GetUnderlyingType(t) != typeof(int))
+                throw new InvalidOperationException("The TTokenKind enum type must have underlying type equal to System.Int32.");
+
+            int eofIndex = -1;
+            List<Terminal<TTokenKind>> terminals = new List<Terminal<TTokenKind>>();
+
+            int index = 0;
+            foreach (var tokenKind in ((TTokenKind[])Enum.GetValues(t)).OrderBy(kind => kind))
+            {
+                int rawValue = Convert.ToInt32(tokenKind);
+
+                // Hidden tokens (epsilon, trivia) have negative value
+                if (rawValue < 0)
+                    continue;
+
+                if (rawValue != index)
+                    throw new InvalidOperationException($"The values of {t.FullName} are not sequentially ordered 0,1,...,N-1.");
+
+                string name = tokenKind.ToString();
+
+                //if (name.Any(c => false == char.IsUpper(c)))
+                //    throw new InvalidOperationException(
+                //        $"Terminal symbols defined by the names of {t.FullName} must all be uppercase. The name {name} is not.");
+
+                if (TokenKinds.Eof.Equals(name, StringComparison.Ordinal))
+                    eofIndex = index;
+
+                terminals.Add(new Terminal<TTokenKind>(tokenKind, name, index));
+
+                index += 1;
+            }
+
+            if (eofIndex < 0)
+                throw new InvalidOperationException($"The reserved name EOF was not found among the names of {t.FullName}.");
+
+            return (terminals, eofIndex);
         }
 
         private string DebuggerDisplay => Name;
 
-        /// <summary>
-        /// We simplify things by assuming that the name (token kind of the lexical unit) of a terminal is all we care about.
-        /// </summary>
-        /// <param name="kind">The kind of token (enum value).</param>
-        internal Terminal(TTokenKind kind)
-            : base(Enum.GetName(typeof(TTokenKind), kind))
+        private Terminal(TTokenKind kind, string name, int index)
+            : base(name, index)
         {
             Kind = kind;
-            Index = Convert.ToInt32(kind);
         }
 
         public TTokenKind Kind { get; }
-
-        /// <summary>
-        /// The raw value of the token kind.
-        /// </summary>
-        public int Index { get; } // TODO: Move to base Symbol class
 
         public override bool IsExtendedTerminal => true;
 
@@ -295,8 +374,7 @@ namespace AutomataLib
 
         public bool Equals(Terminal<TTokenKind> other)
         {
-            // TODO: Use base.Equals, where base.Equals uses Index
-            return other != null && EqualityComparer<TTokenKind>.Default.Equals(Kind, other.Kind);
+            return base.Equals(other);
         }
     }
 }

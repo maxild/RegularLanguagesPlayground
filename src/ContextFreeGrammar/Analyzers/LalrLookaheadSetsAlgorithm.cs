@@ -48,7 +48,7 @@ namespace ContextFreeGrammar.Analyzers
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public static IReadOnlyOrderedSet<(int, Nonterminal)> GetGotoTransitionPairs<TTokenKind>(
             Grammar<TTokenKind> grammar,
-            LrItemsDfa<TTokenKind> dfaLr0) where TTokenKind : Enum
+            LrItemsDfa<TTokenKind> dfaLr0) where TTokenKind : struct, Enum
 
         {
             // This is the bijective mapping between integer values and (p,A)-pairs.
@@ -89,7 +89,7 @@ namespace ContextFreeGrammar.Analyzers
             LrItemsDfa<TTokenKind> dfaLr0,
             IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
             IErasableSymbolsAnalyzer analyzer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             // TODO: Move everywhere (maybe an invariant of grammar itself...If (!IsAugmented) MakeAugmented
             if (!grammar.IsAugmented)
@@ -200,7 +200,7 @@ namespace ContextFreeGrammar.Analyzers
             LrItemsDfa<TTokenKind> dfaLr0,
             IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
             IErasableSymbolsAnalyzer analyzer
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             // includes relation defines the edges in the digraph
             var includes = new HashSet<(int, int)>(); // no parallel edges
@@ -295,7 +295,7 @@ namespace ContextFreeGrammar.Analyzers
             LrItemsDfa<TTokenKind> dfaLr0,
             IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
             IReadOnlyList<IReadOnlySet<Terminal<TTokenKind>>> followSets
-            ) where TTokenKind : Enum
+            ) where TTokenKind : struct, Enum
         {
             // TODO: Move centrally
             if (!grammar.IsAugmented)

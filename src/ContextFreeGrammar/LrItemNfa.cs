@@ -14,7 +14,7 @@ namespace ContextFreeGrammar
     /// possible ε-transitions, aka ε-moves). Used in step 1 of LR(0) Automaton construction.
     /// </summary>
     public class LrItemNfa<TTokenKind> : INondeterministicFiniteAutomaton<Symbol, ProductionItem<TTokenKind>>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         // In many cases TValue could be List<TState>, but it is better to be safe than sorry
         private readonly Dictionary<SourceTransitionPair<ProductionItem<TTokenKind>, Symbol>, HashSet<ProductionItem<TTokenKind>>> _delta;
@@ -181,7 +181,7 @@ namespace ContextFreeGrammar
             {
                 ProductionItem<TTokenKind> sourceState = markedVisitedStates.Dequeue();
                 // if any epsilon-moves add them all to the closure (union)
-                foreach (var targetState in Delta(Transition.FromEpsilonPair<ProductionItem<TTokenKind>, Symbol>(sourceState)))
+                foreach (var targetState in Delta(Transition.FromPair(sourceState, Symbol.Epsilon)))
                 {
                     if (!closure.Contains(targetState))
                     {

@@ -7,7 +7,7 @@ using AutomataLib;
 namespace ContextFreeGrammar.Analyzers
 {
     internal class FirstSetsDigraphAnalyzer<TTokenKind> : IFirstSetsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private static readonly Set<Terminal<TTokenKind>> s_eofSingleton = new Set<Terminal<TTokenKind>>(new []{Symbol.Eof<TTokenKind>()});
 
@@ -51,7 +51,7 @@ namespace ContextFreeGrammar.Analyzers
 
             var firstSets = DigraphAlgorithm.Traverse(graph, initFirstSets);
 
-            var firstMap = grammar.Variables.ToDictionary(v => v, v => firstSets[grammar.Variables.IndexOf(v)]);
+            var firstMap = grammar.Nonterminals.ToDictionary(v => v, v => firstSets[grammar.Nonterminals.IndexOf(v)]);
 
             return firstMap;
         }

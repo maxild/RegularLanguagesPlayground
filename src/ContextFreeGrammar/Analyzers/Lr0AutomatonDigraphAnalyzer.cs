@@ -5,7 +5,7 @@ using AutomataLib;
 namespace ContextFreeGrammar.Analyzers
 {
     // TODO: Make abstract LalrLookaheadSetsAnalyzer (3 metoder: digraph, dragon book, in efficient merge)
-    public class Lr0AutomatonDigraphAnalyzer<TTokenKind> where TTokenKind : Enum
+    public class Lr0AutomatonDigraphAnalyzer<TTokenKind> where TTokenKind : struct, Enum
     {
         private readonly Dictionary<(int, int), Set<Terminal<TTokenKind>>> _lookaheadSets;
 

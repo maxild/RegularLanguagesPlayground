@@ -25,7 +25,7 @@ namespace ContextFreeGrammar.Analyzers
     /// Starter tokens analyzer.
     /// </summary>
     public interface IFirstSetsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         /// <summary>
         /// The First function yields the set of starter symbols for a grammar symbol. It is formally
@@ -45,7 +45,7 @@ namespace ContextFreeGrammar.Analyzers
     /// Combined 'nullable symbols' and 'starter tokens' analyzer.
     /// </summary>
     public interface IFirstSymbolsAnalyzer<TTokenKind> : IErasableSymbolsAnalyzer, IFirstSetsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
     }
 
@@ -53,7 +53,7 @@ namespace ContextFreeGrammar.Analyzers
     /// Follower tokens analyzer.
     /// </summary>
     public interface IFollowSetsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         // Define Follow(A), for non-terminal A, to be the set of terminals a that can appear immediately
         // to the right of A in some sentential form. That is, the set of terminals a such that there
@@ -78,7 +78,7 @@ namespace ContextFreeGrammar.Analyzers
     /// </summary>
     public interface IFollowSymbolsAnalyzer<TTokenKind> :
         IFirstSymbolsAnalyzer<TTokenKind>, IFollowSetsAnalyzer<TTokenKind>
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
     }
 
@@ -114,7 +114,7 @@ namespace ContextFreeGrammar.Analyzers
         /// <param name="symbols">The sequence of symbols (possibly empty, aka epsilon)</param>
         public static IReadOnlySet<Terminal<TTokenKind>> First<TTokenKind>(
             this IFirstSymbolsAnalyzer<TTokenKind> analyzer,
-            IEnumerable<Symbol> symbols) where TTokenKind : Enum
+            IEnumerable<Symbol> symbols) where TTokenKind : struct, Enum
         {
             // If α is any string of grammar symbols, let First(α) be the set of terminals that begin the
             // strings derived from α. In some texts (dragon book) if α *=> ε, then ε is also in First(α).

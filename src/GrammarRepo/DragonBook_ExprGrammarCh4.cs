@@ -11,7 +11,6 @@ namespace GrammarRepo
     {
         public enum Sym
         {
-            EPS = 0,
             PLUS,       // +
             ASTERISK,   // *
             LPARAN,     // (

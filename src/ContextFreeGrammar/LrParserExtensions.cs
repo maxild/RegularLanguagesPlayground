@@ -17,7 +17,7 @@ namespace ContextFreeGrammar
             this IShiftReduceParsingTable<TTokenKind> parser,
             ILexer<Token<TTokenKind>> lexer,
             TextWriter logger = null
-        ) where TTokenKind : Enum
+        ) where TTokenKind : struct, Enum
         {
             var table = new TableBuilder()
                 .SetColumns(new Column("SeqNo", 8),

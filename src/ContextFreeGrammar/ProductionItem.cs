@@ -210,7 +210,7 @@ namespace ContextFreeGrammar
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct ProductionItem<TTokenKind> : IEquatable<ProductionItem<TTokenKind>>, IFiniteAutomatonState
-        where TTokenKind : Enum
+        where TTokenKind : struct, Enum
     {
         private string DebuggerDisplay => ToString();
 

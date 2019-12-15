@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using JetBrains.Annotations;
 
-namespace AutomataLib
+namespace ContextFreeGrammar
 {
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     public struct LrAction : IEquatable<LrAction>

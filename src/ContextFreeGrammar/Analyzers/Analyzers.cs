@@ -6,13 +6,13 @@ namespace ContextFreeGrammar.Analyzers
     public static class Analyzers
     {
         public static IFollowSymbolsAnalyzer<TTokenKind> CreateDragonBookAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
-            where TTokenKind : Enum
+            where TTokenKind : struct, Enum
         {
             return new DragonBookAnalyzer<TTokenKind>(grammar);
         }
 
         public static IFollowSymbolsAnalyzer<TTokenKind> CreateDigraphAlgorithmAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
-            where TTokenKind : Enum
+            where TTokenKind : struct, Enum
         {
             var nullableSymbolsAnalyzer
                 = new ErasableSymbolsAnalyzer<TTokenKind>(grammar);
@@ -28,13 +28,13 @@ namespace ContextFreeGrammar.Analyzers
         }
 
         public static IErasableSymbolsAnalyzer CreateErasableSymbolsAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
-            where TTokenKind : Enum
+            where TTokenKind : struct, Enum
         {
             return new ErasableSymbolsAnalyzer<TTokenKind>(grammar);
         }
 
         public static IFirstSymbolsAnalyzer<TTokenKind> CreateFirstSymbolsAnalyzer<TTokenKind>(Grammar<TTokenKind> grammar)
-            where TTokenKind : Enum
+            where TTokenKind : struct, Enum
         {
             var nullableSymbolsAnalyzer = new ErasableSymbolsAnalyzer<TTokenKind>(grammar);
 

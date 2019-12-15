@@ -1,20 +1,24 @@
 using System.Diagnostics.CodeAnalysis;
-using AutomataLib;
+using ContextFreeGrammar;
 using Shouldly;
 using Xunit;
 
 namespace UnitTests
 {
+
     public class SymbolTests
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         [SuppressMessage("ReSharper", "UnusedMember.Local")]
         enum Sym
         {
-            EPS = 0,
+            // Hidden token kinds have negative values
+            NIL = -2,   // Lexical error (syntax error)
+            EPS = -1,   // Epsilon (empty/hidden) token
+            // All non-hidden token kinds are sequentially ordered 0,1,2,...,N-1
+            EOF,        // EOF marker
             PLUS,       // +
-            ID,
-            EOF
+            ID
         }
 
         [Fact]
