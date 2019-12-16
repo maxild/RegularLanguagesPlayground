@@ -186,12 +186,14 @@ namespace ContextFreeGrammar
 
         public static Nonterminal V(string name)
         {
-            return new Nonterminal(name);
+            // TODO: Move to registry
+            return new Nonterminal(name, index: 0);
         }
 
         public static IEnumerable<Nonterminal> Vs(params string[] names)
         {
-            return names.Select(name => new Nonterminal(name));
+            // TODO: Move to registry
+            return names.Select(name => new Nonterminal(name, index: 0));
         }
 
         public static Terminal<TTokenKind> T<TTokenKind>(TTokenKind kind)
@@ -247,12 +249,12 @@ namespace ContextFreeGrammar
     /// A nonterminal (aka grammar variable) in V.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class Nonterminal : Symbol, IEquatable<Nonterminal>
+    public class Nonterminal : Symbol, IEquatable<Nonterminal>, IIndexerValue
     {
         private string DebuggerDisplay => Name;
 
-        internal Nonterminal(string name)
-            : base(name, 0) // TODO: Create index
+        internal Nonterminal(string name, int index)
+            : base(name, index)
         {
         }
 
@@ -277,7 +279,7 @@ namespace ContextFreeGrammar
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public class Terminal<TTokenKind> : Symbol, IEquatable<Terminal<TTokenKind>>
+    public class Terminal<TTokenKind> : Symbol, IEquatable<Terminal<TTokenKind>>, IIndexerValue
         where TTokenKind : struct, Enum
     {
         /// <summary>
