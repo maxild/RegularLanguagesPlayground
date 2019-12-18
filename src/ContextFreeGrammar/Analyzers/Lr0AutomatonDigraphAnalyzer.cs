@@ -5,12 +5,14 @@ using AutomataLib;
 namespace ContextFreeGrammar.Analyzers
 {
     // TODO: Make abstract LalrLookaheadSetsAnalyzer (3 metoder: digraph, dragon book, in efficient merge)
-    public class Lr0AutomatonDigraphAnalyzer<TTokenKind> where TTokenKind : struct, Enum
+    public class Lr0AutomatonDigraphAnalyzer<TTokenKind, TNonterminal>
+        where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
         private readonly Dictionary<(int, int), Set<Terminal<TTokenKind>>> _lookaheadSets;
 
         public Lr0AutomatonDigraphAnalyzer(
-            Grammar<TTokenKind> grammar,
+            Grammar<TTokenKind, TNonterminal> grammar,
             LrItemsDfa<TTokenKind> dfaLr0,
             IErasableSymbolsAnalyzer analyzer)
         {
@@ -23,7 +25,7 @@ namespace ContextFreeGrammar.Analyzers
         // (r,C) directly-reads t  iff  t ∈ DR(r,C)
 
         private static Dictionary<(int, int), Set<Terminal<TTokenKind>>> ComputeLookaheadSets(
-            Grammar<TTokenKind> grammar,
+            Grammar<TTokenKind, TNonterminal> grammar,
             LrItemsDfa<TTokenKind> dfaLr0,
             IErasableSymbolsAnalyzer analyzer)
         {

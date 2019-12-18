@@ -1,18 +1,25 @@
-using AutomataLib;
+using System.Diagnostics.CodeAnalysis;
 using ContextFreeGrammar;
 
 namespace GrammarRepo
 {
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class GallierG1
     {
         public enum Sym
         {
+            EOF,
             a,
-            b,
-            EOF
+            b
         }
 
-        public static Grammar<Sym> GetGrammar()
+        public enum Var
+        {
+            S,
+            E
+        }
+
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // Augmented Grammar (assumed reduced, i.e. no useless symbols).
             //
@@ -24,13 +31,15 @@ namespace GrammarRepo
             // 0: S → E
             // 1: E → aEb
             // 2: E → ab
-            var grammar = new GrammarBuilder<Sym>()
-                .SetNonterminalSymbols(Symbol.Vs("S", "E"))
-                .SetStartSymbol(Symbol.V("S"))
-                .AndProductions(
-                    Symbol.V("S").Derives(Symbol.V("E")),
-                    Symbol.V("E").Derives(Symbol.T(Sym.a), Symbol.V("E"), Symbol.T(Sym.b)),
-                    Symbol.V("E").Derives(Symbol.T(Sym.a), Symbol.T(Sym.b))
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
+                .StartSymbol(Var.S)
+                .And(g => g.Rules(
+                        g[Var.S].Derives(g[Var.E]),
+                        g[Var.E].Derives(g[Sym.a], g[Var.E], g[Sym.b]),
+                        g[Var.E].Derives(g[Sym.a], g[Sym.b])
+                    )
                 );
 
             return grammar;

@@ -91,29 +91,30 @@ namespace ContextFreeGrammar
 
     /// <summary>
     /// Immutable context-free grammar (CFG) type, where terminals are defined by <see cref="Enum"/>
-    /// derived enumeration kind.
+    /// derived enumeration kind, and nonterminals are also defined by some <see cref="Enum"/> derived
+    /// enumeration type.
     /// </summary>
     /// <remarks>
     /// The <see cref="System.Enum"/> derived enumeration kind is defined by hand coding it, or by using lexer compiler.
     /// </remarks>
-    public class Grammar<TTokenKind> : IGrammar,  IProductionsContainer, IFollowSymbolsAnalyzer<TTokenKind>
+    public class Grammar<TTokenKind, TNonterminal> : IGrammar,  IProductionsContainer, IFollowSymbolsAnalyzer<TTokenKind>
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
         private readonly IFollowSymbolsAnalyzer<TTokenKind> _analyzer;
 
         public Grammar(
-            IEnumerable<Nonterminal> variables,
-            IReadOnlyList<Terminal<TTokenKind>> terminals,
+            SymbolCache<TTokenKind, Terminal<TTokenKind>> terminals,
+            SymbolCache<TNonterminal, Nonterminal> nonterminals,
             Nonterminal startSymbol,
             IEnumerable<Production> productions,
-            Func<Grammar<TTokenKind>, IFollowSymbolsAnalyzer<TTokenKind>> analyzerFactory)
+            Func<Grammar<TTokenKind, TNonterminal>, IFollowSymbolsAnalyzer<TTokenKind>> analyzerFactory)
         {
-            if (variables == null) throw new ArgumentNullException(nameof(variables));
             if (productions == null) throw new ArgumentNullException(nameof(productions));
 
             StartSymbol = startSymbol ?? throw new ArgumentNullException(nameof(startSymbol));
 
-            Nonterminals = new InsertionOrderedSet<Nonterminal>(variables);
+            Nonterminals = nonterminals ?? throw new ArgumentNullException(nameof(nonterminals));
             Terminals = terminals ?? throw new ArgumentNullException(nameof(terminals));
 
             // Productions are numbered 0,1,2,...,^Productions.Count
@@ -194,19 +195,20 @@ namespace ContextFreeGrammar
             : new MarkedProduction(Productions[0], 0, Productions[0].Length);
 
         /// <summary>
-        /// The set of nonterminal symbols (aka variables) used to define the grammar. The variables
-        /// are defined in the order defined by the sequence of variables passed to the
-        /// <see cref="Grammar{TTokenKind}"/> constructor.
-        /// </summary>
-        public IReadOnlyOrderedSet<Nonterminal> Nonterminals { get; }
-
-        /// <summary>
-        /// The set of sequentially ordered terminal symbols.
+        /// The finite set of nonterminal symbols (aka variables) used to define the grammar.
         /// </summary>
         /// <remarks>
-        /// The terminals are ordered 0,1,2,...,N-1 by an index. 
+        /// The nonterminals are ordered 0,1,2,...,N-1 according to their unique index property.
         /// </remarks>
-        public IReadOnlyList<Terminal<TTokenKind>> Terminals { get; }
+        public SymbolCache<TNonterminal, Nonterminal> Nonterminals { get; }
+
+        /// <summary>
+        /// The finite set of terminal symbols (aka lexical units) used to define the grammar.
+        /// </summary>
+        /// <remarks>
+        /// The terminals are ordered 0,1,2,...,N-1 according to their unique index property.
+        /// </remarks>
+        public SymbolCache<TTokenKind, Terminal<TTokenKind>> Terminals { get; }
 
         /// <summary>
         /// All grammar symbols (terminal and nonterminal symbols), not including ε (the empty string).
@@ -309,7 +311,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Compute LR(0) parsing table.
         /// </summary>
-        public LrParser<TTokenKind> ComputeLr0ParsingTable()
+        public LrParser<TTokenKind, TNonterminal> ComputeLr0ParsingTable()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
@@ -319,14 +321,14 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
-                actionTableEntries, gotoTableEntries);
+            return new LrParser<TTokenKind, TNonterminal>(this, states, Terminals,
+                Nonterminals, actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute SLR(1) parsing table.
         /// </summary>
-        public LrParser<TTokenKind> ComputeSlrParsingTable()
+        public LrParser<TTokenKind, TNonterminal> ComputeSlrParsingTable()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
@@ -336,14 +338,14 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
-                actionTableEntries, gotoTableEntries);
+            return new LrParser<TTokenKind, TNonterminal>(this, states, Terminals,
+                Nonterminals, actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute LR(1) parsing table.
         /// </summary>
-        public LrParser<TTokenKind> ComputeLr1ParsingTable()
+        public LrParser<TTokenKind, TNonterminal> ComputeLr1ParsingTable()
         {
             var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
@@ -353,15 +355,15 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
-                actionTableEntries, gotoTableEntries);
+            return new LrParser<TTokenKind, TNonterminal>(this, states, Terminals,
+                Nonterminals, actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute LALR(1) parsing table (by 'brute force' algorithm based on merging LR(1) item sets with identical
         /// kernel items in the LR(1) automaton).
         /// </summary>
-        public LrParser<TTokenKind> ComputeLalrParsingTable()
+        public LrParser<TTokenKind, TNonterminal> ComputeLalrParsingTable()
         {
             var (states, transitions) = Lr1AutomatonAlgorithm.ComputeLr1AutomatonData(this);
 
@@ -374,20 +376,20 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, mergedStates, Nonterminals, Terminals,
-                actionTableEntries, gotoTableEntries);
+            return new LrParser<TTokenKind, TNonterminal>(this, mergedStates, Terminals,
+                Nonterminals, actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
         /// Compute LALR(1) parsing table (by efficient digraph algorithm that simulates the valid lookahead sets in the LR(0) automaton).
         /// </summary>
-        public LrParser<TTokenKind> ComputeEfficientLalr1ParsingTable()
+        public LrParser<TTokenKind, TNonterminal> ComputeEfficientLalr1ParsingTable()
         {
             var (states, transitions) = Lr0AutomatonAlgorithm.ComputeLr0AutomatonData(this);
 
             var dfaLr0 = Lr0AutomatonAlgorithm.GetLr0AutomatonDfa(this, states, transitions);
 
-            var analyzer = new Lr0AutomatonDigraphAnalyzer<TTokenKind>(this, dfaLr0, _analyzer);
+            var analyzer = new Lr0AutomatonDigraphAnalyzer<TTokenKind, TNonterminal>(this, dfaLr0, _analyzer);
 
             // LALR(1)
             var (actionTableEntries, gotoTableEntries) = ComputeParsingTableData(states, transitions,
@@ -395,8 +397,8 @@ namespace ContextFreeGrammar
 
             // NOTE: The ParsingTable representation does not have a dead state (not required), and therefore states
             // are given by {0,1,...,N-1}.
-            return new LrParser<TTokenKind>(this, states, Nonterminals, Terminals,
-                actionTableEntries, gotoTableEntries);
+            return new LrParser<TTokenKind, TNonterminal>(this, states, Terminals,
+                Nonterminals, actionTableEntries, gotoTableEntries);
         }
 
         /// <summary>
@@ -479,7 +481,7 @@ namespace ContextFreeGrammar
                 if (itemSet.IsAcceptAction)
                 {
                     actionTableEntries.Add(new LrActionEntry<TTokenKind>(stateIndex,
-                        Symbol.Eof<TTokenKind>(), LrAction.Accept));
+                        this.Eof(), LrAction.Accept));
                 }
 
                 stateIndex += 1;

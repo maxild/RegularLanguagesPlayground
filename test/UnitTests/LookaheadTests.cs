@@ -6,6 +6,7 @@ using GrammarRepo;
 using Shouldly;
 using Xunit;
 using Sym = GrammarRepo.DragonBookExample4_48.Sym;
+using Var = GrammarRepo.DragonBookExample4_48.Var;
 
 namespace UnitTests
 {
@@ -34,9 +35,9 @@ namespace UnitTests
             DfaLr0Eof = GrammarEof.GetLr0AutomatonDfa();
         }
 
-        private Grammar<Sym> Grammar { get; }
+        private Grammar<Sym, Var> Grammar { get; }
 
-        private Grammar<Sym> GrammarEof { get; }
+        private Grammar<Sym, Var> GrammarEof { get; }
 
         private LrItemsDfa<Sym> DfaLr0 { get; }
 
@@ -51,13 +52,13 @@ namespace UnitTests
                 LalrLookaheadSetsAlgorithm.GetGotoTransitionPairs(GrammarEof, DfaLr0Eof)
             })
             {
-                vertices.IndexOf((1, Symbol.V("S"))).ShouldBeGreaterThanOrEqualTo(0);
-                vertices.IndexOf((1, Symbol.V("R"))).ShouldBeGreaterThanOrEqualTo(0);
-                vertices.IndexOf((1, Symbol.V("L"))).ShouldBeGreaterThanOrEqualTo(0);
-                vertices.IndexOf((5, Symbol.V("R"))).ShouldBeGreaterThanOrEqualTo(0);
-                vertices.IndexOf((5, Symbol.V("L"))).ShouldBeGreaterThanOrEqualTo(0);
-                vertices.IndexOf((7, Symbol.V("R"))).ShouldBeGreaterThanOrEqualTo(0);
-                vertices.IndexOf((7, Symbol.V("L"))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((1, Grammar.V(Var.S))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((1, Grammar.V(Var.R))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((1, Grammar.V(Var.L))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((5, Grammar.V(Var.R))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((5, Grammar.V(Var.L))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((7, Grammar.V(Var.R))).ShouldBeGreaterThanOrEqualTo(0);
+                vertices.IndexOf((7, Grammar.V(Var.L))).ShouldBeGreaterThanOrEqualTo(0);
             }
         }
 
@@ -81,24 +82,24 @@ namespace UnitTests
                 var (directReads, graphRead) =
                     LalrLookaheadSetsAlgorithm.GetGraphReads(grammar, dfaLr0, vertices, analyzer);
 
-                directReads[vertices.IndexOf((1, Symbol.V("S")))].ShouldSetEqual(Symbol.Eof<Sym>());
-                directReads[vertices.IndexOf((1, Symbol.V("R")))].ShouldBeEmpty();
-                directReads[vertices.IndexOf((1, Symbol.V("L")))].ShouldSetEqual(Symbol.T(Sym.EQUAL));
-                directReads[vertices.IndexOf((5, Symbol.V("R")))].ShouldBeEmpty();
-                directReads[vertices.IndexOf((5, Symbol.V("L")))].ShouldBeEmpty();
-                directReads[vertices.IndexOf((7, Symbol.V("R")))].ShouldBeEmpty();
-                directReads[vertices.IndexOf((7, Symbol.V("L")))].ShouldBeEmpty();
+                directReads[vertices.IndexOf((1, Grammar.V(Var.S)))].ShouldSetEqual(Grammar.T(Sym.EOF));
+                directReads[vertices.IndexOf((1, Grammar.V(Var.R)))].ShouldBeEmpty();
+                directReads[vertices.IndexOf((1, Grammar.V(Var.L)))].ShouldSetEqual(Grammar.T(Sym.EQUAL));
+                directReads[vertices.IndexOf((5, Grammar.V(Var.R)))].ShouldBeEmpty();
+                directReads[vertices.IndexOf((5, Grammar.V(Var.L)))].ShouldBeEmpty();
+                directReads[vertices.IndexOf((7, Grammar.V(Var.R)))].ShouldBeEmpty();
+                directReads[vertices.IndexOf((7, Grammar.V(Var.L)))].ShouldBeEmpty();
 
                 // No epsilon-productions means the graph have no edges, and therefore are direct reads equal to reads
                 Set<Terminal<Sym>>[] readSets = DigraphAlgorithm.Traverse(graphRead, directReads);
 
-                readSets[vertices.IndexOf((1, Symbol.V("S")))].ShouldSetEqual(Symbol.Eof<Sym>());
-                readSets[vertices.IndexOf((1, Symbol.V("R")))].ShouldBeEmpty();
-                readSets[vertices.IndexOf((1, Symbol.V("L")))].ShouldSetEqual(Symbol.T(Sym.EQUAL));
-                readSets[vertices.IndexOf((5, Symbol.V("R")))].ShouldBeEmpty();
-                readSets[vertices.IndexOf((5, Symbol.V("L")))].ShouldBeEmpty();
-                readSets[vertices.IndexOf((7, Symbol.V("R")))].ShouldBeEmpty();
-                readSets[vertices.IndexOf((7, Symbol.V("L")))].ShouldBeEmpty();
+                readSets[vertices.IndexOf((1, Grammar.V(Var.S)))].ShouldSetEqual(Grammar.Eof());
+                readSets[vertices.IndexOf((1, Grammar.V(Var.R)))].ShouldBeEmpty();
+                readSets[vertices.IndexOf((1, Grammar.V(Var.L)))].ShouldSetEqual(Grammar.T(Sym.EQUAL));
+                readSets[vertices.IndexOf((5, Grammar.V(Var.R)))].ShouldBeEmpty();
+                readSets[vertices.IndexOf((5, Grammar.V(Var.L)))].ShouldBeEmpty();
+                readSets[vertices.IndexOf((7, Grammar.V(Var.R)))].ShouldBeEmpty();
+                readSets[vertices.IndexOf((7, Grammar.V(Var.L)))].ShouldBeEmpty();
             }
         }
 
@@ -122,21 +123,21 @@ namespace UnitTests
                 for (int i = 0; i < vertices.Count; i++)
                     readSets[i] = new Set<Terminal<Sym>>();
 
-                readSets[vertices.IndexOf((1, Symbol.V("S")))].Add(Symbol.Eof<Sym>());
-                readSets[vertices.IndexOf((1, Symbol.V("L")))].Add(Symbol.T(Sym.EQUAL));
+                readSets[vertices.IndexOf((1, Grammar.V(Var.S)))].Add(Grammar.Eof());
+                readSets[vertices.IndexOf((1, Grammar.V(Var.L)))].Add(Grammar.T(Sym.EQUAL));
 
                 // Follow(p,A) sets
                 var graphLaFollow = LalrLookaheadSetsAlgorithm.GetGraphLaFollow(grammar, dfaLr0, vertices, analyzer);
                 Set<Terminal<Sym>>[] followSets = DigraphAlgorithm.Traverse(graphLaFollow, readSets);
 
                 // Follow(1, S) = {$} etc...
-                followSets[vertices.IndexOf((1, Symbol.V("S")))].ShouldSetEqual(Symbol.Eof<Sym>());
-                followSets[vertices.IndexOf((1, Symbol.V("R")))].ShouldSetEqual(Symbol.Eof<Sym>());
-                followSets[vertices.IndexOf((1, Symbol.V("L")))].ShouldSetEqual(Symbol.Eof<Sym>(), Symbol.T(Sym.EQUAL));
-                followSets[vertices.IndexOf((5, Symbol.V("R")))].ShouldSetEqual(Symbol.Eof<Sym>(), Symbol.T(Sym.EQUAL));
-                followSets[vertices.IndexOf((5, Symbol.V("L")))].ShouldSetEqual(Symbol.Eof<Sym>(), Symbol.T(Sym.EQUAL));
-                followSets[vertices.IndexOf((7, Symbol.V("R")))].ShouldSetEqual(Symbol.Eof<Sym>());
-                followSets[vertices.IndexOf((7, Symbol.V("L")))].ShouldSetEqual(Symbol.Eof<Sym>());
+                followSets[vertices.IndexOf((1, Grammar.V(Var.S)))].ShouldSetEqual(Grammar.Eof());
+                followSets[vertices.IndexOf((1, Grammar.V(Var.R)))].ShouldSetEqual(Grammar.Eof());
+                followSets[vertices.IndexOf((1, Grammar.V(Var.L)))].ShouldSetEqual(Grammar.Eof(), Grammar.T(Sym.EQUAL));
+                followSets[vertices.IndexOf((5, Grammar.V(Var.R)))].ShouldSetEqual(Grammar.Eof(), Grammar.T(Sym.EQUAL));
+                followSets[vertices.IndexOf((5, Grammar.V(Var.L)))].ShouldSetEqual(Grammar.Eof(), Grammar.T(Sym.EQUAL));
+                followSets[vertices.IndexOf((7, Grammar.V(Var.R)))].ShouldSetEqual(Grammar.Eof());
+                followSets[vertices.IndexOf((7, Grammar.V(Var.L)))].ShouldSetEqual(Grammar.Eof());
 
                 followSets.Length.ShouldBe(7);
             }
@@ -161,13 +162,13 @@ namespace UnitTests
                     followSets[i] = new Set<Terminal<Sym>>();
 
                 // Follow(1, S) = {$} etc...
-                followSets[vertices.IndexOf((1, Symbol.V("S")))].Add(Symbol.Eof<Sym>());
-                followSets[vertices.IndexOf((1, Symbol.V("R")))].Add(Symbol.Eof<Sym>());
-                followSets[vertices.IndexOf((1, Symbol.V("L")))].AddRange(Symbol.Eof<Sym>(), Symbol.T(Sym.EQUAL));
-                followSets[vertices.IndexOf((5, Symbol.V("R")))].AddRange(Symbol.Eof<Sym>(), Symbol.T(Sym.EQUAL));
-                followSets[vertices.IndexOf((5, Symbol.V("L")))].AddRange(Symbol.Eof<Sym>(), Symbol.T(Sym.EQUAL));
-                followSets[vertices.IndexOf((7, Symbol.V("R")))].Add(Symbol.Eof<Sym>());
-                followSets[vertices.IndexOf((7, Symbol.V("L")))].Add(Symbol.Eof<Sym>());
+                followSets[vertices.IndexOf((1, Grammar.V(Var.S)))].Add(Grammar.Eof());
+                followSets[vertices.IndexOf((1, Grammar.V(Var.R)))].Add(Grammar.Eof());
+                followSets[vertices.IndexOf((1, Grammar.V(Var.L)))].AddRange(Grammar.Eof(), Grammar.T(Sym.EQUAL));
+                followSets[vertices.IndexOf((5, Grammar.V(Var.R)))].AddRange(Grammar.Eof(), Grammar.T(Sym.EQUAL));
+                followSets[vertices.IndexOf((5, Grammar.V(Var.L)))].AddRange(Grammar.Eof(), Grammar.T(Sym.EQUAL));
+                followSets[vertices.IndexOf((7, Grammar.V(Var.R)))].Add(Grammar.Eof());
+                followSets[vertices.IndexOf((7, Grammar.V(Var.L)))].Add(Grammar.Eof());
 
                 // LA(q, A → ω) = ∪{ Follow(p,A) | (q, A → ω) lookback (p,A) }
                 // Key = (stateIndex, productionIndex)
@@ -175,19 +176,19 @@ namespace UnitTests
                     LalrLookaheadSetsAlgorithm.GetLaUnion(grammar, dfaLr0, vertices, followSets);
 
                 // LA(2, S' → S)
-                lookaheadSets[(2, 0)].ShouldSetEqual(Symbol.Eof<Sym>());
+                lookaheadSets[(2, 0)].ShouldSetEqual(Grammar.Eof());
                 // LA(3, R → L)
-                lookaheadSets[(3, 5)].ShouldSetEqual(Symbol.Eof<Sym>());
+                lookaheadSets[(3, 5)].ShouldSetEqual(Grammar.Eof());
                 // LA(3, S → R)
-                lookaheadSets[(4, 2)].ShouldSetEqual(Symbol.Eof<Sym>());
+                lookaheadSets[(4, 2)].ShouldSetEqual(Grammar.Eof());
                 // LA(6, L → a)
-                lookaheadSets[(6, 4)].ShouldSetEqual(Symbol.T(Sym.EQUAL), Symbol.Eof<Sym>());
+                lookaheadSets[(6, 4)].ShouldSetEqual(Grammar.T(Sym.EQUAL), Grammar.Eof());
                 // LA(8, L → *R)
-                lookaheadSets[(8, 3)].ShouldSetEqual(Symbol.T(Sym.EQUAL), Symbol.Eof<Sym>());
+                lookaheadSets[(8, 3)].ShouldSetEqual(Grammar.T(Sym.EQUAL), Grammar.Eof());
                 // LA(9, R → L)
-                lookaheadSets[(9, 5)].ShouldSetEqual(Symbol.T(Sym.EQUAL), Symbol.Eof<Sym>());
+                lookaheadSets[(9, 5)].ShouldSetEqual(Grammar.T(Sym.EQUAL), Grammar.Eof());
                 // LA(10, S → L=R)
-                lookaheadSets[(10, 1)].ShouldSetEqual(Symbol.Eof<Sym>());
+                lookaheadSets[(10, 1)].ShouldSetEqual(Grammar.Eof());
 
                 lookaheadSets.Count.ShouldBe(7);
             }

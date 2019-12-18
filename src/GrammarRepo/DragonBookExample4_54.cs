@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using AutomataLib;
 using ContextFreeGrammar;
 
 namespace GrammarRepo
@@ -12,26 +11,35 @@ namespace GrammarRepo
     {
         public enum Sym
         {
-            c,      // c
-            d,      // d
-            EOF
+            EOF,
+            c,
+            d
         }
 
-        public static Grammar<Sym> GetGrammar()
+        public enum Var
+        {
+            Start,
+            S,
+            C
+        }
+
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // Regular Language for c*dc*d
             // 0: S' → S
             // 1: S → CC
             // 2: C → cC
             // 3: C → d
-            var grammar = new GrammarBuilder<Sym>()
-                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "C"))
-                .SetStartSymbol(Symbol.V("S'"))
-                .AndProductions(
-                    Symbol.V("S'").Derives(Symbol.V("S")),
-                    Symbol.V("S").Derives(Symbol.V("C"), Symbol.V("C")),
-                    Symbol.V("C").Derives(Symbol.T(Sym.c), Symbol.V("C")),
-                    Symbol.V("C").Derives(Symbol.T(Sym.d))
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
+                .StartSymbol(Var.Start)
+                .And(g => g.Rules(
+                        g[Var.Start].Derives(g[Var.S]),
+                        g[Var.S].Derives(g[Var.C], g[Var.C]),
+                        g[Var.C].Derives(g[Sym.c], g[Var.C]),
+                        g[Var.C].Derives(g[Sym.d])
+                    )
                 );
 
             return grammar;

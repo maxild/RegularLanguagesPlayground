@@ -46,10 +46,12 @@ namespace ContextFreeGrammar.Analyzers
         /// Vertices are defined by all nonterminal ('goto') transitions in the LR(0) automaton denoted by a pairs on the form (p,A).
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static IReadOnlyOrderedSet<(int, Nonterminal)> GetGotoTransitionPairs<TTokenKind>(
-            Grammar<TTokenKind> grammar,
-            LrItemsDfa<TTokenKind> dfaLr0) where TTokenKind : struct, Enum
-
+        public static IReadOnlyOrderedSet<(int, Nonterminal)> GetGotoTransitionPairs<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
+            LrItemsDfa<TTokenKind> dfaLr0
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // This is the bijective mapping between integer values and (p,A)-pairs.
             var vertices = new InsertionOrderedSet<(int, Nonterminal)>();
@@ -84,12 +86,14 @@ namespace ContextFreeGrammar.Analyzers
         ///      GOTO(p,AC) is defined, and C *=> ε
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> DR, IGraph Graph) GetGraphReads<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> DR, IGraph Graph) GetGraphReads<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             LrItemsDfa<TTokenKind> dfaLr0,
             IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
             IErasableSymbolsAnalyzer analyzer
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // TODO: Move everywhere (maybe an invariant of grammar itself...If (!IsAugmented) MakeAugmented
             if (!grammar.IsAugmented)
@@ -113,7 +117,7 @@ namespace ContextFreeGrammar.Analyzers
                 int state = dfaLr0.IndexOfUnderlyingState(itemSet => itemSet.CoreOfKernelEquals(grammar.AugmentedStartItem));
                 var acceptTransition = (state, grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>());
                 var indexOfAcceptTransition = vertices.IndexOf(acceptTransition);
-                DR[indexOfAcceptTransition].Add(Symbol.Eof<TTokenKind>());
+                DR[indexOfAcceptTransition].Add(grammar.Eof());
             }
 
             // p = 1,...,N
@@ -195,12 +199,14 @@ namespace ContextFreeGrammar.Analyzers
         ///                                           the LR(0) automaton). The set of successor states q from where β accesses p.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static IGraph GetGraphLaFollow<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        public static IGraph GetGraphLaFollow<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             LrItemsDfa<TTokenKind> dfaLr0,
             IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
             IErasableSymbolsAnalyzer analyzer
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // includes relation defines the edges in the digraph
             var includes = new HashSet<(int, int)>(); // no parallel edges
@@ -290,12 +296,14 @@ namespace ContextFreeGrammar.Analyzers
         /// and therefore the relation makes sense.
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static Dictionary<(int stateIndex, int productionIndex), Set<Terminal<TTokenKind>>> GetLaUnion<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        public static Dictionary<(int stateIndex, int productionIndex), Set<Terminal<TTokenKind>>> GetLaUnion<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             LrItemsDfa<TTokenKind> dfaLr0,
             IReadOnlyOrderedSet<(int, Nonterminal)> vertices,
             IReadOnlyList<IReadOnlySet<Terminal<TTokenKind>>> followSets
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // TODO: Move centrally
             if (!grammar.IsAugmented)
@@ -322,7 +330,7 @@ namespace ContextFreeGrammar.Analyzers
                         // (1,S)-index
                         var index = vertices.IndexOf((dfaLr0.StartState, startSymbol));
                         // FOLLOW(1,S) = {$}
-                        Debug.Assert(followSets[index].SetEquals(Symbol.Eof<TTokenKind>().AsSingletonEnumerable()));
+                        Debug.Assert(followSets[index].SetEquals(grammar.Eof().AsSingletonEnumerable()));
                         lookaheadSets[key].AddRange(followSets[index]);
                     }
                     else

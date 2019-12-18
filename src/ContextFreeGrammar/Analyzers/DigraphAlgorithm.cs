@@ -15,8 +15,12 @@ namespace ContextFreeGrammar.Analyzers
     public static class DigraphAlgorithm
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFIRST, IGraph Graph) GetFirstGraph<TTokenKind>(
-            Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer) where TTokenKind : struct, Enum
+        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFIRST, IGraph Graph) GetFirstGraph<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
+            IErasableSymbolsAnalyzer analyzer
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // direct contributions: initial first sets (INITFIRST)
             //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
@@ -32,7 +36,7 @@ namespace ContextFreeGrammar.Analyzers
             // For each production A → Y1Y2...Yn
             foreach (var production in grammar.Productions)
             {
-                var Aix = grammar.Nonterminals.IndexOf(production.Head);
+                var Aix = production.Head.Index;
 
                 foreach (var Yi in production.Tail)
                 {
@@ -44,7 +48,7 @@ namespace ContextFreeGrammar.Analyzers
                     //       A → αBβ, where α *=> ε and B ∈ N, and B ≠ A
                     if (Yi is Nonterminal B)
                     {
-                        var Bix = grammar.Nonterminals.IndexOf(B);
+                        var Bix = B.Index;
                         if (Aix != Bix)
                             contains_the_first_set_of.Add((Aix, Bix));
                     }
@@ -61,10 +65,12 @@ namespace ContextFreeGrammar.Analyzers
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFOLLOW, IGraph Graph) GetFollowGraph<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        public static (ImmutableArray<IReadOnlySet<Terminal<TTokenKind>>> INITFOLLOW, IGraph Graph) GetFollowGraph<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             IFirstSymbolsAnalyzer<TTokenKind> analyzer
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // direct contributions: initial follow sets (INITFOLLOW)
             //var initSets = new Set<TTerminalSymbol>[grammar.Variables.Count];
@@ -78,8 +84,8 @@ namespace ContextFreeGrammar.Analyzers
             // haven't been augmented with an eof marker.
             if (!grammar.IsAugmentedWithEofMarker)
             {
-                int indexOfS = grammar.Nonterminals.IndexOf(grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>());
-                initSets[indexOfS].Add(Symbol.Eof<TTokenKind>());
+                int indexOfS = grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>().Index;
+                initSets[indexOfS].Add(grammar.Eof());
             }
 
             // indirect contributions: superset relations between nonterminals
@@ -113,7 +119,7 @@ namespace ContextFreeGrammar.Analyzers
             // For each production B → Y1Y2...Yn
             foreach (var production in grammar.Productions)
             {
-                var Bix = grammar.Nonterminals.IndexOf(production.Head);
+                var Bix = production.Head.Index;
 
                 for (int i = 0; i < production.Length; i += 1)
                 {
@@ -123,7 +129,7 @@ namespace ContextFreeGrammar.Analyzers
                     // Look at the current tail
                     var beta = production.Tail.Skip(i + 1).ToArray();
                     // direct contribution B −→ αAβ
-                    var Aix = grammar.Nonterminals.IndexOf(Yi);
+                    var Aix = Yi.Index;
                     // FIRST(β) ⊆ INITFOLLOW(A)
                     var directlyFollowsYi = analyzer.First(beta);
                     initSets[Aix].AddRange(directlyFollowsYi);

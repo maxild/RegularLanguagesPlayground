@@ -8,15 +8,22 @@ namespace GrammarRepo
     {
         public enum Sym
         {
+            EOF,
             IF,
             THEN,
             ELSE,
             TRUE,
-            FALSE,
-            EOF
+            FALSE
         }
 
-        public static Grammar<Sym> GetGrammar()
+        public enum Var
+        {
+            S,        // S'
+            Stmt,     // S
+            Expr      // E
+        }
+
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // 0: S' → S$
             // 1: S → i E t S
@@ -24,17 +31,19 @@ namespace GrammarRepo
             // 3: E → 0
             // 4: E → 1
             // where tokens i (if), t (then), e (else)
-            var grammar = new GrammarBuilder<Sym>()
-                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "E"))
-                //.SetTerminalSymbols(Symbol.Ts('i', 't', 'e', '0', '1'))
-                .SetStartSymbol(Symbol.V("S'"))
-                .AndProductions(
-                    Symbol.V("S'").Derives(Symbol.V("S")),
-                    Symbol.V("S").Derives(Symbol.T(Sym.IF), Symbol.V("E"), Symbol.T(Sym.THEN), Symbol.V("S")),
-                    Symbol.V("S").Derives(Symbol.T(Sym.IF), Symbol.V("E"), Symbol.T(Sym.THEN), Symbol.V("S"), Symbol.T(Sym.ELSE), Symbol.V("S")),
-                    Symbol.V("E").Derives(Symbol.T(Sym.TRUE)),
-                    Symbol.V("E").Derives(Symbol.T(Sym.FALSE))
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
+                .StartSymbol(Var.S)
+                .And(g => g.Rules(
+                        g[Var.S].Derives(g[Var.Stmt]),
+                        g[Var.Stmt].Derives(g[Sym.IF], g[Var.Expr], g[Sym.THEN], g[Var.Stmt]),
+                        g[Var.Stmt].Derives(g[Sym.IF], g[Var.Expr], g[Sym.THEN], g[Var.Stmt], g[Sym.ELSE], g[Var.Stmt]),
+                        g[Var.Expr].Derives(g[Sym.TRUE]),
+                        g[Var.Expr].Derives(g[Sym.FALSE])
+                    )
                 );
+
             return grammar;
         }
     }

@@ -5,6 +5,7 @@ using GrammarRepo;
 using Shouldly;
 using Xunit;
 using Sym = GrammarRepo.GallierCalc.Sym;
+using Var = GrammarRepo.GallierCalc.Var;
 
 namespace UnitTests
 {
@@ -15,7 +16,7 @@ namespace UnitTests
             Grammar = GallierCalc.GetGrammar();
         }
 
-        private Grammar<Sym> Grammar { get; }
+        private Grammar<Sym, Var> Grammar { get; }
 
         [Fact]
         public void GetFirstGraph()
@@ -31,7 +32,7 @@ namespace UnitTests
             // INITFIRST(T)
             initSets[2].ShouldBeEmpty();
             // INITFIRST(F)
-            initSets[3].ShouldSetEqual(Symbol.Ts(Sym.LPARAN, Sym.MINUS, Sym.ID));
+            initSets[3].ShouldSetEqual(Grammar.Ts(Sym.LPARAN, Sym.MINUS, Sym.ID));
 
             var closureSets = DigraphAlgorithm.Traverse(graph, new[]
             {
@@ -62,9 +63,9 @@ namespace UnitTests
             // INITFOLLOW(S)
             initSets[0].ShouldBeEmpty();
             // INITFOLLOW(E)
-            initSets[1].ShouldSetEqual(Symbol.Ts(Sym.PLUS, Sym.RPARAN, Sym.EOF));
+            initSets[1].ShouldSetEqual(Grammar.Ts(Sym.PLUS, Sym.RPARAN, Sym.EOF));
             // INITFOLLOW(T)
-            initSets[2].ShouldSetEqual(Symbol.Ts(Sym.ASTERISK));
+            initSets[2].ShouldSetEqual(Grammar.Ts(Sym.ASTERISK));
             // INITFOLLOW(F)
             initSets[3].ShouldBeEmpty();
 

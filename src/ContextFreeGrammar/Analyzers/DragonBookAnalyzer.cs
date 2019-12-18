@@ -9,14 +9,15 @@ namespace ContextFreeGrammar.Analyzers
     /// <summary>
     /// FixedPointIteration Algorithm found in most textbooks on compilers
     /// </summary>
-    public class DragonBookAnalyzer<TTokenKind> : IFollowSymbolsAnalyzer<TTokenKind>
+    public class DragonBookAnalyzer<TTokenKind, TNonterminal> : IFollowSymbolsAnalyzer<TTokenKind>
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
         private readonly Dictionary<Symbol, bool> _nullableMap;
         private readonly Dictionary<Symbol, Set<Terminal<TTokenKind>>> _firstMap;
         private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _followMap;
 
-        public DragonBookAnalyzer(Grammar<TTokenKind> grammar)
+        public DragonBookAnalyzer(Grammar<TTokenKind, TNonterminal> grammar)
         {
             (_nullableMap, _firstMap, _followMap) = ComputeFollow(grammar);
         }
@@ -31,12 +32,12 @@ namespace ContextFreeGrammar.Analyzers
         // This method is kept around, because we might need to calculate nullable predicate, if calculating
         // FIRST and FOLLOW sets using a Graph representing all the recursive set constraints as a relation and
         // using Graph traversal as an efficient iteration technique to solve for the unique least fixed-point solution.
-        private static Dictionary<Symbol, bool> ComputeNullable(Grammar<TTokenKind> grammar)
+        private static Dictionary<Symbol, bool> ComputeNullable(Grammar<TTokenKind, TNonterminal> grammar)
         {
             var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon || symbol.IsEof);
 
-            if (!nullableMap.ContainsKey(Symbol.Eof<TTokenKind>()))
-                nullableMap.Add(Symbol.Eof<TTokenKind>(), true); // by convention
+            if (!nullableMap.ContainsKey(grammar.Eof()))
+                nullableMap.Add(grammar.Eof(), true); // by convention
 
             bool changed = true;
             while (changed)
@@ -79,7 +80,7 @@ namespace ContextFreeGrammar.Analyzers
         //=======================================================================================================
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private static (Dictionary<Symbol, bool>, Dictionary<Symbol, Set<Terminal<TTokenKind>>>) ComputeFirst(
-            Grammar<TTokenKind> grammar)
+            Grammar<TTokenKind, TNonterminal> grammar)
         {
             var nullableMap = ComputeNullable(grammar);
             var firstMap = grammar.AllSymbols.ToDictionary(symbol => symbol, _ => new Set<Terminal<TTokenKind>>());
@@ -89,8 +90,8 @@ namespace ContextFreeGrammar.Analyzers
                 firstMap[terminal].Add(terminal);
 
             // Add EOF to avoid unnecessary exceptions
-            if (!firstMap.ContainsKey(Symbol.Eof<TTokenKind>()))
-                firstMap.Add(Symbol.Eof<TTokenKind>(), new Set<Terminal<TTokenKind>> { Symbol.Eof<TTokenKind>() });
+            if (!firstMap.ContainsKey(grammar.Eof()))
+                firstMap.Add(grammar.Eof(), new Set<Terminal<TTokenKind>> { grammar.Eof() });
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -120,7 +121,7 @@ namespace ContextFreeGrammar.Analyzers
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public (Dictionary<Symbol, bool>,
             Dictionary<Symbol, Set<Terminal<TTokenKind>>>,
-            Dictionary<Nonterminal, Set<Terminal<TTokenKind>>>) ComputeFollow(Grammar<TTokenKind> grammar)
+            Dictionary<Nonterminal, Set<Terminal<TTokenKind>>>) ComputeFollow(Grammar<TTokenKind, TNonterminal> grammar)
         {
             var (nullableMap, firstMap) = ComputeFirst(grammar);
 
@@ -131,7 +132,7 @@ namespace ContextFreeGrammar.Analyzers
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!grammar.IsAugmentedWithEofMarker)
-                followMap[grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>()].Add(Symbol.Eof<TTokenKind>());
+                followMap[grammar.AugmentedStartItem.GetDotSymbol<Nonterminal>()].Add(grammar.Eof());
 
             // Simple brute-force Fixed-Point Iteration inspired by Dragon Book
             bool changed = true;
@@ -183,7 +184,7 @@ namespace ContextFreeGrammar.Analyzers
         [SuppressMessage("ReSharper", "UnusedMember.Local")]
         private (Dictionary<Symbol, bool>,
             Dictionary<Symbol, Set<Terminal<TTokenKind>>>,
-            Dictionary<Nonterminal, Set<Terminal<TTokenKind>>>) OldComputeNullableAndFirstAndFollow(Grammar<TTokenKind> grammar)
+            Dictionary<Nonterminal, Set<Terminal<TTokenKind>>>) OldComputeNullableAndFirstAndFollow(Grammar<TTokenKind, TNonterminal> grammar)
         {
             // we keep a separate nullable map, instead of adding epsilon to First sets
             var nullableMap = grammar.AllSymbols.ToDictionary(symbol => symbol, symbol => symbol.IsEpsilon);
@@ -197,7 +198,7 @@ namespace ContextFreeGrammar.Analyzers
             // We only need to place Eof ('$' in the dragon book) in FOLLOW(S) if the grammar haven't
             // already been extended with a new nonterminal start symbol S' and a production S' → S$ in P.
             if (!grammar.IsAugmentedWithEofMarker)
-                followMap[grammar.StartSymbol].Add(Symbol.Eof<TTokenKind>());
+                followMap[grammar.StartSymbol].Add(grammar.Eof());
 
             bool changed = true;
             while (changed)

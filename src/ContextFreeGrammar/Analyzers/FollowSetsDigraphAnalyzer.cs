@@ -7,13 +7,14 @@ using ContextFreeGrammar.Analyzers.Internal;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    internal class FollowSetsDigraphAnalyzer<TTokenKind> : IFollowSetsAnalyzer<TTokenKind>
+    internal class FollowSetsDigraphAnalyzer<TTokenKind, TNonterminal> : IFollowSetsAnalyzer<TTokenKind>
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
         private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _followMap;
 
         internal FollowSetsDigraphAnalyzer(
-            Grammar<TTokenKind> grammar,
+            Grammar<TTokenKind, TNonterminal> grammar,
             IErasableSymbolsAnalyzer nullableSymbolsAnalyzer,
             IFirstSetsAnalyzer<TTokenKind> starterTokensAnalyzer)
         {
@@ -26,14 +27,14 @@ namespace ContextFreeGrammar.Analyzers
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private static Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> ComputeFollow(
-            Grammar<TTokenKind> grammar,
+            Grammar<TTokenKind, TNonterminal> grammar,
             IFirstSymbolsAnalyzer<TTokenKind> analyzer)
         {
             var (initFollowSets, graph) = DigraphAlgorithm.GetFollowGraph(grammar, analyzer);
 
             var followSets = DigraphAlgorithm.Traverse(graph, initFollowSets);
 
-            var followMap = grammar.Nonterminals.ToDictionary(v => v, v => followSets[grammar.Nonterminals.IndexOf(v)]);
+            var followMap = grammar.Nonterminals.ToDictionary(v => v, v => followSets[v.Index]);
 
             return followMap;
         }

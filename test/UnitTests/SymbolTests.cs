@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using AutomataLib;
 using ContextFreeGrammar;
 using Shouldly;
 using Xunit;
@@ -21,6 +22,24 @@ namespace UnitTests
             ID
         }
 
+        enum Var
+        {
+            S
+        }
+
+        public SymbolTests()
+        {
+            T = EnumUtils.MapToSymbolCache<Sym, Terminal<Sym>>((name, index, kind) =>
+                new Terminal<Sym>(name, index, kind));
+
+            V = EnumUtils.MapToSymbolCache<Var, Nonterminal>((name, index, _) =>
+                new Nonterminal(name, index, typeof(Var)));
+        }
+
+        private SymbolCache<Sym, Terminal<Sym>> T { get; }
+
+        private SymbolCache<Var, Nonterminal> V { get; }
+
         [Fact]
         public void Epsilon()
         {
@@ -33,33 +52,33 @@ namespace UnitTests
         [Fact]
         public void Eof()
         {
-            Symbol.Eof<Sym>().IsExtendedTerminal.ShouldBeTrue();
-            Symbol.Eof<Sym>().IsTerminal.ShouldBeFalse();
-            Symbol.Eof<Sym>().IsNonterminal.ShouldBeFalse();
-            Symbol.Eof<Sym>().IsEpsilon.ShouldBeFalse();
+            T[Sym.EOF].IsExtendedTerminal.ShouldBeTrue();
+            T[Sym.EOF].IsTerminal.ShouldBeFalse();
+            T[Sym.EOF].IsNonterminal.ShouldBeFalse();
+            T[Sym.EOF].IsEpsilon.ShouldBeFalse();
         }
 
         [Fact]
         public void Terminal()
         {
-            Symbol.T(Sym.ID).IsExtendedTerminal.ShouldBeTrue();
-            Symbol.T(Sym.ID).IsTerminal.ShouldBeTrue();
-            Symbol.T(Sym.ID).IsNonterminal.ShouldBeFalse();
-            Symbol.T(Sym.ID).IsEpsilon.ShouldBeFalse();
+            T[Sym.ID].IsExtendedTerminal.ShouldBeTrue();
+            T[Sym.ID].IsTerminal.ShouldBeTrue();
+            T[Sym.ID].IsNonterminal.ShouldBeFalse();
+            T[Sym.ID].IsEpsilon.ShouldBeFalse();
 
-            Symbol.T(Sym.PLUS).IsExtendedTerminal.ShouldBeTrue();
-            Symbol.T(Sym.PLUS).IsTerminal.ShouldBeTrue();
-            Symbol.T(Sym.PLUS).IsNonterminal.ShouldBeFalse();
-            Symbol.T(Sym.PLUS).IsEpsilon.ShouldBeFalse();
+            T[Sym.PLUS].IsExtendedTerminal.ShouldBeTrue();
+            T[Sym.PLUS].IsTerminal.ShouldBeTrue();
+            T[Sym.PLUS].IsNonterminal.ShouldBeFalse();
+            T[Sym.PLUS].IsEpsilon.ShouldBeFalse();
         }
 
         [Fact]
         public void Nonterminal()
         {
-            Symbol.V("S").IsExtendedTerminal.ShouldBeFalse();
-            Symbol.V("S").IsTerminal.ShouldBeFalse();
-            Symbol.V("S").IsNonterminal.ShouldBeTrue();
-            Symbol.V("S").IsEpsilon.ShouldBeFalse();
+            V[Var.S].IsExtendedTerminal.ShouldBeFalse();
+            V[Var.S].IsTerminal.ShouldBeFalse();
+            V[Var.S].IsNonterminal.ShouldBeTrue();
+            V[Var.S].IsEpsilon.ShouldBeFalse();
         }
     }
 }

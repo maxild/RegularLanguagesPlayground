@@ -1,24 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AutomataLib;
 
 namespace ContextFreeGrammar
 {
     public class Production
     {
-        private readonly Symbol[] _tail;
-
         public Production(Nonterminal head, IEnumerable<Symbol> tail)
         {
             Head = head ?? throw new ArgumentNullException(nameof(head));
             var rhs = (tail ?? Enumerable.Empty<Symbol>()).ToArray();
             if (rhs.Length > 1 && rhs.Any(symbol => symbol.IsEpsilon))
                 throw new ArgumentException($"{Symbol.Epsilon}-productions cannot have more than one symbol.");
-            if (rhs.Length == 1 && rhs[0].IsEpsilon)
-                _tail = Array.Empty<Symbol>();
+            if (rhs.Length == 0 || rhs.Length == 1 && rhs[0].IsEpsilon)
+                Tail = Array.Empty<Symbol>();
             else
-                _tail = rhs;
+                Tail = rhs;
         }
 
         /// <summary>
@@ -29,7 +26,7 @@ namespace ContextFreeGrammar
         /// <summary>
         /// RHS list of grammar symbols (note that ε-production has empty Tail of Length zero).
         /// </summary>
-        public IReadOnlyList<Symbol> Tail => _tail;
+        public IReadOnlyList<Symbol> Tail { get; }
 
         public TSymbol TailAs<TSymbol>(int i) where TSymbol : Symbol
         {

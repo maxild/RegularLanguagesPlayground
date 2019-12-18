@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using AutomataLib;
 using ContextFreeGrammar;
 
 namespace GrammarRepo
@@ -9,15 +8,23 @@ namespace GrammarRepo
     {
         public enum Sym
         {
+            EOF,
             PLUS, // +
             EQUAL, // =
             LPARAN, // (
             RPARAN, // )
-            ID, // hardcoded to identifier a in notes
-            EOF
+            ID     // hardcoded to identifier a in notes
         }
 
-        public static Grammar<Sym> GetGrammar()
+        public enum Var
+        {
+            S,
+            E,
+            T,
+            V
+        }
+
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // 0: S → E
             // 1: E → E + T
@@ -26,20 +33,21 @@ namespace GrammarRepo
             // 4: T → (E)
             // 5: T → ID
             // 6: V → ID
-            var grammar = new GrammarBuilder<Sym>()
-                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "V"))
-                //.SetTerminalSymbols(Symbol.Ts('a', '+', '(', ')', '='))
-                .SetStartSymbol(Symbol.V("S"))
-                .AndProductions(
-                    Symbol.V("S").Derives(Symbol.V("E")),
-                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T(Sym.PLUS), Symbol.V("T")),
-                    Symbol.V("E").Derives(Symbol.V("T")),
-                    // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
-                    // possible symbol (in LR(0) table), because state 5 contains the following kernel items {T → a•, V → a•}
-                    Symbol.V("E").Derives(Symbol.V("V"), Symbol.T(Sym.EQUAL), Symbol.V("E")),
-                    Symbol.V("T").Derives(Symbol.T(Sym.LPARAN), Symbol.V("E"), Symbol.T(Sym.RPARAN)),
-                    Symbol.V("T").Derives(Symbol.T(Sym.ID)),
-                    Symbol.V("V").Derives(Symbol.T(Sym.ID))
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
+                .StartSymbol(Var.S)
+                .And(g => g.Rules(
+                        g[Var.S].Derives(g[Var.E]),
+                        g[Var.E].Derives(g[Var.E], g[Sym.PLUS], g[Var.T]),
+                        g[Var.E].Derives(g[Var.T]),
+                        // Adding this rule we have a reduce/reduce conflict {reduce 5, reduce 6} in state 5 on every
+                        // possible symbol (in LR(0) table), because state 5 contains the following kernel items {T → a•, V → a•}
+                        g[Var.E].Derives(g[Var.V], g[Sym.EQUAL], g[Var.E]),
+                        g[Var.T].Derives(g[Sym.LPARAN], g[Var.E], g[Sym.RPARAN]),
+                        g[Var.T].Derives(g[Sym.ID]),
+                        g[Var.V].Derives(g[Sym.ID])
+                    )
                 );
 
             return grammar;

@@ -55,10 +55,12 @@ namespace ContextFreeGrammar
         /// <summary>
         /// Print First and Follow sets for all non-terminal symbols.
         /// </summary>
-        public static void PrintFirstAndFollowSets<TTokenKind>(
-            this Grammar<TTokenKind> grammar,
+        public static void PrintFirstAndFollowSets<TTokenKind, TNonterminal>(
+            this Grammar<TTokenKind, TNonterminal> grammar,
             TextWriter writer
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             var table = new TableBuilder()
                 .SetTitle("First and Follow sets")
@@ -80,15 +82,17 @@ namespace ContextFreeGrammar
             tableWriter.WriteFooter();
         }
 
-        public static void PrintParsingTable<TTokenKind>(
-            this IShiftReduceParser<TTokenKind> parser,
+        public static void PrintParsingTable<TTokenKind, TNonterminal>(
+            this IShiftReduceParser<TTokenKind, TNonterminal> parser,
             TextWriter writer
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             var actionTable = new TableBuilder()
                 .SetTitle("ACTION")
                 .SetColumns(new Column("State", 8).AsSingletonEnumerable()
-                    .Concat(parser.TerminalSymbols.Select(token => new Column(token.Name, 5))))
+                    .Concat(parser.Terminals.Select(token => new Column(token.Name, 5))))
                 .Build();
 
             var actionTableWriter = new TextTableWriter(actionTable, writer);
@@ -96,7 +100,7 @@ namespace ContextFreeGrammar
             foreach (var state in parser.GetStates())
             {
                 actionTableWriter.WriteRow(state.ToString().AsSingletonEnumerable()
-                    .Concat(parser.TerminalSymbols.Select(token => parser.Action(state, token).ToTableString())).ToArray());
+                    .Concat(parser.Terminals.Select(terminal => parser.Action(state, terminal).ToTableString())).ToArray());
             }
 
             actionTableWriter.WriteFooter();

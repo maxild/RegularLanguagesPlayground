@@ -6,14 +6,13 @@ using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    internal class FirstSetsDigraphAnalyzer<TTokenKind> : IFirstSetsAnalyzer<TTokenKind>
+    internal class FirstSetsDigraphAnalyzer<TTokenKind, TNonterminal> : IFirstSetsAnalyzer<TTokenKind>
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
-        private static readonly Set<Terminal<TTokenKind>> s_eofSingleton = new Set<Terminal<TTokenKind>>(new []{Symbol.Eof<TTokenKind>()});
-
         private readonly Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> _firstMap;
 
-        internal FirstSetsDigraphAnalyzer(Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer)
+        internal FirstSetsDigraphAnalyzer(Grammar<TTokenKind, TNonterminal> grammar, IErasableSymbolsAnalyzer analyzer)
         {
             _firstMap = ComputeFirst(grammar, analyzer);
         }
@@ -21,13 +20,14 @@ namespace ContextFreeGrammar.Analyzers
         /// <inheritdoc />
         public IReadOnlySet<Terminal<TTokenKind>> First(Symbol symbol)
         {
+            // N, nonterminals
             if (symbol is Nonterminal variable)
                 return _firstMap[variable];
+            // T ∪ { EOF }, i.e. extended terminals
             if (symbol is Terminal<TTokenKind> terminal)
                 return new Set<Terminal<TTokenKind>>(new []{terminal});
-            if (symbol.IsEof)
-                return s_eofSingleton;
-            return Set<Terminal<TTokenKind>>.Empty; // epsilon
+            // ε (null symbol)
+            return Set<Terminal<TTokenKind>>.Empty;
         }
 
         // We can collectively characterize all FIRST sets as the smallest sets
@@ -45,13 +45,13 @@ namespace ContextFreeGrammar.Analyzers
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         private Dictionary<Nonterminal, Set<Terminal<TTokenKind>>> ComputeFirst(
-            Grammar<TTokenKind> grammar, IErasableSymbolsAnalyzer analyzer)
+            Grammar<TTokenKind, TNonterminal> grammar, IErasableSymbolsAnalyzer analyzer)
         {
             var (initFirstSets, graph) = DigraphAlgorithm.GetFirstGraph(grammar, analyzer);
 
             var firstSets = DigraphAlgorithm.Traverse(graph, initFirstSets);
 
-            var firstMap = grammar.Nonterminals.ToDictionary(v => v, v => firstSets[grammar.Nonterminals.IndexOf(v)]);
+            var firstMap = grammar.Nonterminals.ToDictionary(v => v, v => firstSets[v.Index]);
 
             return firstMap;
         }

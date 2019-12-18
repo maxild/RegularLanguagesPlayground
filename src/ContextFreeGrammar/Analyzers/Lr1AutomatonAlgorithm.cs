@@ -9,8 +9,9 @@ namespace ContextFreeGrammar.Analyzers
     public static class Lr1AutomatonAlgorithm
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static LrItemNfa<TTokenKind> GetLr1AutomatonNfa<TTokenKind>(Grammar<TTokenKind> grammar)
+        public static LrItemNfa<TTokenKind> GetLr1AutomatonNfa<TTokenKind, TNonterminal>(Grammar<TTokenKind, TNonterminal> grammar)
             where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             if (!grammar.IsAugmented)
             {
@@ -26,7 +27,7 @@ namespace ContextFreeGrammar.Analyzers
             //
 
             // The start state is [S' → •S, $]
-            var startItem = new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0, Symbol.Eof<TTokenKind>());
+            var startItem = new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0, grammar.Eof());
 
             var transitions = new List<Transition<Symbol, ProductionItem<TTokenKind>>>();
             var acceptItems = new List<ProductionItem<TTokenKind>>();
@@ -102,11 +103,13 @@ namespace ContextFreeGrammar.Analyzers
             return new LrItemNfa<TTokenKind>(transitions, startItem, acceptItems);
         }
 
-        public static LrItemsDfa<TTokenKind> GetLr1AutomatonDfa<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        public static LrItemsDfa<TTokenKind> GetLr1AutomatonDfa<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             IEnumerable<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
@@ -122,11 +125,13 @@ namespace ContextFreeGrammar.Analyzers
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
             )
-            ComputeLr1AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : struct, Enum
+            ComputeLr1AutomatonData<TTokenKind, TNonterminal>(Grammar<TTokenKind, TNonterminal> grammar)
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             ProductionItemSet<TTokenKind> startItemSet =
                 Closure(grammar,
-                    new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0, Symbol.Eof<TTokenKind>())
+                    new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0, grammar.Eof())
                         .AsSingletonEnumerable());
 
             // states (aka LR(k) items) er numbered 0,1,2...in insertion order, such that the start state is always at index zero.
@@ -164,10 +169,12 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private static ProductionItemSet<TTokenKind> Closure<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        private static ProductionItemSet<TTokenKind> Closure<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             IEnumerable<ProductionItem<TTokenKind>> kernelItems
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             var closure = new HashSet<ProductionItem<TTokenKind>>(kernelItems);
 

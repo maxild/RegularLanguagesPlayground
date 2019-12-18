@@ -18,8 +18,9 @@ namespace ContextFreeGrammar.Analyzers
         /// right sentential form where the substring β can be found).
         /// </summary>
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        public static LrItemNfa<TTokenKind> GetLr0AutomatonNfa<TTokenKind>(Grammar<TTokenKind> grammar)
+        public static LrItemNfa<TTokenKind> GetLr0AutomatonNfa<TTokenKind, TNonterminal>(Grammar<TTokenKind, TNonterminal> grammar)
             where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             // NOTE: These are all synonyms for what machine we are building here
             //          - 'characteristic strings' recognizer
@@ -103,11 +104,13 @@ namespace ContextFreeGrammar.Analyzers
         /// (A handle, β, of a right sentential form, αβv, is a production, A → β, and a position within the
         /// right sentential form where the substring β can be found).
         /// </summary>
-        public static LrItemsDfa<TTokenKind> GetLr0AutomatonDfa<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        public static LrItemsDfa<TTokenKind> GetLr0AutomatonDfa<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             IEnumerable<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal : struct, Enum
         {
             var acceptStates = states.Where(itemSet => itemSet.ReduceItems.Any()).ToList();
 
@@ -131,7 +134,9 @@ namespace ContextFreeGrammar.Analyzers
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> states,
             List<Transition<Symbol, ProductionItemSet<TTokenKind>>> transitions
             )
-            ComputeLr0AutomatonData<TTokenKind>(Grammar<TTokenKind> grammar) where TTokenKind : struct, Enum
+            ComputeLr0AutomatonData<TTokenKind, TNonterminal>(Grammar<TTokenKind, TNonterminal> grammar)
+            where TTokenKind : struct, Enum
+            where TNonterminal: struct, Enum
         {
             ProductionItemSet<TTokenKind> startItemSet =
                 Closure(grammar, new ProductionItem<TTokenKind>(grammar.Productions[0], 0, 0).AsSingletonEnumerable());
@@ -172,10 +177,12 @@ namespace ContextFreeGrammar.Analyzers
         /// </summary>
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         [SuppressMessage("ReSharper", "InconsistentNaming")]
-        private static ProductionItemSet<TTokenKind> Closure<TTokenKind>(
-            Grammar<TTokenKind> grammar,
+        private static ProductionItemSet<TTokenKind> Closure<TTokenKind, TNonterminal>(
+            Grammar<TTokenKind, TNonterminal> grammar,
             IEnumerable<ProductionItem<TTokenKind>> kernelItems
-            ) where TTokenKind : struct, Enum
+            )
+            where TTokenKind : struct, Enum
+            where TNonterminal: struct, Enum
         {
             var closure = new HashSet<ProductionItem<TTokenKind>>(kernelItems);
 

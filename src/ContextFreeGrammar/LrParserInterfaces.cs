@@ -16,6 +16,11 @@ namespace ContextFreeGrammar
         where TTokenKind : struct, Enum
     {
         /// <summary>
+        /// Terminal symbols, including the EOF marker symbol ($).
+        /// </summary>
+        SymbolCache<TTokenKind, Terminal<TTokenKind>> Terminals { get; } // NOTE: We need to translate tokens to terminals in the parser
+
+        /// <summary>
         /// The value of the start state (that is always zero for any shift-reduce parser)
         /// </summary>
         int StartState { get; }
@@ -24,7 +29,7 @@ namespace ContextFreeGrammar
         /// Get the action to be performed by the shift-reduce parser.
         /// </summary>
         /// <param name="state">The current state</param>
-        /// <param name="token">The current input token (i.e. terminal symbol).</param>
+        /// <param name="token">The current input token.</param>
         /// <returns>The action to be performed by the shift-reduce parser (shift, reduce, accept or error)</returns>
         LrAction Action(int state, Terminal<TTokenKind> token);
 
@@ -59,8 +64,9 @@ namespace ContextFreeGrammar
         IEnumerable<LrConflict<TTokenKind>> Conflicts { get; }
     }
 
-    public interface IShiftReduceParser<TTokenKind> : IShiftReduceParsingTable<TTokenKind>
+    public interface IShiftReduceParser<TTokenKind, TNonterminal> : IShiftReduceParsingTable<TTokenKind>
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
         /// <summary>
         /// The name of the LHS variable in the augmented production rule.
@@ -68,14 +74,9 @@ namespace ContextFreeGrammar
         Nonterminal StartSymbol { get; }
 
         /// <summary>
-        /// Terminal symbols, including the EOF marker symbol ($).
-        /// </summary>
-        IEnumerable<Terminal<TTokenKind>> TerminalSymbols { get; }
-
-        /// <summary>
         /// Nonterminal symbols, including any augmented start symbol (e.g. S').
         /// </summary>
-        IEnumerable<Nonterminal> NonTerminalSymbols { get; }
+        SymbolCache<TNonterminal, Nonterminal> Nonterminals { get; }
 
         /// <summary>
         /// Nonterminal symbols, excluding any augmented start symbol (e.g. S').

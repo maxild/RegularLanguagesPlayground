@@ -21,7 +21,7 @@ namespace ContextFreeGrammar
 
         private readonly HashSet<ProductionItem<TTokenKind>> _acceptStates;
         private readonly HashSet<ProductionItem<TTokenKind>> _states;
-        private readonly SortedSet<Symbol> _alphabet; // ASCII sort order
+        private readonly Set<Symbol> _alphabet;
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
         public LrItemNfa(
@@ -33,7 +33,7 @@ namespace ContextFreeGrammar
             _acceptStates = new HashSet<ProductionItem<TTokenKind>>(acceptStates);
             _states = new HashSet<ProductionItem<TTokenKind>>(acceptStates) { startState };
             _delta = new Dictionary<SourceTransitionPair<ProductionItem<TTokenKind>, Symbol>, HashSet<ProductionItem<TTokenKind>>>();
-            _alphabet = new SortedSet<Symbol>();
+            _alphabet = new Set<Symbol>();
 
             foreach (var triple in transitions)
             {

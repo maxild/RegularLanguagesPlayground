@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -18,9 +20,9 @@ namespace AutomataLib
         ///   * Contiguous values 0,1,2,...,N-1
         ///   * [Flags] no accepted.
         /// </remarks>
-        public static IReadOnlyList<TIndexValue> MapToIndexValues<TEnum, TIndexValue>(Func<TEnum, string, int, TIndexValue> fn)
+        public static SymbolCache<TEnum, TSymbol> MapToSymbolCache<TEnum, TSymbol>(Func<string, int, TEnum, TSymbol> fn)
             where TEnum : struct, Enum
-            where TIndexValue : IIndexerValue
+            where TSymbol : ISymbolIndex
         {
             // We have to use reflection APIs
             Type enumType = typeof(TEnum);
@@ -40,7 +42,7 @@ namespace AutomataLib
             int max = int.MinValue;
             int length = 0;
 
-            TIndexValue[] result = new TIndexValue[fields.Length];
+            TSymbol[] result = new TSymbol[fields.Length];
             int[] dups = new int[fields.Length];
 
             for (int i = 0; i < fields.Length; i += 1)
@@ -71,7 +73,7 @@ namespace AutomataLib
                 // convert value to enum
                 TEnum enumValue = Unsafe.As<int, TEnum>(ref index);
 
-                TIndexValue record = fn(enumValue, name, index);
+                TSymbol record = fn(name, index, enumValue);
 
                 result[index] = record;
 
@@ -89,9 +91,68 @@ namespace AutomataLib
             //    throw new InvalidOperationException(
             //        $"The non-negative values must form a contiguous range 0,1,2,...,N-1 --- check the specification of {enumType.FullName}.");
 
-            return length < fields.Length
-                ? new ArraySegment<TIndexValue>(result, min, length)
-                : result;
+            return new SymbolCache<TEnum, TSymbol>(
+                length < fields.Length
+                    ? new ArraySegment<TSymbol>(result, min, length)
+                    : result);
         }
     }
+
+    public class SymbolCache<TEnum, TSymbol> : IReadOnlyOrderedList<TSymbol>
+        where TEnum : struct, Enum
+        where TSymbol : ISymbolIndex
+    {
+        private readonly IReadOnlyList<TSymbol> _table;
+        private readonly Dictionary<string, int> _index;
+
+        public SymbolCache(IReadOnlyList<TSymbol> symbols)
+        {
+            _table = symbols ?? throw new ArgumentNullException(nameof(symbols));
+            _index = symbols.ToDictionary(s => s.Name, s => s.Index);
+        }
+
+        public int MinIndex => 0;
+
+        public int MaxIndex => _table.Count - 1;
+
+        public int Count => _table.Count;
+
+        public int IndexOf(TEnum index) => Unsafe.As<TEnum, int>(ref index);
+
+        public int IndexOf(string name) => _index.TryGetValue(name, out int index) ? index : -1;
+
+        // NOTE: Because TSymbol does not always ensure that symbol kind of TEnum is the same, we have to invoke Contains
+        int IReadOnlyOrderedList<TSymbol>.IndexOf(TSymbol symbol) => Contains(symbol) ? symbol.Index : -1;
+
+        public TSymbol this[TEnum index] => _table[IndexOf(index)];
+
+        public TSymbol this[int index] => _table[index];
+
+        public TSymbol this[string name] => _table[IndexOf(name)];
+
+        // TODO: Ensure that indexers can be overloaded with different return types
+
+        public IReadOnlyList<TSymbol> this[params TEnum[] indices] =>
+            indices.Select(index => _table[IndexOf(index)]).ToArray();
+
+        public IReadOnlyList<TSymbol> this[params string[] names] =>
+            names.Select(name => _table[IndexOf(name)]).ToArray();
+
+        // NOTE: Because TSymbol does not always ensure that symbol kind of TEnum is the same, we have to invoke Equals
+        // TODO: Possible NullReferenceException
+        public bool Contains(TSymbol symbol) => symbol.Index < _table.Count && _table[symbol.Index].Equals(symbol);
+
+        public bool Contains(string name) => _index.ContainsKey(name);
+
+        public IEnumerator<TSymbol> GetEnumerator()
+        {
+            return _table.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+    }
+
 }

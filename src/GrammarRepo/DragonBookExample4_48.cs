@@ -9,17 +9,25 @@ namespace GrammarRepo
     {
         public enum Sym
         {
+            EOF,
             EQUAL,    // =
             ID,       // ID
-            ASTERISK, // *
-            EOF
+            ASTERISK  // *
+        }
+
+        public enum Var
+        {
+            Start,
+            S,
+            L,
+            R
         }
 
         /// <summary>
         /// Example 4.48 in Dragon Book.
         /// G3 in "A Survey of LR-Parsing Methods", Gallier.
         /// </summary>
-        public static Grammar<Sym> GetGrammar()
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // NOTE: We are using nonterminal L for l-value (a location), nonterminal R for r-value (value
             //       that can be stored in a location), and terminal * for 'content-of' prefix operator.
@@ -29,23 +37,25 @@ namespace GrammarRepo
             // 3: L → *R
             // 4: L → ID
             // 5: R → L
-            var grammar = new GrammarBuilder<Sym>()
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
                 .SetAnalyzer(Analyzers.CreateDigraphAlgorithmAnalyzer)
-                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "R", "L"))
-                .SetStartSymbol(Symbol.V("S'"))
-                .AndProductions(
-                    Symbol.V("S'").Derives(Symbol.V("S")),
-                    Symbol.V("S").Derives(Symbol.V("L"), Symbol.T(Sym.EQUAL), Symbol.V("R")),
-                    Symbol.V("S").Derives(Symbol.V("R")),
-                    Symbol.V("L").Derives(Symbol.T(Sym.ASTERISK), Symbol.V("R")),
-                    Symbol.V("L").Derives(Symbol.T(Sym.ID)),
-                    Symbol.V("R").Derives(Symbol.V("L"))
+                .StartSymbol(Var.Start)
+                .And(g => g.Rules(
+                        g[Var.Start].Derives(g[Var.S]),
+                        g[Var.S].Derives(g[Var.L], g[Sym.EQUAL], g[Var.R]),
+                        g[Var.S].Derives(g[Var.R]),
+                        g[Var.L].Derives(g[Sym.ASTERISK], g[Var.R]),
+                        g[Var.L].Derives(g[Sym.ID]),
+                        g[Var.R].Derives(g[Var.L])
+                    )
                 );
 
             return grammar;
         }
 
-        public static Grammar<Sym> GetExtendedGrammar()
+        public static Grammar<Sym, Var> GetExtendedGrammar()
         {
             // NOTE: We are using nonterminal L for l-value (a location), nonterminal R for r-value (value
             //       that can be stored in a location), and terminal * for 'content-of' prefix operator.
@@ -55,17 +65,19 @@ namespace GrammarRepo
             // 3: R  → *R
             // 4: R  → ID
             // 5: R  → L
-            var grammar = new GrammarBuilder<Sym>()
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
                 .SetAnalyzer(Analyzers.CreateDigraphAlgorithmAnalyzer)
-                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "R", "L"))
-                .SetStartSymbol(Symbol.V("S'"))
-                .AndProductions(
-                    Symbol.V("S'").Derives(Symbol.V("S"), Symbol.Eof<Sym>()),
-                    Symbol.V("S").Derives(Symbol.V("L"), Symbol.T(Sym.EQUAL), Symbol.V("R")),
-                    Symbol.V("S").Derives(Symbol.V("R")),
-                    Symbol.V("L").Derives(Symbol.T(Sym.ASTERISK), Symbol.V("R")),
-                    Symbol.V("L").Derives(Symbol.T(Sym.ID)),
-                    Symbol.V("R").Derives(Symbol.V("L"))
+                .StartSymbol(Var.Start)
+                .And(g => g.Rules(
+                        g[Var.Start].Derives(g[Var.S], g[Sym.EOF]),
+                        g[Var.S].Derives(g[Var.L], g[Sym.EQUAL], g[Var.R]),
+                        g[Var.S].Derives(g[Var.R]),
+                        g[Var.L].Derives(g[Sym.ASTERISK], g[Var.R]),
+                        g[Var.L].Derives(g[Sym.ID]),
+                        g[Var.R].Derives(g[Var.L])
+                    )
                 );
 
             return grammar;

@@ -16,27 +16,37 @@ namespace GrammarRepo
     {
         public enum Sym
         {
+            EOF,
             a,
-            b,
-            EOF
+            b
         }
 
-        public static Grammar<Sym> GetGrammar()
+        public enum Var
+        {
+            Start,
+            S,
+            B
+        }
+
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // Regular language for a*ba*b
             // 0: S' → S
             // 1: S → BB
             // 2: B → aB
             // 3: B → b
-            var grammar = new GrammarBuilder<Sym>()
-                .SetNonterminalSymbols(Symbol.Vs("S'", "S", "B"))
-                .SetStartSymbol(Symbol.V("S'"))
-                .AndProductions(
-                    Symbol.V("S'").Derives(Symbol.V("S")),
-                    Symbol.V("S").Derives(Symbol.V("B"), Symbol.V("B")),
-                    Symbol.V("B").Derives(Symbol.T(Sym.a), Symbol.V("B")),
-                    Symbol.V("B").Derives(Symbol.T(Sym.b))
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
+                .StartSymbol(Var.Start)
+                .And(g => g.Rules(
+                        g[Var.Start].Derives(g[Var.S]),
+                        g[Var.S].Derives(g[Var.B], g[Var.B]),
+                        g[Var.B].Derives(g[Sym.a], g[Var.B]),
+                        g[Var.B].Derives(g[Sym.b])
+                    )
                 );
+
             return grammar;
         }
 

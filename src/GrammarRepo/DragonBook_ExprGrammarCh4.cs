@@ -11,15 +11,23 @@ namespace GrammarRepo
     {
         public enum Sym
         {
+            EOF,
             PLUS,       // +
             ASTERISK,   // *
             LPARAN,     // (
             RPARAN,     // )
-            ID,
-            EOF
+            ID
         }
 
-        public static Grammar<Sym> GetGrammar()
+        public enum Var
+        {
+            S,
+            E,
+            T,
+            F,
+        }
+
+        public static Grammar<Sym, Var> GetGrammar()
         {
             // NOTE: Augmented, but without explicit EOF symbol (the EOF marker is optional, but changes the number of states)
             // 0: S → E
@@ -27,20 +35,23 @@ namespace GrammarRepo
             // 2: E → T
             // 3: T → T * F
             // 4: T → F
-            // 5: T → (E)
-            // 6: T → ID
-            var grammar = new GrammarBuilder<Sym>()
-                .SetNonterminalSymbols(Symbol.Vs("S", "E", "T", "F"))
-                .SetStartSymbol(Symbol.V("S"))
-                .AndProductions(
-                    Symbol.V("S").Derives(Symbol.V("E")),
-                    Symbol.V("E").Derives(Symbol.V("E"), Symbol.T(Sym.PLUS), Symbol.V("T")),
-                    Symbol.V("E").Derives(Symbol.V("T")),
-                    Symbol.V("T").Derives(Symbol.V("T"), Symbol.T(Sym.ASTERISK), Symbol.V("F")),
-                    Symbol.V("T").Derives(Symbol.V("F")),
-                    Symbol.V("F").Derives(Symbol.T(Sym.LPARAN), Symbol.V("E"), Symbol.T(Sym.RPARAN)),
-                    Symbol.V("F").Derives(Symbol.T(Sym.ID))
+            // 5: F → (E)
+            // 6: F → ID
+            var grammar = new GrammarBuilder()
+                .Terminals<Sym>()
+                .Nonterminals<Var>()
+                .StartSymbol(Var.S)
+                .And(g => g.Rules(
+                        g[Var.S].Derives(g[Var.E]),
+                        g[Var.E].Derives(g[Var.E], g[Sym.PLUS], g[Var.T]),
+                        g[Var.E].Derives(g[Var.T]),
+                        g[Var.T].Derives(g[Var.T], g[Sym.ASTERISK], g[Var.F]),
+                        g[Var.T].Derives(g[Var.F]),
+                        g[Var.F].Derives(g[Sym.LPARAN], g[Var.E], g[Sym.RPARAN]),
+                        g[Var.F].Derives(g[Sym.ID])
+                    )
                 );
+
             return grammar;
         }
 

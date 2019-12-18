@@ -8,6 +8,7 @@ using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
 using Sym = GrammarRepo.DragonBookExample4_48.Sym;
+using Var = GrammarRepo.DragonBookExample4_48.Var;
 
 namespace UnitTests.TableTests
 {
@@ -29,7 +30,7 @@ namespace UnitTests.TableTests
             // 3: L → *R
             // 4: L → ID
             // 5: R → L
-            var grammar = DragonBookExample4_48.GetGrammar();
+            Grammar<Sym, Var> grammar = DragonBookExample4_48.GetGrammar();
 
             var writer = new TestWriter();
 
@@ -49,10 +50,10 @@ namespace UnitTests.TableTests
             // ║     L      │   false    │ {ASTERISK, ID} │  {EQUAL, EOF}  ║
             // ╚════════════╧════════════╧════════════════╧════════════════╝
 
-            grammar.Follow(Symbol.V("S'")).ShouldBeEmpty();
-            grammar.Follow(Symbol.V("S")).ShouldSetEqual(Symbol.Eof<Sym>());
-            grammar.Follow(Symbol.V("R")).ShouldSetEqual(Symbol.T(Sym.EQUAL), Symbol.Eof<Sym>());
-            grammar.Follow(Symbol.V("L")).ShouldSetEqual(Symbol.T(Sym.EQUAL), Symbol.Eof<Sym>());
+            grammar.Follow(grammar.V(Var.Start)).ShouldBeEmpty();
+            grammar.Follow(grammar.V(Var.S)).ShouldSetEqual(grammar.Eof());
+            grammar.Follow(grammar.V(Var.R)).ShouldSetEqual(grammar.T(Sym.EQUAL), grammar.Eof());
+            grammar.Follow(grammar.V(Var.L)).ShouldSetEqual(grammar.T(Sym.EQUAL), grammar.Eof());
 
             WriteLine("SLR(1) Parsing Table");
             var slrParser = grammar.ComputeSlrParsingTable();

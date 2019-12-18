@@ -78,10 +78,11 @@ namespace ContextFreeGrammar
     /// <summary>
     /// A specialization of a Deterministic Pushdown Automaton (DPDA) called a shift/reduce parser in compiler theory.
     /// </summary>
-    public class LrParser<TTokenKind> : IShiftReduceParser<TTokenKind>
+    public class LrParser<TTokenKind, TNonterminal> : IShiftReduceParser<TTokenKind, TNonterminal>
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
-        private readonly Grammar<TTokenKind> _grammar;
+        private readonly Grammar<TTokenKind, TNonterminal> _grammar;
 
         // NOTE: This is sort of an adjacency matrix implementation of the two tables (ACTION and GOTO)
         //       where symbols (terminals and nonterminals) are translated to indices via hash tables
@@ -93,10 +94,10 @@ namespace ContextFreeGrammar
 
         // TODO: Use index properties on grammar symbol instances
 
-        private readonly Dictionary<Nonterminal, int> _nonterminalToIndex;
+        //private readonly Dictionary<Nonterminal, int> _nonterminalToIndex;
         //private readonly TNonterminalSymbol[] _indexToNonterminal;
 
-        private readonly Dictionary<Terminal<TTokenKind>, int> _terminalToIndex;
+        //private readonly Dictionary<Terminal<TTokenKind>, int> _terminalToIndex;
         //private readonly TTerminalSymbol[] _indexToTerminal;
 
         private readonly int _maxState;
@@ -107,10 +108,10 @@ namespace ContextFreeGrammar
             new Dictionary<(int, Terminal<TTokenKind>), LrConflict<TTokenKind>>();
 
         public LrParser(
-            Grammar<TTokenKind> grammar,
+            Grammar<TTokenKind, TNonterminal> grammar,
             IReadOnlyOrderedSet<ProductionItemSet<TTokenKind>> originalStates,
-            IEnumerable<Nonterminal> nonterminalSymbols,
-            IEnumerable<Terminal<TTokenKind>> terminalSymbols,
+            SymbolCache<TTokenKind, Terminal<TTokenKind>> terminals,
+            SymbolCache<TNonterminal, Nonterminal> nonterminals,
             IEnumerable<LrActionEntry<TTokenKind>> actionTableEntries,
             IEnumerable<LrGotoEntry> gotoTableEntries
             )
@@ -122,34 +123,26 @@ namespace ContextFreeGrammar
             _maxState = originalStates.Count - 1;
             StartState = 0;
 
-            // Grammar variables (nonterminals)
-            var indexToNonterminal = nonterminalSymbols.ToArray();
-            _nonterminalToIndex= new Dictionary<Nonterminal, int>();
-            for (int i = 0; i < indexToNonterminal.Length; i++)
-                _nonterminalToIndex[indexToNonterminal[i]] = i;
-
-            // Grammar tokens (terminals)
-            var indexToTerminal = terminalSymbols.ToArray();
-            _terminalToIndex= new Dictionary<Terminal<TTokenKind>, int>();
-            for (int i = 0; i < indexToTerminal.Length; i++)
-                _terminalToIndex[indexToTerminal[i]] = i;
+            // TODO: Align property names...maybe make IGrammarSymbolsContainer interface
+            Terminals = terminals;
+            Nonterminals = nonterminals;
 
             // If EOF ($) is not defined as a valid token then we define it
-            if (!_terminalToIndex.ContainsKey(Symbol.Eof<TTokenKind>()))
-                _terminalToIndex[Symbol.Eof<TTokenKind>()] = indexToTerminal.Length;
+            if (!terminals.Contains(grammar.Eof()))
+                throw new InvalidOperationException("EOF marker is not defined.");
 
-            _actionTable = new LrAction[_maxState + 1, _terminalToIndex.Count];
+            _actionTable = new LrAction[_maxState + 1, terminals.Count];
 
             // The augmented start variable S' can be excluded from the GOTO table,
             // and we therefore add one less nonterminal symbols to the GOTO table
-            _gotoTable = new int[_maxState + 1, _nonterminalToIndex.Count - 1];
+            _gotoTable = new int[_maxState + 1, nonterminals.Count - 1];
 
             // NOTE: Important that shift actions are inserted before reduce
             //       actions among the entries (conflict resolution)
 
             foreach (var entry in actionTableEntries)
             {
-                var symbolIndex = _terminalToIndex[entry.TerminalSymbol];
+                var symbolIndex = entry.TerminalSymbol.Index;
 
                 // error is the default action, and not an error is a conflict -- (i, j) occupied
                 if (!_actionTable[entry.State, symbolIndex].IsError)
@@ -195,7 +188,7 @@ namespace ContextFreeGrammar
 
             foreach (var entry in gotoTableEntries)
             {
-                int symbolIndex = _nonterminalToIndex[entry.NonterminalSymbol];
+                int symbolIndex = entry.NonterminalSymbol.Index;
                 _gotoTable[entry.SourceState, symbolIndex - 1] = entry.TargetState;
             }
         }
@@ -222,24 +215,24 @@ namespace ContextFreeGrammar
         }
 
         /// <inheritdoc />
-        public IEnumerable<Terminal<TTokenKind>> TerminalSymbols => _terminalToIndex.Keys;
+        public SymbolCache<TTokenKind, Terminal<TTokenKind>> Terminals { get; }
 
         /// <inheritdoc />
-        public IEnumerable<Nonterminal> NonTerminalSymbols => _nonterminalToIndex.Keys;
+        public SymbolCache<TNonterminal, Nonterminal> Nonterminals { get; }
 
         /// <inheritdoc />
-        public IEnumerable<Nonterminal> TrimmedNonTerminalSymbols => _nonterminalToIndex.Keys.Where(symbol => !StartSymbol.Equals(symbol));
+        public IEnumerable<Nonterminal> TrimmedNonTerminalSymbols => Nonterminals.Where(symbol => !StartSymbol.Equals(symbol));
 
         /// <inheritdoc />
-        public LrAction Action(int state, Terminal<TTokenKind> token)
+        public LrAction Action(int state, Terminal<TTokenKind> terminal)
         {
-            return _actionTable[state, _terminalToIndex[token]];
+            return _actionTable[state, terminal.Index];
         }
 
         /// <inheritdoc />
         public int Goto(int state, Nonterminal variable)
         {
-            int symbolIndex = _nonterminalToIndex[variable];
+            int symbolIndex = variable.Index;
             return symbolIndex == 0 ? 0 : _gotoTable[state, symbolIndex - 1];
         }
 

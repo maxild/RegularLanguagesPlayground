@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -7,31 +6,6 @@ using AutomataLib;
 
 namespace ContextFreeGrammar
 {
-    // Conventions (to be validated by grammar type/class):
-    //   tokens have to represented by enumeration indexed 0,1,2...,N (table indexes)
-    //   terminals are uppercase words: NUM, ID etc...
-    //   variables have to be represented by enumeration 0,1,2,...N (table indexes)
-    //   nonterminals are lowercase word: expression, term, factor, declaration
-    //   terminals are uniquely indexed by enum (maybe generated from grammar spec). EOF and EPS are both
-    //   tokens (but only EOF carry over to Symbols).
-    //   nonterminals are insertion ordered by their definition in grammar.
-    //
-    //                       IsExtendedTerminal    IsTerminal    IsNonterminal    IsEpsilon      IsEof
-    //       EOF                    true              false          false           false       true
-    //       EPS                    true              true           false           true        false
-    //       ID/NUM                 true              true           false           false       false
-    //       expr/factor            false             false          true            false       false
-
-    // NOTE: Type (int, Node, string) etc is not part yet of grammar (no semantic actions yet)
-
-    // TODO: Create grammar symbol namespace (part of grammar)
-    //    terminals defined by TTokenKind enum instance
-    //    nonterminals defined by rules (we need | operator)
-    // TODO: Maybe better to move all other stuff out of grammar, because grammar (CFG) should only contain
-    //      the basic rewriting system (phrase structure ????, generative grammar).
-
-    // TODO: Create TokenKindCache for enum metadata (name, value, index) and use it for both Token and Terminal
-
     /// <summary>
     /// Represents a grammar symbol (terminal, nonterminal) or one of the
     /// two reserved symbols EOF marker or Epsilon (the empty string).
@@ -42,7 +16,11 @@ namespace ContextFreeGrammar
     /// </remarks>
     public abstract class Symbol : IEquatable<Symbol>
     {
-        protected Symbol(string name, int index)
+        // NOTE: Because Nonterminal does not contain TEnum nonterminal kind parameter we have
+        // to use the Type of the Kind to implement Equals correctly.
+        private readonly Type _kindType;
+
+        protected Symbol(string name, int index, Type kindType)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -50,6 +28,7 @@ namespace ContextFreeGrammar
             }
             Name = name;
             Index = index;
+            _kindType = kindType ?? throw new ArgumentNullException(nameof(kindType));
         }
 
         /// <summary>
@@ -70,7 +49,7 @@ namespace ContextFreeGrammar
 
         /// <summary>
         /// Is the symbol a terminal symbol that is either part of the alphabet of the language or
-        /// is it the reserved eof marker symbol instantiated by <see cref="Symbol.Eof{TTokenKind}()"/>.
+        /// is it the reserved EOF marker symbol.
         /// In other words, is the symbol part of the input language of the parser (or equivalently the
         /// output language of the lexer).
         /// </summary>
@@ -87,9 +66,10 @@ namespace ContextFreeGrammar
         /// Is the symbol a terminal symbol that is part of the language described by the grammar (i.e. the alphabet of the language).
         /// </summary>
         /// <remarks>
-        /// All <see cref="Terminal{TTokenKind}"/> derived symbols have <see cref="IsTerminal"/> equal to <c>true</c>. The only
-        /// <see cref="Terminal{TTokenKind}"/> value that does not have <see cref="IsTerminal"/> equal to <c>true</c> is the
-        /// reserved eof marker symbol instantiated by <see cref="Symbol.Eof{TTokenKind}()"/>.
+        /// All <see cref="Terminal{TTokenKind}"/> symbols have <see cref="IsExtendedTerminal"/> equal to <c>true</c>.
+        /// All <see cref="Terminal{TTokenKind}"/> symbols except one value have <see cref="IsTerminal"/> equal to <c>true</c>.
+        /// The only <see cref="Terminal{TTokenKind}"/> value that does not have <see cref="IsTerminal"/> equal to <c>true</c> is the
+        /// reserved EOF marker symbol"/>.
         /// </remarks>
         public abstract bool IsTerminal { get; }
 
@@ -120,23 +100,6 @@ namespace ContextFreeGrammar
         public abstract bool IsEof { get; }
 
         /// <summary>
-        /// Reserved (extended) terminal symbol for end of input ('$' in dragon book).
-        /// </summary>
-        /// <remarks>
-        /// Many texts on parsing and compiler theory will not agree that the eof marker ($) is a terminal symbol.
-        /// In a way this is correct, because the language (per se) cannot contain this token. But in a way 'end
-        /// of input' must be communicated from the lexer to the parser some way, and the most elegant (pure)
-        /// way, is to extend the input alphabet T with this reserved token: T' = T ∪ {$}.
-        /// Any valid grammar will only contain a single production containing the eof marker. This special
-        /// production rule is by convention the first production of the grammar. This production
-        /// S' → S$ give rise to two kernel items [S' → •S$], the initial item (state 1 in our implementation), and [S' → S•$], the final
-        /// accepting item (state 2 in our implementation). This way the special S' → S$ rule is added to the grammar to allow
-        /// the parser to accept the input in a deterministic way. That is a bottom-up (left) parser will only accept the input
-        /// if the next input token is eof ($) after reducing by the final accept item [S' → S•$].
-        /// </remarks>
-        public static Terminal<TTokenKind> Eof<TTokenKind>() where TTokenKind : struct, Enum => Terminal<TTokenKind>.EOF;
-
-        /// <summary>
         /// Reserved symbol 'ε' representing the empty string, that is only used as a reserved symbol in the grammar of
         /// grammars (just like the '→' symbol).
         /// </summary>
@@ -157,7 +120,7 @@ namespace ContextFreeGrammar
         /// </summary>
         class Eps : Symbol
         {
-            public Eps() : base("ε", index: -1)
+            public Eps() : base("ε", index: -1, typeof(Eps))
             {
             }
 
@@ -172,42 +135,6 @@ namespace ContextFreeGrammar
             public override bool IsEof => false;
         }
 
-        // TODO: T, Ts, V and Vs should be moved else where (because we need central repository/cache for singleton values) scoped to a grammar
-
-        // Registry<TKey, TSymbol> == IReadOnlyList<TSymbol> + IndexOf(TKey key)
-
-        // Registry<TTokenKind, Terminal<TTokenKind>>
-        //      Enum --> Terminal --> Index         (Enum is the index)
-        //      Index --> Terminal --> Enum
-
-        // Registry<string, Nonterminal>
-        //      Name --> Nonterminal --> Index      (Here we need insertion ordered set...but we only need IndexOf)
-        //      Index --> Nonterminal --> Name
-
-        public static Nonterminal V(string name)
-        {
-            // TODO: Move to registry
-            return new Nonterminal(name, index: 0);
-        }
-
-        public static IEnumerable<Nonterminal> Vs(params string[] names)
-        {
-            // TODO: Move to registry
-            return names.Select(name => new Nonterminal(name, index: 0));
-        }
-
-        public static Terminal<TTokenKind> T<TTokenKind>(TTokenKind kind)
-            where TTokenKind : struct, Enum
-        {
-            return Terminal<TTokenKind>.T(kind);
-        }
-
-        public static IEnumerable<Terminal<TTokenKind>> Ts<TTokenKind>(params TTokenKind[] kinds)
-            where TTokenKind : struct, Enum
-        {
-            return kinds.Select(Terminal<TTokenKind>.T);
-        }
-
         public override string ToString()
         {
             return Name;
@@ -215,27 +142,14 @@ namespace ContextFreeGrammar
 
         public bool Equals(Symbol other)
         {
-            if (other == null)
-                return false;
-
-            if (ReferenceEquals(this, other))
-                return true;
-
-            if (GetType() != other.GetType())
-                return false;
-
-            // TODO: Uncomment when index is created in Nonterminal
-            //return Index == other.Index;
-            return Name.Equals(other.Name, StringComparison.Ordinal);
+            // Same named constant (i.e. index) of same underlying enumeration (i.e. kind)
+            return other != null && Index == other.Index && _kindType == other._kindType;
         }
 
         public override bool Equals(object obj)
         {
             if (!(obj is Symbol))
-            {
                 return false;
-            }
-
             return Equals((Symbol) obj);
         }
 
@@ -249,12 +163,12 @@ namespace ContextFreeGrammar
     /// A nonterminal (aka grammar variable) in V.
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
-    public class Nonterminal : Symbol, IEquatable<Nonterminal>, IIndexerValue
+    public class Nonterminal : Symbol, IEquatable<Nonterminal>, ISymbolIndex
     {
         private string DebuggerDisplay => Name;
 
-        internal Nonterminal(string name, int index)
-            : base(name, index)
+        public Nonterminal(string name, int index, Type kindType)
+            : base(name, index, kindType)
         {
         }
 
@@ -272,6 +186,16 @@ namespace ContextFreeGrammar
         {
             return base.Equals(other);
         }
+
+        public Production Derives(params Symbol[] tail)
+        {
+            return new Production(this, tail);
+        }
+
+        public Production DerivesEpsilon()
+        {
+            return new Production(this, Enumerable.Empty<Symbol>());
+        }
     }
 
     /// <summary>
@@ -279,85 +203,13 @@ namespace ContextFreeGrammar
     /// </summary>
     [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ",nq}")]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public class Terminal<TTokenKind> : Symbol, IEquatable<Terminal<TTokenKind>>, IIndexerValue
+    public class Terminal<TTokenKind> : Symbol, IEquatable<Terminal<TTokenKind>>, ISymbolIndex
         where TTokenKind : struct, Enum
     {
-        /// <summary>
-        /// Reserved terminal grammar symbol for EOF marker.
-        /// </summary>
-        internal static Terminal<TTokenKind> EOF => All[s_eofIndex];
-
-        // NOTE: The static fields will not be shared between different closed Terminal<TTokenKind> classes. That
-        // Terminal<Sym1> and Terminal<Sym2> will have different independent static fields. This is correct for our cache.
-        // ReSharper disable once StaticMemberInGenericType
-        private static readonly int s_eofIndex;
-
-        // NOTE: the static constructor will be called once for each closed class type (i.e. once for each token kind)
-        static Terminal()
-        {
-            (All, s_eofIndex) = GetSeqOrdTerminals();
-        }
-
-        internal static IReadOnlyList<Terminal<TTokenKind>> All { get; }
-
-        internal static Terminal<TTokenKind> T(TTokenKind kind)
-        {
-            return All[Convert.ToInt32(kind)];
-        }
-
-        // TODO: All the validation exceptions are hard to catch when done in static initializers...move vakidations to GrammarBuilder and use intermediate sequence of tuples (kind, name, index)
-
-        /// <summary>
-        /// Get sequentially ordered list of token kinds from minimal bound zero to maximal bound N-1.
-        /// </summary>
-        public static (IReadOnlyList<Terminal<TTokenKind>>, int) GetSeqOrdTerminals()
-        {
-            Type t = typeof(TTokenKind);
-
-            if (Attribute.IsDefined(t, typeof(FlagsAttribute)))
-                throw new InvalidOperationException("The TTokenKind enum type cannot have [Flags] attribute.");
-            if (Enum.GetUnderlyingType(t) != typeof(int))
-                throw new InvalidOperationException("The TTokenKind enum type must have underlying type equal to System.Int32.");
-
-            int eofIndex = -1;
-            List<Terminal<TTokenKind>> terminals = new List<Terminal<TTokenKind>>();
-
-            int index = 0;
-            foreach (var tokenKind in ((TTokenKind[])Enum.GetValues(t)).OrderBy(kind => kind))
-            {
-                int rawValue = Convert.ToInt32(tokenKind);
-
-                // Hidden tokens (epsilon, trivia) have negative value
-                if (rawValue < 0)
-                    continue;
-
-                if (rawValue != index)
-                    throw new InvalidOperationException($"The values of {t.FullName} are not sequentially ordered 0,1,...,N-1.");
-
-                string name = tokenKind.ToString();
-
-                //if (name.Any(c => false == char.IsUpper(c)))
-                //    throw new InvalidOperationException(
-                //        $"Terminal symbols defined by the names of {t.FullName} must all be uppercase. The name {name} is not.");
-
-                if (TokenKinds.Eof.Equals(name, StringComparison.Ordinal))
-                    eofIndex = index;
-
-                terminals.Add(new Terminal<TTokenKind>(tokenKind, name, index));
-
-                index += 1;
-            }
-
-            if (eofIndex < 0)
-                throw new InvalidOperationException($"The reserved name EOF was not found among the names of {t.FullName}.");
-
-            return (terminals, eofIndex);
-        }
-
         private string DebuggerDisplay => Name;
 
-        private Terminal(TTokenKind kind, string name, int index)
-            : base(name, index)
+        public Terminal(string name, int index, TTokenKind kind)
+            : base(name, index, typeof(TTokenKind))
         {
             Kind = kind;
         }
@@ -372,7 +224,8 @@ namespace ContextFreeGrammar
 
         public override bool IsEpsilon => false;
 
-        public override bool IsEof => Equals(EOF);
+        // TODO: At index zero, because of enforced convention
+        public override bool IsEof => Name.Equals(TokenKinds.Eof, StringComparison.Ordinal);
 
         public bool Equals(Terminal<TTokenKind> other)
         {

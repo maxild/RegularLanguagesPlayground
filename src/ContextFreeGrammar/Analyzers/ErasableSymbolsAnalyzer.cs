@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AutomataLib;
 
 namespace ContextFreeGrammar.Analyzers
 {
-    internal class ErasableSymbolsAnalyzer<TTokenKind> : IErasableSymbolsAnalyzer
+    internal class ErasableSymbolsAnalyzer<TTokenKind, TNonterminal> : IErasableSymbolsAnalyzer
         where TTokenKind : struct, Enum
+        where TNonterminal : struct, Enum
     {
         private readonly Dictionary<Nonterminal, bool> _nullableMap;
 
-        internal ErasableSymbolsAnalyzer(Grammar<TTokenKind> grammar)
+        internal ErasableSymbolsAnalyzer(Grammar<TTokenKind, TNonterminal> grammar)
         {
             if (grammar == null)
                 throw new ArgumentNullException(nameof(grammar));
@@ -27,7 +27,7 @@ namespace ContextFreeGrammar.Analyzers
             //    : symbol.IsEpsilon || symbol.IsEof; // terminal and eof are both erasable (eof by convention)
         }
 
-        private static Dictionary<Nonterminal, bool> ComputeErasableSymbols(Grammar<TTokenKind> grammar)
+        private static Dictionary<Nonterminal, bool> ComputeErasableSymbols(Grammar<TTokenKind, TNonterminal> grammar)
         {
             // only define nullable predicate on non-terminals
             Dictionary<Nonterminal, bool> nullableMap = grammar.Nonterminals.ToDictionary(symbol => symbol, _ => false);

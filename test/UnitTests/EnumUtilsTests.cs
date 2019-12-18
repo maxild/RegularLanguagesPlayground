@@ -8,7 +8,7 @@ namespace UnitTests
 {
     public class EnumUtilsTests
     {
-        public class GrammarVariable : IIndexerValue
+        public class GrammarVariable : ISymbolIndex
         {
             public GrammarVariable(string name, int index)
             {
@@ -19,7 +19,7 @@ namespace UnitTests
             public int Index { get; }
         }
 
-        public class TokenVariable<TTokenKind> : IIndexerValue
+        public class TokenVariable<TTokenKind> : ISymbolIndex
             where TTokenKind : struct, Enum
         {
             public TokenVariable(string name, int index, TTokenKind kind)
@@ -50,25 +50,49 @@ namespace UnitTests
         [Fact]
         public void ValidEnum()
         {
-            var grammarVariables = EnumUtils.MapToIndexValues<Sym, GrammarVariable>((_, name, index) =>
+            var grammarVariables = EnumUtils.MapToSymbolCache<Sym, GrammarVariable>((name, index, _) =>
                 new GrammarVariable(name, index));
             grammarVariables.Count.ShouldBe(5);
             grammarVariables[0].Name.ShouldBe("EOF");
             grammarVariables[0].Index.ShouldBe(0);
+            grammarVariables[Sym.EOF].Name.ShouldBe("EOF");
+            grammarVariables[Sym.EOF].Index.ShouldBe(0);
+            grammarVariables["EOF"].Name.ShouldBe("EOF");
+            grammarVariables["EOF"].Index.ShouldBe(0);
+
             grammarVariables[1].Name.ShouldBe("ID");
             grammarVariables[1].Index.ShouldBe(1);
+            grammarVariables[Sym.ID].Name.ShouldBe("ID");
+            grammarVariables[Sym.ID].Index.ShouldBe(1);
+            grammarVariables["ID"].Name.ShouldBe("ID");
+            grammarVariables["ID"].Index.ShouldBe(1);
+
             grammarVariables[2].Name.ShouldBe("NUM");
             grammarVariables[2].Index.ShouldBe(2);
+            grammarVariables[Sym.NUM].Name.ShouldBe("NUM");
+            grammarVariables[Sym.NUM].Index.ShouldBe(2);
+            grammarVariables["NUM"].Name.ShouldBe("NUM");
+            grammarVariables["NUM"].Index.ShouldBe(2);
+
             grammarVariables[3].Name.ShouldBe("LPARAN");
             grammarVariables[3].Index.ShouldBe(3);
+            grammarVariables[Sym.LPARAN].Name.ShouldBe("LPARAN");
+            grammarVariables[Sym.LPARAN].Index.ShouldBe(3);
+            grammarVariables["LPARAN"].Name.ShouldBe("LPARAN");
+            grammarVariables["LPARAN"].Index.ShouldBe(3);
+
             grammarVariables[4].Name.ShouldBe("RPARAN");
             grammarVariables[4].Index.ShouldBe(4);
+            grammarVariables[Sym.RPARAN].Name.ShouldBe("RPARAN");
+            grammarVariables[Sym.RPARAN].Index.ShouldBe(4);
+            grammarVariables["RPARAN"].Name.ShouldBe("RPARAN");
+            grammarVariables["RPARAN"].Index.ShouldBe(4);
         }
 
         [Fact]
         public void ValidEnumWithEnumValue()
         {
-            var tokenVariables = EnumUtils.MapToIndexValues<Sym, TokenVariable<Sym>>((enumValue, name, index) =>
+            var tokenVariables = EnumUtils.MapToSymbolCache<Sym, TokenVariable<Sym>>((name, index, enumValue) =>
                 new TokenVariable<Sym>(name, index, enumValue));
             tokenVariables.Count.ShouldBe(5);
             tokenVariables[0].Name.ShouldBe("EOF");
@@ -99,8 +123,8 @@ namespace UnitTests
         [Fact]
         public void DuplicateValues_ThrowsInvalidOperation()
         {
-            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToIndexValues<Dup, TokenVariable<Dup>>(
-                    (enumValue, name, index) =>
+            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToSymbolCache<Dup, TokenVariable<Dup>>(
+                    (name, index, enumValue) =>
                         new TokenVariable<Dup>(name, index, enumValue)))
                 .Message
                 .ShouldBe(
@@ -118,8 +142,8 @@ namespace UnitTests
         [Fact]
         public void NonContiguousValues_ThrowsInvalidOperation()
         {
-            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToIndexValues<NonCont, TokenVariable<NonCont>>(
-                    (enumValue, name, index) =>
+            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToSymbolCache<NonCont, TokenVariable<NonCont>>(
+                    (name, index, enumValue) =>
                         new TokenVariable<NonCont>(name, index, enumValue)))
                 .Message
                 .ShouldBe(
@@ -137,8 +161,8 @@ namespace UnitTests
         [Fact]
         public void WrongUnderlyingType_ThrowsInvalidOperation()
         {
-            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToIndexValues<Wrong, TokenVariable<Wrong>>(
-                    (enumValue, name, index) =>
+            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToSymbolCache<Wrong, TokenVariable<Wrong>>(
+                    (name, index, enumValue) =>
                         new TokenVariable<Wrong>(name, index, enumValue)))
                 .Message
                 .ShouldBe(
@@ -157,8 +181,8 @@ namespace UnitTests
         [Fact]
         public void FlagsEnum_ThrowsInvalidOperation()
         {
-            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToIndexValues<Flags, TokenVariable<Flags>>(
-                    (enumValue, name, index) =>
+            Assert.Throws<InvalidOperationException>(() => EnumUtils.MapToSymbolCache<Flags, TokenVariable<Flags>>(
+                    (name, index, enumValue) =>
                         new TokenVariable<Flags>(name, index, enumValue)))
                 .Message
                 .ShouldBe(

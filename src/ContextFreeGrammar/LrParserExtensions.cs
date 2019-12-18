@@ -47,9 +47,8 @@ namespace ContextFreeGrammar
             // push initial state onto the stack
             stack.Push(parser.StartState);
 
-            // TODO: Are we using token (lexer type) or terminal (grammar type) here
             Token<TTokenKind> token = lexer.GetNextToken();
-            Terminal<TTokenKind> a = Symbol.T(token.Kind);
+            Terminal<TTokenKind> a = parser.Terminals[token.Kind];
 
             while (true)
             {
@@ -83,10 +82,8 @@ namespace ContextFreeGrammar
                     stack.Push(t);
 
                     // call yylex to get the next token
-                    // TODO: Are we using token (lexer type) or terminal (grammar type) here
                     token = lexer.GetNextToken();
-                    a = Symbol.T(token.Kind);
-
+                    a = parser.Terminals[token.Kind];
                 }
                 // Action(s, a) = reduce A → β (DFA recognized a handle)
                 else if (action.IsReduce) // remaining input remains unchanged
