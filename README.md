@@ -5,6 +5,7 @@ https://web.stanford.edu/class/archive/cs/cs143/cs143.1112/
 ## Other CS courses
 
 https://www.cs.umd.edu/~mvz/cmsc430-s07/
+https://ocw.mit.edu/courses/mathematics/18-404j-theory-of-computation-fall-2020/index.htm
 
 ### Gallier CIS 511
 
